@@ -1,0 +1,233 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============== ENUMS ==============
+
+enum UserRole {
+  VENDOR
+  CARRIER
+  BOTH
+}
+
+enum ParcelSize {
+  SMALL
+  MEDIUM
+  LARGE
+  XLARGE
+}
+
+enum ParcelStatus {
+  PENDING
+  ACCEPTED
+  PICKED_UP
+  DELIVERED
+  CANCELLED
+  EXPIRED
+}
+
+enum DropoffType {
+  POST_OFFICE
+  RELAY_POINT
+  OTHER
+}
+
+enum MissionStatus {
+  ACCEPTED
+  IN_PROGRESS
+  PICKED_UP
+  DELIVERED
+  CANCELLED
+}
+
+enum TransactionStatus {
+  PENDING
+  CAPTURED
+  TRANSFERRED
+  REFUNDED
+  FAILED
+}
+
+enum StripeAccountStatus {
+  PENDING
+  ACTIVE
+  RESTRICTED
+}
+
+// ============== MODELS ==============
+
+model User {
+  id                     String    @id @default(uuid())
+  email                  String    @unique
+  passwordHash           String
+  firstName              String
+  lastName               String
+  phone                  String?
+  role                   UserRole
+  avatarUrl              String?
+  emailVerified          Boolean   @default(false)
+  emailVerificationToken String?
+  passwordResetToken     String?
+  passwordResetExpires   DateTime?
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+
+  addresses        Address[]
+  parcelsAsVendor  Parcel[]       @relation("VendorParcels")
+  parcelsAsCarrier Parcel[]       @relation("CarrierParcels")
+  missions         Mission[]
+  reviewsGiven     Review[]       @relation("ReviewsGiven")
+  reviewsReceived  Review[]       @relation("ReviewsReceived")
+  transactionsAsPayer Transaction[] @relation("PayerTransactions")
+  transactionsAsPayee Transaction[] @relation("PayeeTransactions")
+  refreshTokens    RefreshToken[]
+  carrierProfile   CarrierProfile?
+
+  @@map("users")
+}
+
+model Address {
+  id           String   @id @default(uuid())
+  userId       String
+  label        String
+  street       String
+  city         String
+  postalCode   String
+  country      String   @default("France")
+  latitude     Float
+  longitude    Float
+  instructions String?
+  isDefault    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parcels Parcel[]
+
+  @@map("addresses")
+}
+
+model Parcel {
+  id              String       @id @default(uuid())
+  vendorId        String
+  carrierId       String?
+  pickupAddressId String
+  dropoffType     DropoffType
+  dropoffName     String
+  dropoffAddress  String
+  size            ParcelSize
+  weightEstimate  Float?
+  description     String?
+  photoUrl        String?
+  status          ParcelStatus @default(PENDING)
+  price           Decimal      @db.Decimal(10, 2)
+  pickupSlotStart DateTime
+  pickupSlotEnd   DateTime
+  pickupCode      String
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  vendor        User          @relation("VendorParcels", fields: [vendorId], references: [id])
+  carrier       User?         @relation("CarrierParcels", fields: [carrierId], references: [id])
+  pickupAddress Address       @relation(fields: [pickupAddressId], references: [id])
+  mission       Mission?
+  transactions  Transaction[]
+  reviews       Review[]
+
+  @@index([status, pickupSlotStart])
+  @@map("parcels")
+}
+
+model Mission {
+  id            String        @id @default(uuid())
+  parcelId      String        @unique
+  carrierId     String
+  status        MissionStatus @default(ACCEPTED)
+  acceptedAt    DateTime      @default(now())
+  pickedUpAt    DateTime?
+  deliveredAt   DateTime?
+  proofPhotoUrl String?
+  carrierNotes  String?
+  createdAt     DateTime      @default(now())
+
+  parcel  Parcel @relation(fields: [parcelId], references: [id])
+  carrier User   @relation(fields: [carrierId], references: [id])
+
+  @@map("missions")
+}
+
+model Transaction {
+  id                    String            @id @default(uuid())
+  parcelId              String
+  payerId               String
+  payeeId               String?
+  amount                Decimal           @db.Decimal(10, 2)
+  platformFee           Decimal           @db.Decimal(10, 2)
+  carrierPayout         Decimal           @db.Decimal(10, 2)
+  stripePaymentIntentId String?
+  stripeTransferId      String?
+  status                TransactionStatus @default(PENDING)
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+
+  parcel Parcel @relation(fields: [parcelId], references: [id])
+  payer  User   @relation("PayerTransactions", fields: [payerId], references: [id])
+  payee  User?  @relation("PayeeTransactions", fields: [payeeId], references: [id])
+
+  @@map("transactions")
+}
+
+model Review {
+  id         String   @id @default(uuid())
+  parcelId   String
+  reviewerId String
+  revieweeId String
+  rating     Int
+  comment    String?
+  createdAt  DateTime @default(now())
+
+  parcel   Parcel @relation(fields: [parcelId], references: [id])
+  reviewer User   @relation("ReviewsGiven", fields: [reviewerId], references: [id])
+  reviewee User   @relation("ReviewsReceived", fields: [revieweeId], references: [id])
+
+  @@map("reviews")
+}
+
+model CarrierProfile {
+  id                  String               @id @default(uuid())
+  userId              String               @unique
+  isAvailable         Boolean              @default(false)
+  coverageRadiusKm    Int                  @default(5)
+  currentLatitude     Float?
+  currentLongitude    Float?
+  stripeAccountId     String?
+  stripeAccountStatus StripeAccountStatus?
+  identityVerified    Boolean              @default(false)
+  totalDeliveries     Int                  @default(0)
+  averageRating       Float?
+  lastLocationUpdate  DateTime?
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([isAvailable, currentLatitude, currentLongitude])
+  @@map("carrier_profiles")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("refresh_tokens")
+}
