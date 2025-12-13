@@ -1,9 +1,18 @@
 ﻿import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import jwt from '@fastify/jwt';
+import multipart from '@fastify/multipart';
+import staticFiles from '@fastify/static';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { env } from './config/env.js';
 import { setupAuthMiddleware } from './shared/middlewares/auth.middleware.js';
 import { authRoutes } from './modules/auth/auth.routes.js';
+import { usersRoutes } from './modules/users/users.routes.js';
+import { addressesRoutes } from './modules/addresses/addresses.routes.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = Fastify({
   logger: {
@@ -27,6 +36,18 @@ await app.register(jwt, {
   secret: env.JWT_SECRET,
 });
 
+await app.register(multipart, {
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB
+  },
+});
+
+// Servir les fichiers statiques (uploads)
+await app.register(staticFiles, {
+  root: path.join(__dirname, '..', 'uploads'),
+  prefix: '/uploads/',
+});
+
 // Middleware d'authentification
 setupAuthMiddleware(app);
 
@@ -47,8 +68,10 @@ app.get('/', async () => {
   };
 });
 
-// Routes Auth
+// Routes
 await app.register(authRoutes);
+await app.register(usersRoutes);
+await app.register(addressesRoutes);
 
 // Gestion d'erreurs globale
 app.setErrorHandler((error, request, reply) => {
@@ -70,7 +93,9 @@ const start = async () => {
     📍 http://localhost:${port}
     ❤️  Health: http://localhost:${port}/health
     
-    📝 Auth endpoints:
+    📝 Endpoints disponibles:
+    
+    AUTH:
     POST /auth/register
     POST /auth/login
     POST /auth/refresh
@@ -78,6 +103,19 @@ const start = async () => {
     POST /auth/forgot-password
     POST /auth/reset-password
     GET  /auth/me
+    
+    USERS:
+    GET  /users/me
+    PUT  /users/me
+    PUT  /users/me/avatar
+    GET  /users/:id/profile
+    
+    ADDRESSES:
+    GET    /addresses
+    POST   /addresses
+    PUT    /addresses/:id
+    DELETE /addresses/:id
+    POST   /addresses/geocode
     `);
   } catch (err) {
     app.log.error(err);
