@@ -2,6 +2,8 @@
 import cors from '@fastify/cors';
 import jwt from '@fastify/jwt';
 import { env } from './config/env.js';
+import { setupAuthMiddleware } from './shared/middlewares/auth.middleware.js';
+import { authRoutes } from './modules/auth/auth.routes.js';
 
 const app = Fastify({
   logger: {
@@ -25,6 +27,9 @@ await app.register(jwt, {
   secret: env.JWT_SECRET,
 });
 
+// Middleware d'authentification
+setupAuthMiddleware(app);
+
 // Health check
 app.get('/health', async () => {
   return {
@@ -41,6 +46,9 @@ app.get('/', async () => {
     version: '1.0.0',
   };
 });
+
+// Routes Auth
+await app.register(authRoutes);
 
 // Gestion d'erreurs globale
 app.setErrorHandler((error, request, reply) => {
@@ -61,6 +69,15 @@ const start = async () => {
     🚀 HopDrop API started!
     📍 http://localhost:${port}
     ❤️  Health: http://localhost:${port}/health
+    
+    📝 Auth endpoints:
+    POST /auth/register
+    POST /auth/login
+    POST /auth/refresh
+    POST /auth/logout
+    POST /auth/forgot-password
+    POST /auth/reset-password
+    GET  /auth/me
     `);
   } catch (err) {
     app.log.error(err);
