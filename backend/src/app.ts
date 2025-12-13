@@ -12,6 +12,7 @@ import { usersRoutes } from './modules/users/users.routes.js';
 import { addressesRoutes } from './modules/addresses/addresses.routes.js';
 import { parcelsRoutes } from './modules/parcels/parcels.routes.js';
 import { missionsRoutes } from './modules/missions/missions.routes.js';
+import { uploadsRoutes } from './modules/uploads/uploads.routes.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -40,17 +41,16 @@ await app.register(jwt, {
 
 await app.register(multipart, {
   limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB
+    fileSize: 5 * 1024 * 1024,
   },
 });
 
-// Servir les fichiers statiques (uploads)
 await app.register(staticFiles, {
   root: path.join(__dirname, '..', 'uploads'),
   prefix: '/uploads/',
 });
 
-// Middleware d'authentification
+// Middleware
 setupAuthMiddleware(app);
 
 // Health check
@@ -65,7 +65,7 @@ app.get('/health', async () => {
 // Route racine
 app.get('/', async () => {
   return {
-    message: '🚀 HopDrop API is running!',
+    message: 'HopDrop API is running!',
     version: '1.0.0',
   };
 });
@@ -76,8 +76,9 @@ await app.register(usersRoutes);
 await app.register(addressesRoutes);
 await app.register(parcelsRoutes);
 await app.register(missionsRoutes);
+await app.register(uploadsRoutes);
 
-// Gestion d'erreurs globale
+// Gestion erreurs
 app.setErrorHandler((error, request, reply) => {
   app.log.error(error);
   reply.status(error.statusCode || 500).send({
@@ -87,63 +88,12 @@ app.setErrorHandler((error, request, reply) => {
   });
 });
 
-// Démarrer le serveur
+// Demarrer
 const start = async () => {
   try {
     const port = parseInt(env.PORT);
     await app.listen({ port, host: '0.0.0.0' });
-    console.log(`
-    🚀 HopDrop API started!
-    📍 http://localhost:${port}
-    ❤️  Health: http://localhost:${port}/health
-    
-    📝 Endpoints disponibles:
-    
-    AUTH:
-    POST /auth/register
-    POST /auth/login
-    POST /auth/refresh
-    POST /auth/logout
-    POST /auth/forgot-password
-    POST /auth/reset-password
-    GET  /auth/me
-    
-    USERS:
-    GET  /users/me
-    PUT  /users/me
-    PUT  /users/me/avatar
-    GET  /users/:id/profile
-    
-    ADDRESSES:
-    GET    /addresses
-    POST   /addresses
-    PUT    /addresses/:id
-    DELETE /addresses/:id
-    POST   /addresses/geocode
-
-    PARCELS:
-    POST   /parcels
-    GET    /parcels
-    GET    /parcels/:id
-    PUT    /parcels/:id
-    DELETE /parcels/:id
-    POST   /parcels/:id/confirm-pickup
-
-    MISSIONS:
-    GET    /missions/available?latitude=X&longitude=Y&radius=Z
-    POST   /missions/:parcelId/accept
-    GET    /missions/current
-    GET    /missions/history
-    POST   /missions/:id/pickup
-    POST   /missions/:id/deliver
-    POST   /missions/:id/cancel
-    
-    CARRIER:
-    PUT    /carrier/availability
-    PUT    /carrier/location
-    PUT    /carrier/settings
-    GET    /carrier/profile
-    `);
+    console.log('HopDrop API started on http://localhost:' + port);
   } catch (err) {
     app.log.error(err);
     process.exit(1);
