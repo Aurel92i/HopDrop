@@ -10,6 +10,7 @@ import { setupAuthMiddleware } from './shared/middlewares/auth.middleware.js';
 import { authRoutes } from './modules/auth/auth.routes.js';
 import { usersRoutes } from './modules/users/users.routes.js';
 import { addressesRoutes } from './modules/addresses/addresses.routes.js';
+import { parcelsRoutes } from './modules/parcels/parcels.routes.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -72,6 +73,7 @@ app.get('/', async () => {
 await app.register(authRoutes);
 await app.register(usersRoutes);
 await app.register(addressesRoutes);
+await app.register(parcelsRoutes);
 
 // Gestion d'erreurs globale
 app.setErrorHandler((error, request, reply) => {
@@ -116,6 +118,14 @@ const start = async () => {
     PUT    /addresses/:id
     DELETE /addresses/:id
     POST   /addresses/geocode
+
+    PARCELS:
+    POST   /parcels
+    GET    /parcels
+    GET    /parcels/:id
+    PUT    /parcels/:id
+    DELETE /parcels/:id
+    POST   /parcels/:id/confirm-pickup
     `);
   } catch (err) {
     app.log.error(err);
