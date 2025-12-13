@@ -11,6 +11,7 @@ import { authRoutes } from './modules/auth/auth.routes.js';
 import { usersRoutes } from './modules/users/users.routes.js';
 import { addressesRoutes } from './modules/addresses/addresses.routes.js';
 import { parcelsRoutes } from './modules/parcels/parcels.routes.js';
+import { missionsRoutes } from './modules/missions/missions.routes.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -74,6 +75,7 @@ await app.register(authRoutes);
 await app.register(usersRoutes);
 await app.register(addressesRoutes);
 await app.register(parcelsRoutes);
+await app.register(missionsRoutes);
 
 // Gestion d'erreurs globale
 app.setErrorHandler((error, request, reply) => {
@@ -126,6 +128,21 @@ const start = async () => {
     PUT    /parcels/:id
     DELETE /parcels/:id
     POST   /parcels/:id/confirm-pickup
+
+    MISSIONS:
+    GET    /missions/available?latitude=X&longitude=Y&radius=Z
+    POST   /missions/:parcelId/accept
+    GET    /missions/current
+    GET    /missions/history
+    POST   /missions/:id/pickup
+    POST   /missions/:id/deliver
+    POST   /missions/:id/cancel
+    
+    CARRIER:
+    PUT    /carrier/availability
+    PUT    /carrier/location
+    PUT    /carrier/settings
+    GET    /carrier/profile
     `);
   } catch (err) {
     app.log.error(err);
