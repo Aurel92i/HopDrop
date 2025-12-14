@@ -15,7 +15,6 @@ export type CarrierStackParamList = {
   CarrierHome: undefined;
   AvailableMissions: undefined;
   MissionDetail: { missionId: string };
-  CarrierHistory: undefined;
 };
 
 export type ProfileStackParamList = {

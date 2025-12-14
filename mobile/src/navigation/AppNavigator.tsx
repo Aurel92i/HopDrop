@@ -16,7 +16,20 @@ import { LoginScreen } from '../screens/auth/LoginScreen';
 import { RegisterScreen } from '../screens/auth/RegisterScreen';
 import { ForgotPasswordScreen } from '../screens/auth/ForgotPasswordScreen';
 
-// Placeholder pour les autres screens (on les créera aux étapes suivantes)
+// Vendor Screens
+import { VendorHomeScreen } from '../screens/vendor/VendorHomeScreen';
+import { CreateParcelScreen } from '../screens/vendor/CreateParcelScreen';
+import { ParcelDetailScreen } from '../screens/vendor/ParcelDetailScreen';
+
+// Carrier Screens
+import { CarrierHomeScreen } from '../screens/carrier/CarrierHomeScreen';
+import { AvailableMissionsScreen } from '../screens/carrier/AvailableMissionsScreen';
+import { MissionDetailScreen } from '../screens/carrier/MissionDetailScreen';
+
+// Shared Screens
+import { ProfileScreen } from '../screens/shared/ProfileScreen';
+
+// Placeholders (pas encore créés)
 const PlaceholderScreen = ({ name }: { name: string }) => (
   <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background }}>
     <Text variant="headlineSmall">{name}</Text>
@@ -26,23 +39,8 @@ const PlaceholderScreen = ({ name }: { name: string }) => (
   </View>
 );
 
-// Vendor Screens
-import { VendorHomeScreen } from '../screens/vendor/VendorHomeScreen';
-import { CreateParcelScreen } from '../screens/vendor/CreateParcelScreen';
-import { ParcelDetailScreen } from '../screens/vendor/ParcelDetailScreen';
-const VendorHistoryScreen = () => <PlaceholderScreen name="Historique" />;
-
-// Carrier Screens
-const CarrierHomeScreen = () => <PlaceholderScreen name="Missions" />;
-const AvailableMissionsScreen = () => <PlaceholderScreen name="Missions Disponibles" />;
-const MissionDetailScreen = () => <PlaceholderScreen name="Détail Mission" />;
-const CarrierHistoryScreen = () => <PlaceholderScreen name="Historique" />;
-
-// Shared Screens
-import { ProfileScreen } from '../screens/shared/ProfileScreen';
 const AddressesScreen = () => <PlaceholderScreen name="Mes Adresses" />;
 const SettingsScreen = () => <PlaceholderScreen name="Paramètres" />;
-
 
 // Navigators
 const AuthStack = createNativeStackNavigator<AuthStackParamList>();
@@ -86,11 +84,6 @@ function VendorNavigator() {
         component={ParcelDetailScreen}
         options={{ title: 'Détail du Colis' }}
       />
-      <VendorStack.Screen 
-        name="VendorHistory" 
-        component={VendorHistoryScreen}
-        options={{ title: 'Historique' }}
-      />
     </VendorStack.Navigator>
   );
 }
@@ -118,11 +111,6 @@ function CarrierNavigator() {
         name="MissionDetail" 
         component={MissionDetailScreen}
         options={{ title: 'Détail Mission' }}
-      />
-      <CarrierStack.Screen 
-        name="CarrierHistory" 
-        component={CarrierHistoryScreen}
-        options={{ title: 'Historique' }}
       />
     </CarrierStack.Navigator>
   );
