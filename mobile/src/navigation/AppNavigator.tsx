@@ -1,69 +1,48 @@
 import React from 'react';
+import { View, ActivityIndicator } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { useTheme } from 'react-native-paper';
+import { useTheme, Text } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { useAuthStore } from '../stores/authStore';
+import { colors } from '../theme';
 
-// Placeholder screens (on les créera après)
-import { View, Text, ActivityIndicator } from 'react-native';
+import { AuthStackParamList, VendorStackParamList, CarrierStackParamList, ProfileStackParamList } from './types';
 
+// Auth Screens
+import { LoginScreen } from '../screens/auth/LoginScreen';
+import { RegisterScreen } from '../screens/auth/RegisterScreen';
+import { ForgotPasswordScreen } from '../screens/auth/ForgotPasswordScreen';
+
+// Placeholder pour les autres screens (on les créera aux étapes suivantes)
 const PlaceholderScreen = ({ name }: { name: string }) => (
-  <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-    <Text>{name}</Text>
+  <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background }}>
+    <Text variant="headlineSmall">{name}</Text>
+    <Text variant="bodyMedium" style={{ color: colors.onSurfaceVariant, marginTop: 8 }}>
+      À venir...
+    </Text>
   </View>
 );
 
-// Auth Screens
-const LoginScreen = () => <PlaceholderScreen name="Login" />;
-const RegisterScreen = () => <PlaceholderScreen name="Register" />;
-const ForgotPasswordScreen = () => <PlaceholderScreen name="ForgotPassword" />;
-
 // Vendor Screens
-const VendorHomeScreen = () => <PlaceholderScreen name="VendorHome" />;
-const CreateParcelScreen = () => <PlaceholderScreen name="CreateParcel" />;
-const ParcelDetailScreen = () => <PlaceholderScreen name="ParcelDetail" />;
-const VendorHistoryScreen = () => <PlaceholderScreen name="VendorHistory" />;
+import { VendorHomeScreen } from '../screens/vendor/VendorHomeScreen';
+import { CreateParcelScreen } from '../screens/vendor/CreateParcelScreen';
+import { ParcelDetailScreen } from '../screens/vendor/ParcelDetailScreen';
+const VendorHistoryScreen = () => <PlaceholderScreen name="Historique" />;
 
 // Carrier Screens
-const CarrierHomeScreen = () => <PlaceholderScreen name="CarrierHome" />;
-const AvailableMissionsScreen = () => <PlaceholderScreen name="AvailableMissions" />;
-const MissionDetailScreen = () => <PlaceholderScreen name="MissionDetail" />;
-const CarrierHistoryScreen = () => <PlaceholderScreen name="CarrierHistory" />;
+const CarrierHomeScreen = () => <PlaceholderScreen name="Missions" />;
+const AvailableMissionsScreen = () => <PlaceholderScreen name="Missions Disponibles" />;
+const MissionDetailScreen = () => <PlaceholderScreen name="Détail Mission" />;
+const CarrierHistoryScreen = () => <PlaceholderScreen name="Historique" />;
 
 // Shared Screens
-const ProfileScreen = () => <PlaceholderScreen name="Profile" />;
-const AddressesScreen = () => <PlaceholderScreen name="Addresses" />;
-const SettingsScreen = () => <PlaceholderScreen name="Settings" />;
+import { ProfileScreen } from '../screens/shared/ProfileScreen';
+const AddressesScreen = () => <PlaceholderScreen name="Mes Adresses" />;
+const SettingsScreen = () => <PlaceholderScreen name="Paramètres" />;
 
-// Types
-export type AuthStackParamList = {
-  Login: undefined;
-  Register: undefined;
-  ForgotPassword: undefined;
-};
-
-export type VendorStackParamList = {
-  VendorHome: undefined;
-  CreateParcel: undefined;
-  ParcelDetail: { parcelId: string };
-  VendorHistory: undefined;
-};
-
-export type CarrierStackParamList = {
-  CarrierHome: undefined;
-  AvailableMissions: undefined;
-  MissionDetail: { missionId: string };
-  CarrierHistory: undefined;
-};
-
-export type ProfileStackParamList = {
-  Profile: undefined;
-  Addresses: undefined;
-  Settings: undefined;
-};
 
 // Navigators
 const AuthStack = createNativeStackNavigator<AuthStackParamList>();
@@ -86,7 +65,12 @@ function AuthNavigator() {
 // Vendor Navigator
 function VendorNavigator() {
   return (
-    <VendorStack.Navigator>
+    <VendorStack.Navigator
+      screenOptions={{
+        headerStyle: { backgroundColor: colors.surface },
+        headerTintColor: colors.onSurface,
+      }}
+    >
       <VendorStack.Screen 
         name="VendorHome" 
         component={VendorHomeScreen}
@@ -114,7 +98,12 @@ function VendorNavigator() {
 // Carrier Navigator
 function CarrierNavigator() {
   return (
-    <CarrierStack.Navigator>
+    <CarrierStack.Navigator
+      screenOptions={{
+        headerStyle: { backgroundColor: colors.surface },
+        headerTintColor: colors.onSurface,
+      }}
+    >
       <CarrierStack.Screen 
         name="CarrierHome" 
         component={CarrierHomeScreen}
@@ -142,7 +131,12 @@ function CarrierNavigator() {
 // Profile Navigator
 function ProfileNavigator() {
   return (
-    <ProfileStack.Navigator>
+    <ProfileStack.Navigator
+      screenOptions={{
+        headerStyle: { backgroundColor: colors.surface },
+        headerTintColor: colors.onSurface,
+      }}
+    >
       <ProfileStack.Screen 
         name="Profile" 
         component={ProfileScreen}
@@ -174,7 +168,11 @@ function MainNavigator() {
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: theme.colors.primary,
-        tabBarInactiveTintColor: theme.colors.onSurfaceVariant,
+        tabBarInactiveTintColor: colors.onSurfaceVariant,
+        tabBarStyle: {
+          backgroundColor: colors.surface,
+          borderTopColor: colors.outline,
+        },
       }}
     >
       {isVendor && (
@@ -225,8 +223,8 @@ export function AppNavigator() {
 
   if (isLoading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" />
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background }}>
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
