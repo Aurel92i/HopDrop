@@ -15,6 +15,7 @@ import { missionsRoutes } from './modules/missions/missions.routes.js';
 import { uploadsRoutes } from './modules/uploads/uploads.routes.js';
 import { paymentsRoutes } from './modules/payments/payments.routes.js';
 import { notificationsRoutes } from './modules/notifications/notifications.routes.js';
+import { reviewsRoutes } from './modules/reviews/reviews.routes.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -80,7 +81,7 @@ await app.register(missionsRoutes);
 await app.register(uploadsRoutes);
 await app.register(paymentsRoutes);
 await app.register(notificationsRoutes);
-
+await app.register(reviewsRoutes);
 // Gestion erreurs
 app.setErrorHandler((error, request, reply) => {
   app.log.error(error);
