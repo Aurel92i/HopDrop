@@ -1,10 +1,15 @@
 import React from 'react';
 import { View, StyleSheet, ScrollView, Alert } from 'react-native';
 import { Text, Button, Card, Avatar, List, Divider } from 'react-native-paper';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useNavigation } from '@react-navigation/native';
+
 import { useAuthStore } from '../../stores/authStore';
+import { ProfileStackParamList } from '../../navigation/types';
 import { colors, spacing } from '../../theme';
 
 export function ProfileScreen() {
+  const navigation = useNavigation<NativeStackNavigationProp<ProfileStackParamList>>();
   const { user, logout } = useAuthStore();
 
   const handleLogout = () => {
@@ -49,15 +54,7 @@ export function ProfileScreen() {
           description="Gérer mes adresses de récupération"
           left={(props) => <List.Icon {...props} icon="map-marker" />}
           right={(props) => <List.Icon {...props} icon="chevron-right" />}
-          onPress={() => {}}
-        />
-        <Divider />
-        <List.Item
-          title="Historique"
-          description="Voir mes livraisons passées"
-          left={(props) => <List.Icon {...props} icon="history" />}
-          right={(props) => <List.Icon {...props} icon="chevron-right" />}
-          onPress={() => {}}
+          onPress={() => navigation.navigate('Addresses')}
         />
         <Divider />
         <List.Item
@@ -65,7 +62,7 @@ export function ProfileScreen() {
           description="Notifications, confidentialité"
           left={(props) => <List.Icon {...props} icon="cog" />}
           right={(props) => <List.Icon {...props} icon="chevron-right" />}
-          onPress={() => {}}
+          onPress={() => navigation.navigate('Settings')}
         />
       </Card>
 

@@ -28,6 +28,8 @@ import { MissionDetailScreen } from '../screens/carrier/MissionDetailScreen';
 
 // Shared Screens
 import { ProfileScreen } from '../screens/shared/ProfileScreen';
+import { AddressesScreen } from '../screens/shared/AddressesScreen';
+import { SettingsScreen } from '../screens/shared/SettingsScreen';
 
 // Placeholders (pas encore créés)
 const PlaceholderScreen = ({ name }: { name: string }) => (
@@ -38,9 +40,6 @@ const PlaceholderScreen = ({ name }: { name: string }) => (
     </Text>
   </View>
 );
-
-const AddressesScreen = () => <PlaceholderScreen name="Mes Adresses" />;
-const SettingsScreen = () => <PlaceholderScreen name="Paramètres" />;
 
 // Navigators
 const AuthStack = createNativeStackNavigator<AuthStackParamList>();
