@@ -8,6 +8,8 @@ export type MissionStatus = 'ACCEPTED' | 'IN_PROGRESS' | 'PICKED_UP' | 'DELIVERE
 
 export type Carrier = 'VINTED' | 'MONDIAL_RELAY' | 'COLISSIMO' | 'CHRONOPOST' | 'RELAIS_COLIS' | 'UPS' | 'OTHER';
 
+export type PickupMode = 'SCHEDULED' | 'IMMEDIATE';
+
 export interface User {
   id: string;
   email: string;
@@ -54,6 +56,11 @@ export interface Parcel {
   pickupAddress?: Address;
   carrier?: User;
   vendor?: User;
+  export interface Parcel {
+  // ... champs existants ...
+  pickupMode: PickupMode;  // AJOUTER
+  // ... reste des champs ...
+}
 }
 
 export interface Mission {

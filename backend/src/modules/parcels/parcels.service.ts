@@ -1,7 +1,8 @@
-import { ParcelStatus, ParcelSize, DropoffType, Carrier } from '@prisma/client';
+import { ParcelStatus, ParcelSize, DropoffType, Carrier, PickupMode } from '@prisma/client';
 import { prisma } from '../../shared/prisma.js';
 import { CreateParcelInput, UpdateParcelInput, ListParcelsQuery } from './parcels.schemas.js';
 import { calculatePrice } from './parcels.pricing.js';
+
 
 function generatePickupCode(): string {
   return Math.floor(100000 + Math.random() * 900000).toString();
@@ -18,26 +19,39 @@ export class ParcelsService {
       throw new Error('Adresse non trouvée');
     }
 
-    // Valider les créneaux
-    const slotStart = new Date(input.pickupSlotStart);
-    const slotEnd = new Date(input.pickupSlotEnd);
-    const now = new Date();
+    let slotStart: Date;
+    let slotEnd: Date;
 
-    if (slotStart <= now) {
-      throw new Error('Le créneau doit être dans le futur');
-    }
+    if (input.pickupMode === 'IMMEDIATE') {
+      // Mode immédiat : créneau = maintenant + 2h
+      slotStart = new Date();
+      slotEnd = new Date(Date.now() + 2 * 60 * 60 * 1000); // +2h
+    } else {
+      // Mode programmé : valider les créneaux
+      if (!input.pickupSlotStart || !input.pickupSlotEnd) {
+        throw new Error('Les créneaux sont obligatoires pour une prise en charge programmée');
+      }
 
-    if (slotEnd <= slotStart) {
-      throw new Error('La fin du créneau doit être après le début');
-    }
+      slotStart = new Date(input.pickupSlotStart);
+      slotEnd = new Date(input.pickupSlotEnd);
+      const now = new Date();
 
-    const slotDuration = (slotEnd.getTime() - slotStart.getTime()) / (1000 * 60 * 60);
-    if (slotDuration > 4) {
-      throw new Error('Le créneau ne peut pas dépasser 4 heures');
-    }
+      if (slotStart <= now) {
+        throw new Error('Le créneau doit être dans le futur');
+      }
 
-    if (slotDuration < 0.5) {
-      throw new Error('Le créneau doit être d\'au moins 30 minutes');
+      if (slotEnd <= slotStart) {
+        throw new Error('La fin du créneau doit être après le début');
+      }
+
+      const slotDuration = (slotEnd.getTime() - slotStart.getTime()) / (1000 * 60 * 60);
+      if (slotDuration > 4) {
+        throw new Error('Le créneau ne peut pas dépasser 4 heures');
+      }
+
+      if (slotDuration < 0.5) {
+        throw new Error('Le créneau doit être d\'au moins 30 minutes');
+      }
     }
 
     // Calculer le prix
@@ -61,11 +75,10 @@ export class ParcelsService {
         weightEstimate: input.weightEstimate,
         description: input.description,
         photoUrl: input.photoUrl,
-        // Nouveaux champs F1
         carrier: (input.carrier as Carrier) || 'OTHER',
         hasShippingLabel: input.hasShippingLabel ?? false,
         shippingLabelUrl: input.shippingLabelUrl,
-        // Fin nouveaux champs
+        pickupMode: input.pickupMode || 'SCHEDULED',
         price: pricing.totalPrice,
         pickupSlotStart: slotStart,
         pickupSlotEnd: slotEnd,
@@ -76,6 +89,8 @@ export class ParcelsService {
         pickupAddress: true,
       },
     });
+
+    // TODO F13: Si mode IMMEDIATE, envoyer notifications push aux livreurs proches
 
     return {
       ...parcel,

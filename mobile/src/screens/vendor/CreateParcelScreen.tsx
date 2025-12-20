@@ -12,7 +12,7 @@ import { FormInput } from '../../components/forms/FormInput';
 import { useParcelStore } from '../../stores/parcelStore';
 import { api } from '../../services/api';
 import { VendorStackParamList } from '../../navigation/types';
-import { Address, ParcelSize, Carrier } from '../../types';
+import { Address, ParcelSize, Carrier, PickupMode } from '../../types';
 import { colors, spacing, sizes, carriers } from '../../theme';
 
 const createParcelSchema = z.object({
@@ -21,6 +21,10 @@ const createParcelSchema = z.object({
   carrier: z.enum(['VINTED', 'MONDIAL_RELAY', 'COLISSIMO', 'CHRONOPOST', 'RELAIS_COLIS', 'UPS', 'OTHER']),
   hasShippingLabel: z.boolean(),
   shippingLabelUrl: z.string().optional(),
+  pickupMode: z.enum(['SCHEDULED', 'IMMEDIATE']),
+  pickupDate: z.string().optional(),
+  pickupTimeStart: z.string().optional(),
+  pickupTimeEnd: z.string().optional(),
   description: z.string().optional(),
 });
 
@@ -30,10 +34,42 @@ type CreateParcelScreenProps = {
   navigation: NativeStackNavigationProp<VendorStackParamList, 'CreateParcel'>;
 };
 
+// Générer les créneaux horaires disponibles
+const generateTimeSlots = () => {
+  const slots = [];
+  for (let hour = 8; hour <= 20; hour++) {
+    slots.push(`${hour.toString().padStart(2, '0')}:00`);
+  }
+  return slots;
+};
+
+// Générer les dates disponibles (aujourd'hui + 7 jours)
+const generateAvailableDates = () => {
+  const dates = [];
+  const today = new Date();
+  
+  for (let i = 0; i < 7; i++) {
+    const date = new Date(today);
+    date.setDate(today.getDate() + i);
+    
+    const dayNames = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'];
+    const monthNames = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc'];
+    
+    dates.push({
+      value: date.toISOString().split('T')[0],
+      label: i === 0 ? "Aujourd'hui" : i === 1 ? 'Demain' : dayNames[date.getDay()],
+      sublabel: `${date.getDate()} ${monthNames[date.getMonth()]}`,
+    });
+  }
+  return dates;
+};
+
 export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
   const { createParcel, isLoading, error, clearError } = useParcelStore();
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [step, setStep] = useState(1);
+  const timeSlots = generateTimeSlots();
+  const availableDates = generateAvailableDates();
 
   const {
     control,
@@ -49,6 +85,10 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
       carrier: 'VINTED',
       hasShippingLabel: false,
       shippingLabelUrl: '',
+      pickupMode: 'SCHEDULED',
+      pickupDate: availableDates[1]?.value, // Demain par défaut
+      pickupTimeStart: '14:00',
+      pickupTimeEnd: '16:00',
       description: '',
     },
   });
@@ -56,6 +96,10 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
   const selectedSize = watch('size');
   const selectedCarrier = watch('carrier');
   const hasShippingLabel = watch('hasShippingLabel');
+  const pickupMode = watch('pickupMode');
+  const pickupDate = watch('pickupDate');
+  const pickupTimeStart = watch('pickupTimeStart');
+  const pickupTimeEnd = watch('pickupTimeEnd');
 
   useEffect(() => {
     loadAddresses();
@@ -70,7 +114,6 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const file = result.assets[0];
-        console.log('Document sélectionné:', file);
         setValue('shippingLabelUrl', file.uri);
       }
     } catch (err) {
@@ -89,20 +132,36 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
 
   const onSubmit = async (data: CreateParcelFormData) => {
     try {
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      tomorrow.setHours(14, 0, 0, 0);
+      let pickupSlotStart: string;
+      let pickupSlotEnd: string;
 
-      const tomorrowEnd = new Date(tomorrow);
-      tomorrowEnd.setHours(16, 0, 0, 0);
+      if (data.pickupMode === 'IMMEDIATE') {
+        // Mode immédiat : pas de créneaux à envoyer
+        const now = new Date();
+        pickupSlotStart = now.toISOString();
+        const later = new Date(now.getTime() + 2 * 60 * 60 * 1000);
+        pickupSlotEnd = later.toISOString();
+      } else {
+        // Mode programmé : construire les créneaux
+        const startDate = new Date(`${data.pickupDate}T${data.pickupTimeStart}:00`);
+        const endDate = new Date(`${data.pickupDate}T${data.pickupTimeEnd}:00`);
+        pickupSlotStart = startDate.toISOString();
+        pickupSlotEnd = endDate.toISOString();
+      }
 
       const parcel = await createParcel({
-        ...data,
+        pickupAddressId: data.pickupAddressId,
+        size: data.size,
+        carrier: data.carrier,
+        hasShippingLabel: data.hasShippingLabel,
+        shippingLabelUrl: data.shippingLabelUrl || undefined,
+        pickupMode: data.pickupMode,
         dropoffType: 'RELAY_POINT',
         dropoffName: 'Point relais',
         dropoffAddress: 'À définir par le livreur',
-        pickupSlotStart: tomorrow.toISOString(),
-        pickupSlotEnd: tomorrowEnd.toISOString(),
+        pickupSlotStart,
+        pickupSlotEnd,
+        description: data.description || undefined,
       });
 
       navigation.replace('ParcelDetail', { parcelId: parcel.id });
@@ -333,7 +392,6 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
             )}
           />
 
-          {/* Info si "Oui" */}
           {hasShippingLabel && (
             <View style={styles.infoBoxSuccess}>
               <MaterialCommunityIcons name="check-circle" size={20} color={colors.primary} />
@@ -343,7 +401,6 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
             </View>
           )}
 
-          {/* Upload si "Non" - le livreur doit imprimer */}
           {!hasShippingLabel && (
             <View style={styles.uploadSection}>
               <Text variant="bodySmall" style={styles.uploadHint}>
@@ -406,8 +463,217 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
     </View>
   );
 
-  // ========== STEP 4: Description + Confirmation ==========
+  // ========== STEP 4: Mode de prise en charge ==========
   const renderStep4 = () => (
+    <View>
+      <Text variant="titleMedium" style={styles.stepTitle}>
+        ⏰ Mode de prise en charge
+      </Text>
+      <Text variant="bodySmall" style={styles.stepSubtitle}>
+        Quand souhaitez-vous que le livreur vienne ?
+      </Text>
+
+      <Controller
+        control={control}
+        name="pickupMode"
+        render={({ field: { onChange, value } }) => (
+          <View style={styles.modeOptions}>
+            {/* Mode Immédiat */}
+            <Card
+              style={[styles.modeCard, value === 'IMMEDIATE' && styles.modeCardSelected]}
+              onPress={() => onChange('IMMEDIATE')}
+            >
+              <Card.Content style={styles.modeContent}>
+                <View style={styles.modeHeader}>
+                  <MaterialCommunityIcons
+                    name="lightning-bolt"
+                    size={32}
+                    color={value === 'IMMEDIATE' ? colors.secondary : colors.onSurfaceVariant}
+                  />
+                  <View style={styles.modeInfo}>
+                    <Text
+                      variant="titleMedium"
+                      style={value === 'IMMEDIATE' ? styles.modeTitleSelected : undefined}
+                    >
+                      Immédiat
+                    </Text>
+                    <Text variant="bodySmall" style={styles.modeDescription}>
+                      Un livreur proche viendra dans les 2h
+                    </Text>
+                  </View>
+                  <RadioButton
+                    value="IMMEDIATE"
+                    status={value === 'IMMEDIATE' ? 'checked' : 'unchecked'}
+                    onPress={() => onChange('IMMEDIATE')}
+                  />
+                </View>
+              </Card.Content>
+            </Card>
+
+            {/* Mode Programmé */}
+            <Card
+              style={[styles.modeCard, value === 'SCHEDULED' && styles.modeCardSelected]}
+              onPress={() => onChange('SCHEDULED')}
+            >
+              <Card.Content style={styles.modeContent}>
+                <View style={styles.modeHeader}>
+                  <MaterialCommunityIcons
+                    name="calendar-clock"
+                    size={32}
+                    color={value === 'SCHEDULED' ? colors.primary : colors.onSurfaceVariant}
+                  />
+                  <View style={styles.modeInfo}>
+                    <Text
+                      variant="titleMedium"
+                      style={value === 'SCHEDULED' ? styles.labelSelected : undefined}
+                    >
+                      Programmé
+                    </Text>
+                    <Text variant="bodySmall" style={styles.modeDescription}>
+                      Choisissez un créneau horaire
+                    </Text>
+                  </View>
+                  <RadioButton
+                    value="SCHEDULED"
+                    status={value === 'SCHEDULED' ? 'checked' : 'unchecked'}
+                    onPress={() => onChange('SCHEDULED')}
+                  />
+                </View>
+              </Card.Content>
+            </Card>
+          </View>
+        )}
+      />
+
+      {/* Sélection du créneau si mode programmé */}
+      {pickupMode === 'SCHEDULED' && (
+        <Card style={styles.slotCard}>
+          <Card.Content>
+            <Text variant="titleSmall" style={styles.slotTitle}>
+              📅 Choisissez votre créneau
+            </Text>
+
+            {/* Sélection du jour */}
+            <Text variant="bodySmall" style={styles.slotLabel}>Jour :</Text>
+            <Controller
+              control={control}
+              name="pickupDate"
+              render={({ field: { onChange, value } }) => (
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.dateScroll}>
+                  <View style={styles.dateGrid}>
+                    {availableDates.map((date) => (
+                      <TouchableOpacity
+                        key={date.value}
+                        style={[styles.dateCard, value === date.value && styles.dateCardSelected]}
+                        onPress={() => onChange(date.value)}
+                      >
+                        <Text
+                          style={[styles.dateLabel, value === date.value && styles.dateLabelSelected]}
+                        >
+                          {date.label}
+                        </Text>
+                        <Text
+                          style={[styles.dateSublabel, value === date.value && styles.dateLabelSelected]}
+                        >
+                          {date.sublabel}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </ScrollView>
+              )}
+            />
+
+            {/* Sélection de l'heure de début */}
+            <Text variant="bodySmall" style={styles.slotLabel}>Heure de début :</Text>
+            <Controller
+              control={control}
+              name="pickupTimeStart"
+              render={({ field: { onChange, value } }) => (
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.timeScroll}>
+                  <View style={styles.timeGrid}>
+                    {timeSlots.map((time) => (
+                      <TouchableOpacity
+                        key={time}
+                        style={[styles.timeCard, value === time && styles.timeCardSelected]}
+                        onPress={() => {
+                          onChange(time);
+                          // Auto-sélectionner une heure de fin +2h
+                          const hour = parseInt(time.split(':')[0]);
+                          const endHour = Math.min(hour + 2, 20);
+                          setValue('pickupTimeEnd', `${endHour.toString().padStart(2, '0')}:00`);
+                        }}
+                      >
+                        <Text style={[styles.timeLabel, value === time && styles.timeLabelSelected]}>
+                          {time}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </ScrollView>
+              )}
+            />
+
+            {/* Sélection de l'heure de fin */}
+            <Text variant="bodySmall" style={styles.slotLabel}>Heure de fin :</Text>
+            <Controller
+              control={control}
+              name="pickupTimeEnd"
+              render={({ field: { onChange, value } }) => (
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.timeScroll}>
+                  <View style={styles.timeGrid}>
+                    {timeSlots
+                      .filter((time) => time > (pickupTimeStart || '08:00'))
+                      .map((time) => (
+                        <TouchableOpacity
+                          key={time}
+                          style={[styles.timeCard, value === time && styles.timeCardSelected]}
+                          onPress={() => onChange(time)}
+                        >
+                          <Text style={[styles.timeLabel, value === time && styles.timeLabelSelected]}>
+                            {time}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                  </View>
+                </ScrollView>
+              )}
+            />
+
+            {/* Résumé du créneau */}
+            <View style={styles.slotSummary}>
+              <MaterialCommunityIcons name="clock-outline" size={20} color={colors.primary} />
+              <Text variant="bodyMedium" style={styles.slotSummaryText}>
+                {availableDates.find((d) => d.value === pickupDate)?.label} {availableDates.find((d) => d.value === pickupDate)?.sublabel} de {pickupTimeStart} à {pickupTimeEnd}
+              </Text>
+            </View>
+          </Card.Content>
+        </Card>
+      )}
+
+      {/* Info mode immédiat */}
+      {pickupMode === 'IMMEDIATE' && (
+        <View style={styles.infoBoxWarning}>
+          <MaterialCommunityIcons name="lightning-bolt" size={20} color={colors.secondary} />
+          <Text variant="bodySmall" style={styles.infoText}>
+            Les livreurs à proximité recevront une notification. Le premier qui accepte viendra chez vous dans les 2 heures.
+          </Text>
+        </View>
+      )}
+
+      <View style={styles.buttonRow}>
+        <Button mode="outlined" onPress={() => setStep(3)} style={styles.halfButton}>
+          Retour
+        </Button>
+        <Button mode="contained" onPress={() => setStep(5)} style={styles.halfButton}>
+          Suivant
+        </Button>
+      </View>
+    </View>
+  );
+
+  // ========== STEP 5: Description + Confirmation ==========
+  const renderStep5 = () => (
     <View>
       <Text variant="titleMedium" style={styles.stepTitle}>
         ✅ Récapitulatif
@@ -433,6 +699,14 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
               {hasShippingLabel ? '✅ Imprimé par vous' : '🖨️ À imprimer par le livreur'}
             </Text>
           </View>
+          <View style={styles.summaryRow}>
+            <Text variant="bodyMedium" style={styles.summaryLabel}>Prise en charge :</Text>
+            <Text variant="bodyMedium" style={styles.summaryValue}>
+              {pickupMode === 'IMMEDIATE' 
+                ? '⚡ Immédiat (dans les 2h)' 
+                : `📅 ${availableDates.find((d) => d.value === pickupDate)?.label} ${pickupTimeStart}-${pickupTimeEnd}`}
+            </Text>
+          </View>
         </Card.Content>
       </Card>
 
@@ -453,7 +727,7 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
       </View>
 
       <View style={styles.buttonRow}>
-        <Button mode="outlined" onPress={() => setStep(3)} style={styles.halfButton}>
+        <Button mode="outlined" onPress={() => setStep(4)} style={styles.halfButton}>
           Retour
         </Button>
         <Button
@@ -476,7 +750,7 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
     >
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.progressContainer}>
-          {[1, 2, 3, 4].map((s) => (
+          {[1, 2, 3, 4, 5].map((s) => (
             <View
               key={s}
               style={[styles.progressDot, s <= step && styles.progressDotActive]}
@@ -488,6 +762,7 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
         {step === 2 && renderStep2()}
         {step === 3 && renderStep3()}
         {step === 4 && renderStep4()}
+        {step === 5 && renderStep5()}
       </ScrollView>
 
       <Snackbar
@@ -685,6 +960,122 @@ const styles = StyleSheet.create({
     color: colors.primary,
     fontWeight: '500',
   },
+  // Mode styles
+  modeOptions: {
+    gap: spacing.md,
+    marginBottom: spacing.lg,
+  },
+  modeCard: {
+    backgroundColor: colors.surface,
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  modeCardSelected: {
+    borderColor: colors.primary,
+  },
+  modeContent: {
+    padding: spacing.xs,
+  },
+  modeHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  modeInfo: {
+    flex: 1,
+  },
+  modeTitleSelected: {
+    color: colors.secondary,
+  },
+  modeDescription: {
+    color: colors.onSurfaceVariant,
+  },
+  // Slot styles
+  slotCard: {
+    backgroundColor: colors.surface,
+    marginBottom: spacing.md,
+  },
+  slotTitle: {
+    marginBottom: spacing.md,
+    color: colors.onSurface,
+  },
+  slotLabel: {
+    marginTop: spacing.md,
+    marginBottom: spacing.sm,
+    color: colors.onSurfaceVariant,
+  },
+  dateScroll: {
+    marginBottom: spacing.sm,
+  },
+  dateGrid: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  dateCard: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: colors.outline,
+    alignItems: 'center',
+    minWidth: 80,
+  },
+  dateCardSelected: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primaryContainer,
+  },
+  dateLabel: {
+    fontWeight: '600',
+    color: colors.onSurface,
+  },
+  dateSublabel: {
+    fontSize: 12,
+    color: colors.onSurfaceVariant,
+  },
+  dateLabelSelected: {
+    color: colors.primary,
+  },
+  timeScroll: {
+    marginBottom: spacing.sm,
+  },
+  timeGrid: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  timeCard: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: colors.outline,
+    minWidth: 60,
+    alignItems: 'center',
+  },
+  timeCardSelected: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primaryContainer,
+  },
+  timeLabel: {
+    color: colors.onSurface,
+  },
+  timeLabelSelected: {
+    color: colors.primary,
+    fontWeight: '600',
+  },
+  slotSummary: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginTop: spacing.md,
+    padding: spacing.md,
+    backgroundColor: colors.primaryContainer,
+    borderRadius: 8,
+  },
+  slotSummaryText: {
+    color: colors.primary,
+    flex: 1,
+  },
+  // Info boxes
   infoBox: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -716,6 +1107,7 @@ const styles = StyleSheet.create({
     flex: 1,
     color: colors.onSurface,
   },
+  // Summary
   summaryCard: {
     backgroundColor: colors.surface,
     marginBottom: spacing.lg,
@@ -731,7 +1123,10 @@ const styles = StyleSheet.create({
   summaryValue: {
     color: colors.onSurface,
     fontWeight: '500',
+    flex: 1,
+    textAlign: 'right',
   },
+  // Common
   cardSelected: {
     borderColor: colors.primary,
   },
