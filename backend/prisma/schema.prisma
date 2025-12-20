@@ -74,6 +74,26 @@ enum PickupMode {
   IMMEDIATE
 }
 
+enum DocumentType {
+  ID_CARD_FRONT
+  ID_CARD_BACK
+  KBIS
+  VEHICLE_REGISTRATION
+}
+
+enum DocumentStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum VehicleType {
+  NONE
+  BIKE
+  SCOOTER
+  CAR
+}
+
 // ============== MODELS ==============
 
 model User {
@@ -102,6 +122,7 @@ model User {
   transactionsAsPayee Transaction[] @relation("PayeeTransactions")
   refreshTokens    RefreshToken[]
   carrierProfile   CarrierProfile?
+  carrierDocuments CarrierDocument[]
 
   @@map("users")
 }
@@ -229,6 +250,9 @@ model CarrierProfile {
   identityVerified    Boolean              @default(false)
   totalDeliveries     Int                  @default(0)
   averageRating       Float?
+  vehicleType         VehicleType          @default(NONE)
+  hasOwnPrinter       Boolean              @default(false)
+  documentsVerified   Boolean              @default(false)
   lastLocationUpdate  DateTime?
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
@@ -249,4 +273,20 @@ model RefreshToken {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("refresh_tokens")
+}
+
+model CarrierDocument {
+  id          String         @id @default(uuid())
+  carrierId   String
+  type        DocumentType
+  fileUrl     String
+  status      DocumentStatus @default(PENDING)
+  rejectionReason String?
+  uploadedAt  DateTime       @default(now())
+  reviewedAt  DateTime?
+
+  carrier     User           @relation(fields: [carrierId], references: [id], onDelete: Cascade)
+
+  @@unique([carrierId, type])
+  @@map("carrier_documents")
 }

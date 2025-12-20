@@ -1,7 +1,7 @@
 import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig } from 'axios';
 import * as SecureStore from 'expo-secure-store';
 
-const API_URL = __DEV__ 
+const API_URL = __DEV__
   ? 'http://192.168.1.78:3000'  // Ton IP locale (à modifier)
   : 'https://api.hopdrop.fr';
 
@@ -46,7 +46,6 @@ class ApiService {
               return this.api(originalRequest);
             }
           } catch (refreshError) {
-            // Refresh failed, redirect to login
             await this.logout();
             return Promise.reject(refreshError);
           }
@@ -58,7 +57,6 @@ class ApiService {
   }
 
   private async refreshAccessToken(): Promise<string | null> {
-    // Éviter les appels multiples simultanés
     if (this.refreshPromise) {
       return this.refreshPromise;
     }
@@ -108,10 +106,10 @@ class ApiService {
   async login(email: string, password: string) {
     const response = await this.api.post('/auth/login', { email, password });
     const { accessToken, refreshToken, user } = response.data;
-    
+
     await SecureStore.setItemAsync('accessToken', accessToken);
     await SecureStore.setItemAsync('refreshToken', refreshToken);
-    
+
     return { user, accessToken, refreshToken };
   }
 
@@ -252,6 +250,27 @@ class ApiService {
 
   async getMyReviews() {
     const response = await this.api.get('/reviews/received');
+    return response.data;
+  }
+
+  // === Carrier Documents ===
+  async getCarrierDocuments() {
+    const response = await this.api.get('/carrier/documents');
+    return response.data;
+  }
+
+  async uploadCarrierDocument(type: string, fileUrl: string) {
+    const response = await this.api.post('/carrier/documents', { type, fileUrl });
+    return response.data;
+  }
+
+  async deleteCarrierDocument(type: string) {
+    const response = await this.api.delete(`/carrier/documents/${type}`);
+    return response.data;
+  }
+
+  async updateCarrierDocumentsProfile(data: { vehicleType?: string; hasOwnPrinter?: boolean }) {
+    const response = await this.api.patch('/carrier/documents/profile', data);
     return response.data;
   }
 }

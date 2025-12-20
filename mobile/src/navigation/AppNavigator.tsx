@@ -25,6 +25,7 @@ import { ParcelDetailScreen } from '../screens/vendor/ParcelDetailScreen';
 import { CarrierHomeScreen } from '../screens/carrier/CarrierHomeScreen';
 import { AvailableMissionsScreen } from '../screens/carrier/AvailableMissionsScreen';
 import { MissionDetailScreen } from '../screens/carrier/MissionDetailScreen';
+import { CarrierDocumentsScreen } from '../screens/carrier/CarrierDocumentsScreen';
 
 // Shared Screens
 import { ProfileScreen } from '../screens/shared/ProfileScreen';
@@ -110,6 +111,11 @@ function CarrierNavigator() {
         name="MissionDetail" 
         component={MissionDetailScreen}
         options={{ title: 'Détail Mission' }}
+      />
+      <CarrierStack.Screen 
+        name="CarrierDocuments" 
+        component={CarrierDocumentsScreen}
+        options={{ title: 'Mes documents' }}
       />
     </CarrierStack.Navigator>
   );

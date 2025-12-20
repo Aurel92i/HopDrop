@@ -10,6 +10,27 @@ export type Carrier = 'VINTED' | 'MONDIAL_RELAY' | 'COLISSIMO' | 'CHRONOPOST' | 
 
 export type PickupMode = 'SCHEDULED' | 'IMMEDIATE';
 
+export type DocumentType = 'ID_CARD_FRONT' | 'ID_CARD_BACK' | 'KBIS' | 'VEHICLE_REGISTRATION';
+
+export type DocumentStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
+
+export type VehicleType = 'NONE' | 'BIKE' | 'SCOOTER' | 'CAR';
+
+export interface CarrierDocument {
+  type: DocumentType;
+  required: boolean;
+  uploaded: boolean;
+  status: DocumentStatus | null;
+  fileUrl: string | null;
+  rejectionReason: string | null;
+}
+
+export interface CarrierProfileInfo {
+  vehicleType: VehicleType;
+  hasOwnPrinter: boolean;
+  documentsVerified: boolean;
+}
+
 export interface User {
   id: string;
   email: string;
