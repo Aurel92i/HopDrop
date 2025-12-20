@@ -143,3 +143,40 @@ export interface Parcel {
   vendor?: User;
   assignedCarrier?: User;
 }
+
+export interface AdminStats {
+  users: {
+    total: number;
+    carriers: number;
+    vendors: number;
+  };
+  documents: {
+    pending: number;
+    approved: number;
+    rejected: number;
+  };
+  carriers: {
+    verified: number;
+    total: number;
+  };
+  parcels: {
+    total: number;
+    delivered: number;
+  };
+}
+
+export interface PendingDocument {
+  id: string;
+  carrierId: string;
+  type: DocumentType;
+  fileUrl: string;
+  status: DocumentStatus;
+  uploadedAt: string;
+  carrier: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone?: string;
+  };
+}

@@ -237,6 +237,27 @@ class ApiService {
     return response.data;
   }
 
+  // === Admin ===
+  async getAdminStats() {
+    const response = await this.api.get('/admin/stats');
+    return response.data;
+  }
+
+  async getPendingDocuments() {
+    const response = await this.api.get('/admin/documents/pending');
+    return response.data;
+  }
+
+  async approveDocument(documentId: string) {
+    const response = await this.api.post(`/admin/documents/${documentId}/approve`);
+    return response.data;
+  }
+
+  async rejectDocument(documentId: string, reason: string) {
+    const response = await this.api.post(`/admin/documents/${documentId}/reject`, { reason });
+    return response.data;
+  }
+
   // Payments
   async createPaymentIntent(parcelId: string) {
     const response = await this.api.post('/payments/create-intent', { parcelId });

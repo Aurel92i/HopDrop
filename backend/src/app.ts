@@ -17,6 +17,7 @@ import { paymentsRoutes } from './modules/payments/payments.routes.js';
 import { notificationsRoutes } from './modules/notifications/notifications.routes.js';
 import { reviewsRoutes } from './modules/reviews/reviews.routes.js';
 import { carrierDocumentsRoutes } from './modules/carrier-documents/carrier-documents.routes.js';
+import { adminRoutes } from './modules/admin/admin.routes.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -84,6 +85,7 @@ await app.register(paymentsRoutes);
 await app.register(notificationsRoutes);
 await app.register(reviewsRoutes); 
 await app.register(carrierDocumentsRoutes, { prefix: '/carrier/documents' });
+await app.register(adminRoutes, { prefix: '/admin' });
 // Gestion erreurs
 app.setErrorHandler((error, request, reply) => {
   app.log.error(error);

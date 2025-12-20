@@ -13,6 +13,7 @@ enum UserRole {
   VENDOR
   CARRIER
   BOTH
+  ADMIN
 }
 
 enum ParcelSize {

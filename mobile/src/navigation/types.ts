@@ -24,3 +24,7 @@ export type ProfileStackParamList = {
   Settings: undefined;
   CarrierDocuments: undefined;  // Ajouté pour accès depuis le profil
 };
+
+export type AdminStackParamList = {
+  AdminDashboard: undefined;
+};

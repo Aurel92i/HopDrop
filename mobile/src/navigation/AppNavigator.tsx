@@ -9,7 +9,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuthStore } from '../stores/authStore';
 import { colors } from '../theme';
 
-import { AuthStackParamList, VendorStackParamList, CarrierStackParamList, ProfileStackParamList } from './types';
+import { AuthStackParamList, VendorStackParamList, CarrierStackParamList, ProfileStackParamList, AdminStackParamList } from './types';
 
 // Auth Screens
 import { LoginScreen } from '../screens/auth/LoginScreen';
@@ -27,26 +27,20 @@ import { AvailableMissionsScreen } from '../screens/carrier/AvailableMissionsScr
 import { MissionDetailScreen } from '../screens/carrier/MissionDetailScreen';
 import { CarrierDocumentsScreen } from '../screens/carrier/CarrierDocumentsScreen';
 
+// Admin Screens
+import { AdminDashboardScreen } from '../screens/admin/AdminDashboardScreen';
+
 // Shared Screens
 import { ProfileScreen } from '../screens/shared/ProfileScreen';
 import { AddressesScreen } from '../screens/shared/AddressesScreen';
 import { SettingsScreen } from '../screens/shared/SettingsScreen';
-
-// Placeholders (pas encore créés)
-const PlaceholderScreen = ({ name }: { name: string }) => (
-  <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background }}>
-    <Text variant="headlineSmall">{name}</Text>
-    <Text variant="bodyMedium" style={{ color: colors.onSurfaceVariant, marginTop: 8 }}>
-      À venir...
-    </Text>
-  </View>
-);
 
 // Navigators
 const AuthStack = createNativeStackNavigator<AuthStackParamList>();
 const VendorStack = createNativeStackNavigator<VendorStackParamList>();
 const CarrierStack = createNativeStackNavigator<CarrierStackParamList>();
 const ProfileStack = createNativeStackNavigator<ProfileStackParamList>();
+const AdminStack = createNativeStackNavigator<AdminStackParamList>();
 const Tab = createBottomTabNavigator();
 
 // Auth Navigator
@@ -154,12 +148,31 @@ function ProfileNavigator() {
   );
 }
 
-// Main Tab Navigator
+// Admin Navigator
+function AdminNavigator() {
+  return (
+    <AdminStack.Navigator
+      screenOptions={{
+        headerStyle: { backgroundColor: colors.surface },
+        headerTintColor: colors.onSurface,
+      }}
+    >
+      <AdminStack.Screen
+        name="AdminDashboard"
+        component={AdminDashboardScreen}
+        options={{ title: 'Administration' }}
+      />
+    </AdminStack.Navigator>
+  );
+}
+
+// Main Navigator
 function MainNavigator() {
   const theme = useTheme();
   const { user } = useAuthStore();
   const isCarrier = user?.role === 'CARRIER' || user?.role === 'BOTH';
   const isVendor = user?.role === 'VENDOR' || user?.role === 'BOTH';
+  const isAdmin = user?.role === 'ADMIN';
 
   return (
     <Tab.Navigator
@@ -193,6 +206,18 @@ function MainNavigator() {
             title: 'Missions',
             tabBarIcon: ({ color, size }) => (
               <MaterialCommunityIcons name="bike" size={size} color={color} />
+            ),
+          }}
+        />
+      )}
+      {isAdmin && (
+        <Tab.Screen
+          name="AdminTab"
+          component={AdminNavigator}
+          options={{
+            title: 'Admin',
+            tabBarIcon: ({ color, size }) => (
+              <MaterialCommunityIcons name="shield-crown" size={size} color={color} />
             ),
           }}
         />
