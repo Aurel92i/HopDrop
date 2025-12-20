@@ -91,6 +91,12 @@ class ApiService {
     await SecureStore.deleteItemAsync('refreshToken');
   }
 
+  // === Notifications ===
+  async updateFcmToken(fcmToken: string) {
+    const response = await this.api.put('/users/fcm-token', { fcmToken });
+    return response.data;
+  }
+
   // Auth
   async register(data: {
     email: string;

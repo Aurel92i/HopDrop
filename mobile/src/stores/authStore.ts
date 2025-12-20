@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import * as SecureStore from 'expo-secure-store';
 import { User } from '../types';
 import { api } from '../services/api';
+import { notificationService } from '../services/notifications';
 
 interface AuthState {
   user: User | null;
@@ -35,6 +36,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     try {
       const { user } = await api.login(email, password);
       set({ user, isAuthenticated: true, isLoading: false });
+      
+      // Enregistrer le token push après connexion
+      notificationService.registerToken();
     } catch (error: any) {
       const message = error.response?.data?.error || 'Erreur de connexion';
       set({ error: message, isLoading: false });
@@ -76,6 +80,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
       const { user } = await api.getMe();
       set({ user, isAuthenticated: true, isLoading: false });
+      
+      // Enregistrer le token push si connecté
+      notificationService.registerToken();
     } catch (error) {
       await SecureStore.deleteItemAsync('accessToken');
       await SecureStore.deleteItemAsync('refreshToken');

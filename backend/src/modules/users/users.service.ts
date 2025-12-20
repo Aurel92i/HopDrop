@@ -44,6 +44,13 @@ export class UsersService {
     return sanitizeUser(user);
   }
 
+  async updateFcmToken(userId: string, fcmToken: string) {
+    return prisma.user.update({
+      where: { id: userId },
+      data: { fcmToken },
+    });
+  }
+  
   async updateAvatar(userId: string, avatarUrl: string): Promise<SafeUser> {
     const user = await prisma.user.update({
       where: { id: userId },

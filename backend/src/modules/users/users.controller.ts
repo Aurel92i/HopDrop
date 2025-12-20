@@ -70,6 +70,17 @@ export class UsersController {
     }
   }
 
+async updateFcmToken(request: FastifyRequest<{ Body: { fcmToken: string } }>, reply: FastifyReply) {
+    try {
+      const userId = (request.user as any).userId;
+      const { fcmToken } = request.body;
+      
+      await this.service.updateFcmToken(userId, fcmToken);
+      return reply.send({ success: true });
+    } catch (error: any) {
+      return reply.status(400).send({ error: error.message });
+    }
+  }
   async getPublicProfile(request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) {
     try {
       const profile = await this.usersService.getPublicProfile(request.params.id);
@@ -79,3 +90,5 @@ export class UsersController {
     }
   }
 }
+
+  

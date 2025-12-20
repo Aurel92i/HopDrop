@@ -19,6 +19,10 @@ export async function usersRoutes(app: FastifyInstance) {
     preHandler: [app.authenticate],
   }, usersController.updateAvatar.bind(usersController));
 
+  app.put('/users/fcm-token', {
+    preHandler: [app.authenticate],
+  }, usersController.updateFcmToken.bind(usersController));
+
   // Route publique
   app.get('/users/:id/profile', usersController.getPublicProfile.bind(usersController));
 }
