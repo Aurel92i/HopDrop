@@ -145,6 +145,11 @@ function ProfileNavigator() {
         component={SettingsScreen}
         options={{ title: 'Paramètres' }}
       />
+      <ProfileStack.Screen 
+        name="CarrierDocuments" 
+        component={CarrierDocumentsScreen}
+        options={{ title: 'Mes Documents' }}
+      />
     </ProfileStack.Navigator>
   );
 }

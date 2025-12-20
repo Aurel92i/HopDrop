@@ -3,7 +3,6 @@ import { View, StyleSheet, ScrollView, Alert } from 'react-native';
 import { Text, Button, Card, Avatar, List, Divider } from 'react-native-paper';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useNavigation } from '@react-navigation/native';
-
 import { useAuthStore } from '../../stores/authStore';
 import { ProfileStackParamList } from '../../navigation/types';
 import { colors, spacing } from '../../theme';
@@ -11,6 +10,8 @@ import { colors, spacing } from '../../theme';
 export function ProfileScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<ProfileStackParamList>>();
   const { user, logout } = useAuthStore();
+
+  const isCarrier = user?.role === 'CARRIER' || user?.role === 'BOTH';
 
   const handleLogout = () => {
     Alert.alert(
@@ -31,8 +32,8 @@ export function ProfileScreen() {
     <ScrollView style={styles.container}>
       <Card style={styles.profileCard}>
         <Card.Content style={styles.profileContent}>
-          <Avatar.Text 
-            size={80} 
+          <Avatar.Text
+            size={80}
             label={`${user?.firstName?.[0] || ''}${user?.lastName?.[0] || ''}`}
             style={styles.avatar}
           />
@@ -57,6 +58,21 @@ export function ProfileScreen() {
           onPress={() => navigation.navigate('Addresses')}
         />
         <Divider />
+
+        {/* Section Livreur - visible uniquement pour les carriers */}
+        {isCarrier && (
+          <>
+            <List.Item
+              title="Mes documents"
+              description="Pièces d'identité, Kbis, carte grise"
+              left={(props) => <List.Icon {...props} icon="file-document-multiple" />}
+              right={(props) => <List.Icon {...props} icon="chevron-right" />}
+              onPress={() => navigation.navigate('CarrierDocuments')}
+            />
+            <Divider />
+          </>
+        )}
+
         <List.Item
           title="Paramètres"
           description="Notifications, confidentialité"
@@ -65,6 +81,21 @@ export function ProfileScreen() {
           onPress={() => navigation.navigate('Settings')}
         />
       </Card>
+
+      {/* Info vérification pour les livreurs */}
+      {isCarrier && (
+        <Card style={styles.infoCard}>
+          <Card.Content style={styles.infoContent}>
+            <List.Icon icon="shield-check" color={colors.primary} />
+            <View style={styles.infoText}>
+              <Text variant="titleSmall">Vérification livreur</Text>
+              <Text variant="bodySmall" style={styles.infoDescription}>
+                Complétez vos documents pour pouvoir accepter des missions
+              </Text>
+            </View>
+          </Card.Content>
+        </Card>
+      )}
 
       <Button
         mode="outlined"
@@ -112,6 +143,22 @@ const styles = StyleSheet.create({
   menuCard: {
     margin: spacing.md,
     marginTop: 0,
+  },
+  infoCard: {
+    margin: spacing.md,
+    marginTop: 0,
+    backgroundColor: colors.primaryContainer,
+  },
+  infoContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  infoText: {
+    flex: 1,
+    marginLeft: spacing.sm,
+  },
+  infoDescription: {
+    color: colors.onSurfaceVariant,
   },
   logoutButton: {
     margin: spacing.md,

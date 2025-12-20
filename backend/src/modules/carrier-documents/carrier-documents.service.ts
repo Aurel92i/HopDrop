@@ -16,7 +16,7 @@ export class CarrierDocumentsService {
 
     // Vérifier quels documents sont requis et leur statut
     const requiredDocs = ['ID_CARD_FRONT', 'ID_CARD_BACK', 'KBIS'];
-    const needsVehicleDoc = profile?.vehicleType && profile.vehicleType !== 'NONE';
+    const needsVehicleDoc = profile?.vehicleType && profile.vehicleType !== 'NONE' && profile.vehicleType !== 'BIKE';
     
     if (needsVehicleDoc) {
       requiredDocs.push('VEHICLE_REGISTRATION');
@@ -170,9 +170,9 @@ export class CarrierDocumentsService {
 
     const requiredTypes: DocumentType[] = ['ID_CARD_FRONT', 'ID_CARD_BACK', 'KBIS'];
     
-    if (profile.vehicleType !== 'NONE') {
-      requiredTypes.push('VEHICLE_REGISTRATION');
-    }
+   if (profile.vehicleType !== 'NONE' && profile.vehicleType !== 'BIKE') {
+  requiredTypes.push('VEHICLE_REGISTRATION');
+}
 
     const approvedDocs = await prisma.carrierDocument.findMany({
       where: {
