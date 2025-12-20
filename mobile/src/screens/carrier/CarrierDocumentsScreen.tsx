@@ -127,18 +127,24 @@ export function CarrierDocumentsScreen() {
     }
   };
 
-  const uploadDocument = async (type: DocumentType, fileUri: string) => {
-    setIsUploading(type);
-    try {
-      await api.uploadCarrierDocument(type, fileUri);
-      Alert.alert('Succès', 'Document envoyé ! Il sera vérifié sous 24-48h.');
-      loadDocuments();
-    } catch (error: any) {
-      Alert.alert('Erreur', error.message || "Impossible d'envoyer le document");
-    } finally {
-      setIsUploading(null);
-    }
-  };
+ const uploadDocument = async (type: DocumentType, fileUri: string) => {
+  setIsUploading(type);
+  try {
+    // 1. Upload le fichier sur Cloudinary
+    const { url } = await api.uploadFile(fileUri, 'carrier-documents');
+    
+    // 2. Enregistrer l'URL dans la base de données
+    await api.uploadCarrierDocument(type, url);
+    
+    Alert.alert('Succès', 'Document envoyé ! Il sera vérifié sous 24-48h.');
+    loadDocuments();
+  } catch (error: any) {
+    console.error('Erreur upload:', error);
+    Alert.alert('Erreur', error.message || "Impossible d'envoyer le document");
+  } finally {
+    setIsUploading(null);
+  }
+};
 
   const handleDeleteDocument = (type: DocumentType) => {
     Alert.alert('Supprimer le document', 'Êtes-vous sûr ?', [

@@ -273,6 +273,31 @@ class ApiService {
     const response = await this.api.patch('/carrier/documents/profile', data);
     return response.data;
   }
+
+  // === Uploads ===
+  async uploadFile(fileUri: string, folder: string): Promise<{ url: string; publicId: string }> {
+    // Lire le fichier et le convertir en base64
+    const response = await fetch(fileUri);
+    const blob = await response.blob();
+    
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        try {
+          const base64 = reader.result as string;
+          const uploadResponse = await this.api.post('/uploads', {
+            file: base64,
+            folder,
+          });
+          resolve(uploadResponse.data);
+        } catch (error) {
+          reject(error);
+        }
+      };
+      reader.onerror = () => reject(new Error('Erreur lecture fichier'));
+      reader.readAsDataURL(blob);
+    });
+  }
 }
 
 export const api = new ApiService();

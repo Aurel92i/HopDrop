@@ -79,7 +79,7 @@ await app.register(usersRoutes);
 await app.register(addressesRoutes);
 await app.register(parcelsRoutes);
 await app.register(missionsRoutes);
-await app.register(uploadsRoutes);
+await app.register(uploadsRoutes, { prefix: '/uploads' });
 await app.register(paymentsRoutes);
 await app.register(notificationsRoutes);
 await app.register(reviewsRoutes); 
