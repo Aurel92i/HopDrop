@@ -14,12 +14,11 @@ export class MissionsService {
   async getAvailableMissions(carrierId: string, query: AvailableMissionsQuery) {
     const { latitude, longitude, radius } = query;
 
-    // Récupérer tous les parcels PENDING avec leur adresse
     const pendingParcels = await prisma.parcel.findMany({
       where: {
         status: 'PENDING',
         pickupSlotStart: { gt: new Date() },
-        vendorId: { not: carrierId }, // Exclure ses propres colis
+        vendorId: { not: carrierId },
       },
       include: {
         pickupAddress: true,
@@ -33,7 +32,6 @@ export class MissionsService {
       },
     });
 
-    // Filtrer par distance et calculer la distance pour chaque parcel
     const parcelsWithDistance = pendingParcels
       .map((parcel) => {
         const distance = calculateDistance(
@@ -74,7 +72,6 @@ export class MissionsService {
   }
 
   async acceptMission(carrierId: string, parcelId: string) {
-    // Vérifier que le parcel existe et est PENDING
     const parcel = await prisma.parcel.findUnique({
       where: { id: parcelId },
       include: {
@@ -96,14 +93,13 @@ export class MissionsService {
     }
 
     if (parcel.status !== 'PENDING') {
-      throw new Error('Ce colis n\'est plus disponible');
+      throw new Error("Ce colis n'est plus disponible");
     }
 
     if (parcel.vendorId === carrierId) {
       throw new Error('Vous ne pouvez pas accepter votre propre colis');
     }
 
-    // Créer la mission et mettre à jour le parcel
     const [mission] = await prisma.$transaction([
       prisma.mission.create({
         data: {
@@ -116,17 +112,16 @@ export class MissionsService {
         where: { id: parcelId },
         data: {
           status: 'ACCEPTED',
-          carrierId,
+          assignedCarrierId: carrierId,
         },
       }),
     ]);
 
-    // Retourner la mission avec les détails complets
     return {
       mission,
       parcel: {
         ...parcel,
-        pickupCode: parcel.pickupCode, // Maintenant visible pour le livreur
+        pickupCode: parcel.pickupCode,
       },
     };
   }
@@ -174,7 +169,6 @@ export class MissionsService {
               size: true,
               price: true,
               dropoffName: true,
-              deliveredAt: true,
             },
           },
         },
@@ -250,7 +244,7 @@ export class MissionsService {
     }
 
     if (mission.status !== 'PICKED_UP') {
-      throw new Error('Le colis doit d\'abord être récupéré');
+      throw new Error("Le colis doit d'abord être récupéré");
     }
 
     const [updatedMission] = await prisma.$transaction([
@@ -270,7 +264,6 @@ export class MissionsService {
         where: { id: mission.parcelId },
         data: { status: 'DELIVERED' },
       }),
-      // Incrémenter le compteur de livraisons du carrier
       prisma.carrierProfile.update({
         where: { userId: carrierId },
         data: {
@@ -307,7 +300,7 @@ export class MissionsService {
         where: { id: mission.parcelId },
         data: {
           status: 'PENDING',
-          carrierId: null,
+          assignedCarrierId: null,
         },
       }),
     ]);
@@ -359,5 +352,33 @@ export class MissionsService {
     }
 
     return profile;
+  }
+
+  async getCarrierLocation(carrierId: string) {
+    const profile = await prisma.carrierProfile.findUnique({
+      where: { userId: carrierId },
+      select: {
+        currentLatitude: true,
+        currentLongitude: true,
+        lastLocationUpdate: true,
+        user: {
+          select: {
+            firstName: true,
+            avatarUrl: true,
+          },
+        },
+      },
+    });
+
+    if (!profile) {
+      throw new Error('Livreur non trouvé');
+    }
+
+    return {
+      latitude: profile.currentLatitude,
+      longitude: profile.currentLongitude,
+      lastUpdate: profile.lastLocationUpdate,
+      carrier: profile.user,
+    };
   }
 }

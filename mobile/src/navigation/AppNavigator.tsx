@@ -5,6 +5,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useTheme, Text } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { TrackingScreen } from '../screens/vendor/TrackingScreen';
 
 import { useAuthStore } from '../stores/authStore';
 import { colors } from '../theme';
@@ -78,6 +79,11 @@ function VendorNavigator() {
         component={ParcelDetailScreen}
         options={{ title: 'Détail du Colis' }}
       />
+      <VendorStack.Screen 
+  name="Tracking" 
+  component={TrackingScreen}
+  options={{ title: 'Suivi du livreur' }}
+/>
     </VendorStack.Navigator>
   );
 }

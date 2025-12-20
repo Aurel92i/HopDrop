@@ -165,4 +165,16 @@ export class MissionsController {
       return reply.status(404).send({ error: error.message });
     }
   }
+
+  async getCarrierLocation(
+    request: FastifyRequest<{ Params: { carrierId: string } }>,
+    reply: FastifyReply
+  ) {
+    try {
+      const location = await this.missionsService.getCarrierLocation(request.params.carrierId);
+      return reply.send(location);
+    } catch (error: any) {
+      return reply.status(400).send({ error: error.message });
+    }
+  }
 }

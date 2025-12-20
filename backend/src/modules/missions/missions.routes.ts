@@ -44,6 +44,10 @@ export async function missionsRoutes(app: FastifyInstance) {
     preHandler: [app.authenticate],
   }, missionsController.updateLocation.bind(missionsController));
 
+  app.get('/carrier/:carrierId/location', {
+    preHandler: [app.authenticate],
+  }, missionsController.getCarrierLocation.bind(missionsController));
+
   app.put('/carrier/settings', {
     preHandler: [app.authenticate],
   }, missionsController.updateSettings.bind(missionsController));

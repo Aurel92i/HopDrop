@@ -17,7 +17,7 @@ type ParcelDetailScreenProps = {
 };
 
 const statusConfig: Record<ParcelStatus, { label: string; color: string; icon: string }> = {
-  PENDING: { label: 'En attente d\'un livreur', color: colors.tertiary, icon: 'clock-outline' },
+  PENDING: { label: "En attente d'un livreur", color: colors.tertiary, icon: 'clock-outline' },
   ACCEPTED: { label: 'Livreur trouvé', color: colors.primary, icon: 'check-circle-outline' },
   PICKED_UP: { label: 'Colis récupéré', color: colors.secondary, icon: 'package-variant' },
   DELIVERED: { label: 'Livré avec succès', color: '#10B981', icon: 'check-all' },
@@ -112,14 +112,18 @@ export function ParcelDetailScreen({ navigation, route }: ParcelDetailScreenProp
           <Text variant="titleMedium" style={styles.sectionTitle}>
             📦 Informations du colis
           </Text>
-          
+
           <View style={styles.infoRow}>
-            <Text variant="bodyMedium" style={styles.label}>Taille</Text>
+            <Text variant="bodyMedium" style={styles.label}>
+              Taille
+            </Text>
             <Chip icon="package-variant">{sizeInfo.label}</Chip>
           </View>
 
           <View style={styles.infoRow}>
-            <Text variant="bodyMedium" style={styles.label}>Prix</Text>
+            <Text variant="bodyMedium" style={styles.label}>
+              Prix
+            </Text>
             <Text variant="titleMedium" style={styles.price}>
               {Number(currentParcel.price).toFixed(2)} €
             </Text>
@@ -127,7 +131,9 @@ export function ParcelDetailScreen({ navigation, route }: ParcelDetailScreenProp
 
           {currentParcel.description && (
             <View style={styles.infoRow}>
-              <Text variant="bodyMedium" style={styles.label}>Description</Text>
+              <Text variant="bodyMedium" style={styles.label}>
+                Description
+              </Text>
               <Text variant="bodyMedium">{currentParcel.description}</Text>
             </View>
           )}
@@ -144,10 +150,13 @@ export function ParcelDetailScreen({ navigation, route }: ParcelDetailScreenProp
           <View style={styles.addressBlock}>
             <MaterialCommunityIcons name="home" size={20} color={colors.primary} />
             <View style={styles.addressInfo}>
-              <Text variant="labelMedium" style={styles.addressLabel}>Récupération</Text>
+              <Text variant="labelMedium" style={styles.addressLabel}>
+                Récupération
+              </Text>
               {currentParcel.pickupAddress && (
                 <Text variant="bodyMedium">
-                  {currentParcel.pickupAddress.street}, {currentParcel.pickupAddress.postalCode} {currentParcel.pickupAddress.city}
+                  {currentParcel.pickupAddress.street}, {currentParcel.pickupAddress.postalCode}{' '}
+                  {currentParcel.pickupAddress.city}
                 </Text>
               )}
             </View>
@@ -158,7 +167,9 @@ export function ParcelDetailScreen({ navigation, route }: ParcelDetailScreenProp
           <View style={styles.addressBlock}>
             <MaterialCommunityIcons name="store" size={20} color={colors.secondary} />
             <View style={styles.addressInfo}>
-              <Text variant="labelMedium" style={styles.addressLabel}>Dépôt</Text>
+              <Text variant="labelMedium" style={styles.addressLabel}>
+                Dépôt
+              </Text>
               <Text variant="bodyMedium">{currentParcel.dropoffName}</Text>
               <Text variant="bodySmall" style={styles.addressText}>
                 {currentParcel.dropoffAddress}
@@ -174,11 +185,13 @@ export function ParcelDetailScreen({ navigation, route }: ParcelDetailScreenProp
           <Text variant="titleMedium" style={styles.sectionTitle}>
             🕐 Créneau de récupération
           </Text>
-          <Text variant="bodyMedium">
-            {formatDate(currentParcel.pickupSlotStart)}
-          </Text>
+          <Text variant="bodyMedium">{formatDate(currentParcel.pickupSlotStart)}</Text>
           <Text variant="bodySmall" style={styles.slotEnd}>
-            jusqu'à {new Date(currentParcel.pickupSlotEnd).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+            jusqu'à{' '}
+            {new Date(currentParcel.pickupSlotEnd).toLocaleTimeString('fr-FR', {
+              hour: '2-digit',
+              minute: '2-digit',
+            })}
           </Text>
         </Card.Content>
       </Card>
@@ -203,6 +216,23 @@ export function ParcelDetailScreen({ navigation, route }: ParcelDetailScreenProp
             </View>
           </Card.Content>
         </Card>
+      )}
+
+      {/* Tracking Button */}
+      {currentParcel.status === 'ACCEPTED' && currentParcel.assignedCarrierId && (
+        <Button
+          mode="contained"
+          icon="map-marker"
+          onPress={() =>
+            navigation.navigate('Tracking', {
+              parcelId: currentParcel.id,
+              carrierId: currentParcel.assignedCarrierId!,
+            })
+          }
+          style={styles.trackingButton}
+        >
+          Suivre le livreur
+        </Button>
       )}
 
       {/* Actions */}
@@ -310,6 +340,10 @@ const styles = StyleSheet.create({
   },
   carrierPhone: {
     color: colors.onSurfaceVariant,
+  },
+  trackingButton: {
+    marginBottom: spacing.md,
+    backgroundColor: colors.primary,
   },
   cancelButton: {
     marginTop: spacing.md,

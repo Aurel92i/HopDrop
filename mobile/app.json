@@ -37,6 +37,14 @@
           "color": "#4CAF50",
           "sounds": []
         }
+      ],
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "HopDrop utilise votre position pour vous proposer des missions à proximité et permettre aux clients de suivre leur livraison.",
+          "locationAlwaysPermission": "HopDrop utilise votre position en arrière-plan pour vous proposer des missions à proximité.",
+          "locationWhenInUsePermission": "HopDrop utilise votre position pour vous proposer des missions à proximité."
+        }
       ]
     ],
     "extra": {

@@ -4,7 +4,6 @@ import { Text, Button, Card, Switch, FAB } from 'react-native-paper';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import * as Location from 'expo-location';
 
 import { EmptyState } from '../../components/common/EmptyState';
 import { LoadingScreen } from '../../components/common/LoadingScreen';
@@ -13,6 +12,7 @@ import { api } from '../../services/api';
 import { CarrierStackParamList } from '../../navigation/types';
 import { colors, spacing } from '../../theme';
 import { Mission, MissionStatus } from '../../types';
+import { locationService } from '../../services/location';
 
 type CarrierHomeScreenProps = {
   navigation: NativeStackNavigationProp<CarrierStackParamList, 'CarrierHome'>;
@@ -30,6 +30,7 @@ export function CarrierHomeScreen({ navigation }: CarrierHomeScreenProps) {
   const { currentMissions, isLoading, fetchCurrentMissions } = useMissionStore();
   const [isAvailable, setIsAvailable] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [isTracking, setIsTracking] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -53,6 +54,18 @@ export function CarrierHomeScreen({ navigation }: CarrierHomeScreenProps) {
     setRefreshing(false);
   };
 
+  const toggleTracking = async (value: boolean) => {
+    if (value) {
+      const success = await locationService.startForegroundTracking((location) => {
+        console.log('Position:', location.coords);
+      });
+      setIsTracking(success);
+    } else {
+      await locationService.stopTracking();
+      setIsTracking(false);
+    }
+  };
+
   const toggleAvailability = async () => {
     try {
       const newValue = !isAvailable;
@@ -65,9 +78,9 @@ export function CarrierHomeScreen({ navigation }: CarrierHomeScreenProps) {
 
   const renderMissionItem = ({ item }: { item: Mission }) => {
     const status = statusConfig[item.status];
-    
+
     return (
-      <Card 
+      <Card
         style={[styles.missionCard, { borderLeftColor: status.color }]}
         onPress={() => navigation.navigate('MissionDetail', { missionId: item.id })}
       >
@@ -81,7 +94,7 @@ export function CarrierHomeScreen({ navigation }: CarrierHomeScreenProps) {
             </View>
             <MaterialCommunityIcons name="chevron-right" size={24} color={colors.onSurfaceVariant} />
           </View>
-          
+
           {item.parcel && (
             <>
               <Text variant="bodyMedium" style={styles.dropoffName}>
@@ -113,6 +126,26 @@ export function CarrierHomeScreen({ navigation }: CarrierHomeScreenProps) {
             </Text>
           </View>
           <Switch value={isAvailable} onValueChange={toggleAvailability} />
+        </Card.Content>
+      </Card>
+
+      {/* Tracking Card */}
+      <Card style={styles.trackingCard}>
+        <Card.Content style={styles.trackingContent}>
+          <View style={styles.trackingInfo}>
+            <MaterialCommunityIcons
+              name={isTracking ? 'map-marker' : 'map-marker-off'}
+              size={24}
+              color={isTracking ? colors.primary : colors.onSurfaceVariant}
+            />
+            <View style={styles.trackingText}>
+              <Text variant="titleSmall">Partage de position</Text>
+              <Text variant="bodySmall" style={styles.trackingDescription}>
+                {isTracking ? 'Position partagée avec les clients' : 'Position non partagée'}
+              </Text>
+            </View>
+          </View>
+          <Switch value={isTracking} onValueChange={toggleTracking} color={colors.primary} />
         </Card.Content>
       </Card>
 
@@ -158,6 +191,7 @@ const styles = StyleSheet.create({
   },
   statusCard: {
     margin: spacing.md,
+    marginBottom: spacing.sm,
     backgroundColor: colors.surface,
   },
   statusContent: {
@@ -166,6 +200,27 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   statusHint: {
+    color: colors.onSurfaceVariant,
+  },
+  trackingCard: {
+    marginHorizontal: spacing.md,
+    marginBottom: spacing.md,
+    backgroundColor: colors.surface,
+  },
+  trackingContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  trackingInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  trackingText: {
+    flex: 1,
+  },
+  trackingDescription: {
     color: colors.onSurfaceVariant,
   },
   sectionTitle: {

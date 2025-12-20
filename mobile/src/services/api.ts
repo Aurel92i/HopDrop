@@ -232,6 +232,11 @@ class ApiService {
     return response.data;
   }
 
+  async getCarrierLocation(carrierId: string) {
+    const response = await this.api.get(`/carrier/${carrierId}/location`);
+    return response.data;
+  } 
+
   async getCarrierProfile() {
     const response = await this.api.get('/carrier/profile');
     return response.data;

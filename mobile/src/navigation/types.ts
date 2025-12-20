@@ -9,6 +9,7 @@ export type VendorStackParamList = {
   CreateParcel: undefined;
   ParcelDetail: { parcelId: string };
   VendorHistory: undefined;
+  Tracking: { parcelId: string; carrierId: string };  // AJOUTER
 };
 
 export type CarrierStackParamList = {
