@@ -1,4 +1,4 @@
-import { ParcelStatus, ParcelSize, DropoffType } from '@prisma/client';
+import { ParcelStatus, ParcelSize, DropoffType, Carrier } from '@prisma/client';
 import { prisma } from '../../shared/prisma.js';
 import { CreateParcelInput, UpdateParcelInput, ListParcelsQuery } from './parcels.schemas.js';
 import { calculatePrice } from './parcels.pricing.js';
@@ -61,6 +61,11 @@ export class ParcelsService {
         weightEstimate: input.weightEstimate,
         description: input.description,
         photoUrl: input.photoUrl,
+        // Nouveaux champs F1
+        carrier: (input.carrier as Carrier) || 'OTHER',
+        hasShippingLabel: input.hasShippingLabel ?? false,
+        shippingLabelUrl: input.shippingLabelUrl,
+        // Fin nouveaux champs
         price: pricing.totalPrice,
         pickupSlotStart: slotStart,
         pickupSlotEnd: slotEnd,
@@ -99,7 +104,7 @@ export class ParcelsService {
         where,
         include: {
           pickupAddress: true,
-          carrier: {
+          assignedCarrier: {
             select: {
               id: true,
               firstName: true,
@@ -131,7 +136,7 @@ export class ParcelsService {
       where: { id: parcelId, vendorId },
       include: {
         pickupAddress: true,
-        carrier: {
+        assignedCarrier: {
           select: {
             id: true,
             firstName: true,
@@ -188,6 +193,9 @@ export class ParcelsService {
         ...(input.description !== undefined && { description: input.description }),
         ...(input.pickupSlotStart && { pickupSlotStart: new Date(input.pickupSlotStart) }),
         ...(input.pickupSlotEnd && { pickupSlotEnd: new Date(input.pickupSlotEnd) }),
+        ...(input.carrier && { carrier: input.carrier as Carrier }),
+        ...(input.hasShippingLabel !== undefined && { hasShippingLabel: input.hasShippingLabel }),
+        ...(input.shippingLabelUrl !== undefined && { shippingLabelUrl: input.shippingLabelUrl }),
       },
       include: {
         pickupAddress: true,
@@ -239,7 +247,7 @@ export class ParcelsService {
         data: { status: 'PICKED_UP' },
         include: {
           pickupAddress: true,
-          carrier: {
+          assignedCarrier: {
             select: {
               id: true,
               firstName: true,

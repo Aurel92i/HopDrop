@@ -59,6 +59,16 @@ enum StripeAccountStatus {
   RESTRICTED
 }
 
+enum Carrier {
+  VINTED
+  MONDIAL_RELAY
+  COLISSIMO
+  CHRONOPOST
+  RELAIS_COLIS
+  UPS
+  OTHER
+}
+
 // ============== MODELS ==============
 
 model User {
@@ -115,7 +125,7 @@ model Address {
 model Parcel {
   id              String       @id @default(uuid())
   vendorId        String
-  carrierId       String?
+  assignedCarrierId String?
   pickupAddressId String
   dropoffType     DropoffType
   dropoffName     String
@@ -124,6 +134,9 @@ model Parcel {
   weightEstimate  Float?
   description     String?
   photoUrl        String?
+  carrier         Carrier      @default(OTHER)
+  hasShippingLabel Boolean     @default(false)
+  shippingLabelUrl String?
   status          ParcelStatus @default(PENDING)
   price           Decimal      @db.Decimal(10, 2)
   pickupSlotStart DateTime
@@ -133,7 +146,7 @@ model Parcel {
   updatedAt       DateTime     @updatedAt
 
   vendor        User          @relation("VendorParcels", fields: [vendorId], references: [id])
-  carrier       User?         @relation("CarrierParcels", fields: [carrierId], references: [id])
+  assignedCarrier User?       @relation("CarrierParcels", fields: [assignedCarrierId], references: [id])
   pickupAddress Address       @relation(fields: [pickupAddressId], references: [id])
   mission       Mission?
   transactions  Transaction[]

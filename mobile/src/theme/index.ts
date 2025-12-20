@@ -63,3 +63,13 @@ export const sizes = {
     XLARGE: { label: 'Très grand', description: 'Grand carton', price: '7,00 €' },
   },
 };
+
+export const carriers = {
+  VINTED: { label: 'Vinted', icon: 'shopping' },
+  MONDIAL_RELAY: { label: 'Mondial Relay', icon: 'store' },
+  COLISSIMO: { label: 'Colissimo (La Poste)', icon: 'email' },
+  CHRONOPOST: { label: 'Chronopost', icon: 'lightning-bolt' },
+  RELAIS_COLIS: { label: 'Relais Colis', icon: 'package-variant' },
+  UPS: { label: 'UPS', icon: 'truck' },
+  OTHER: { label: 'Autre', icon: 'help-circle' },
+};

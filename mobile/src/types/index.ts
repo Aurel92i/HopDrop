@@ -6,6 +6,8 @@ export type ParcelStatus = 'PENDING' | 'ACCEPTED' | 'PICKED_UP' | 'DELIVERED' | 
 
 export type MissionStatus = 'ACCEPTED' | 'IN_PROGRESS' | 'PICKED_UP' | 'DELIVERED' | 'CANCELLED';
 
+export type Carrier = 'VINTED' | 'MONDIAL_RELAY' | 'COLISSIMO' | 'CHRONOPOST' | 'RELAIS_COLIS' | 'UPS' | 'OTHER';
+
 export interface User {
   id: string;
   email: string;
@@ -84,4 +86,32 @@ export interface CarrierProfile {
 export interface AuthTokens {
   accessToken: string;
   refreshToken: string;
+}
+
+// Mets à jour l'interface Parcel (ajoute ces 3 champs)
+export interface Parcel {
+  id: string;
+  vendorId: string;
+  assignedCarrierId?: string;
+  pickupAddressId: string;
+  dropoffType: 'POST_OFFICE' | 'RELAY_POINT' | 'OTHER';
+  dropoffName: string;
+  dropoffAddress: string;
+  size: ParcelSize;
+  weightEstimate?: number;
+  description?: string;
+  photoUrl?: string;
+  carrier: Carrier;           // NOUVEAU
+  hasShippingLabel: boolean;  // NOUVEAU
+  shippingLabelUrl?: string;  // NOUVEAU
+  status: ParcelStatus;
+  price: number;
+  pickupSlotStart: string;
+  pickupSlotEnd: string;
+  pickupCode: string;
+  createdAt: string;
+  updatedAt: string;
+  pickupAddress?: Address;
+  vendor?: User;
+  assignedCarrier?: User;
 }
