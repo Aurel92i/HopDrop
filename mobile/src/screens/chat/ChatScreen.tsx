@@ -78,9 +78,28 @@ export function ChatScreen({ route, navigation }: ChatScreenProps) {
     const messageContent = newMessage.trim();
     setNewMessage('');
 
+    // Optimistic update - ajouter le message immédiatement
+    const tempMessage: Message = {
+      id: `temp-${Date.now()}`,
+      conversationId: conversation.id,
+      senderId: user?.id || '',
+      content: messageContent,
+      isRead: false,
+      createdAt: new Date().toISOString(),
+      sender: {
+        id: user?.id || '',
+        firstName: user?.firstName || '',
+        avatarUrl: user?.avatarUrl || null,
+      },
+    };
+    setMessages((prev) => [...prev, tempMessage]);
+
     try {
       const { message } = await api.sendMessage(conversation.id, messageContent);
-      setMessages((prev) => [...prev, message]);
+      // Remplacer le message temporaire par le vrai
+      setMessages((prev) => 
+        prev.map((m) => (m.id === tempMessage.id ? message : m))
+      );
       
       // Scroll to bottom
       setTimeout(() => {
@@ -88,10 +107,50 @@ export function ChatScreen({ route, navigation }: ChatScreenProps) {
       }, 100);
     } catch (error: any) {
       Alert.alert('Erreur', "Impossible d'envoyer le message");
+      // Retirer le message temporaire
+      setMessages((prev) => prev.filter((m) => m.id !== tempMessage.id));
       setNewMessage(messageContent);
     } finally {
       setIsSending(false);
     }
+  };
+
+  const renderMessageStatus = (message: Message, isOwnMessage: boolean) => {
+    if (!isOwnMessage) return null;
+
+    // Si c'est un message temporaire (envoi en cours)
+    if (message.id.startsWith('temp-')) {
+      return (
+        <MaterialCommunityIcons
+          name="clock-outline"
+          size={14}
+          color="rgba(255,255,255,0.5)"
+          style={styles.statusIcon}
+        />
+      );
+    }
+
+    // Message envoyé et lu
+    if (message.isRead) {
+      return (
+        <MaterialCommunityIcons
+          name="check-all"
+          size={14}
+          color="#4FC3F7"
+          style={styles.statusIcon}
+        />
+      );
+    }
+
+    // Message envoyé mais non lu
+    return (
+      <MaterialCommunityIcons
+        name="check"
+        size={14}
+        color="rgba(255,255,255,0.7)"
+        style={styles.statusIcon}
+      />
+    );
   };
 
   const renderMessage = ({ item }: { item: Message }) => {
@@ -118,17 +177,20 @@ export function ChatScreen({ route, navigation }: ChatScreenProps) {
           >
             {item.content}
           </Text>
-          <Text
-            style={[
-              styles.messageTime,
-              isOwnMessage ? styles.ownMessageTime : styles.otherMessageTime,
-            ]}
-          >
-            {new Date(item.createdAt).toLocaleTimeString('fr-FR', {
-              hour: '2-digit',
-              minute: '2-digit',
-            })}
-          </Text>
+          <View style={styles.messageFooter}>
+            <Text
+              style={[
+                styles.messageTime,
+                isOwnMessage ? styles.ownMessageTime : styles.otherMessageTime,
+              ]}
+            >
+              {new Date(item.createdAt).toLocaleTimeString('fr-FR', {
+                hour: '2-digit',
+                minute: '2-digit',
+              })}
+            </Text>
+            {renderMessageStatus(item, isOwnMessage)}
+          </View>
         </View>
       </View>
     );
@@ -202,7 +264,6 @@ export function ChatScreen({ route, navigation }: ChatScreenProps) {
           size={24}
           onPress={handleSend}
           disabled={!newMessage.trim() || isSending}
-          loading={isSending}
         />
       </View>
     </KeyboardAvoidingView>
@@ -267,16 +328,23 @@ const styles = StyleSheet.create({
   otherMessageText: {
     color: colors.onSurface,
   },
+  messageFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    marginTop: spacing.xs,
+  },
   messageTime: {
     fontSize: 11,
-    marginTop: spacing.xs,
   },
   ownMessageTime: {
     color: 'rgba(255,255,255,0.7)',
-    textAlign: 'right',
   },
   otherMessageTime: {
     color: colors.onSurfaceVariant,
+  },
+  statusIcon: {
+    marginLeft: 4,
   },
   emptyContainer: {
     flex: 1,

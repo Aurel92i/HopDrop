@@ -81,12 +81,8 @@ export function AddressesScreen() {
       if (editingAddress) {
         await api.updateAddress(editingAddress.id, form);
       } else {
-        await api.createAddress({
-          ...form,
-          latitude: 48.8566, // Paris par défaut (à améliorer avec géocodage)
-          longitude: 2.3522,
-        });
-      }
+  await api.createAddress(form);
+}
       closeModal();
       loadAddresses();
     } catch (e: any) {

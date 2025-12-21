@@ -237,13 +237,21 @@ export function MissionDetailScreen({ navigation, route }: MissionDetailScreenPr
               <MaterialCommunityIcons name="account-circle" size={48} color={colors.primary} />
               <View style={styles.vendorInfo}>
                 <Text variant="titleMedium">{parcel.vendor.firstName}</Text>
-                {parcel.vendor.phone && (
-                  <Text variant="bodySmall" style={styles.vendorPhone}>
-                    📞 {parcel.vendor.phone}
-                  </Text>
-                )}
+                <Text variant="bodySmall" style={styles.vendorHint}>
+                  Utilisez le chat pour communiquer
+                </Text>
               </View>
             </View>
+            
+            {/* Chat Button */}
+            <Button
+              mode="outlined"
+              icon="chat"
+              onPress={() => navigation.navigate('Chat', { parcelId: parcel.id })}
+              style={styles.chatButton}
+            >
+              Contacter le vendeur
+            </Button>
           </Card.Content>
         </Card>
       )}
@@ -378,12 +386,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
+    marginBottom: spacing.md,
   },
   vendorInfo: {
     flex: 1,
   },
-  vendorPhone: {
+  vendorHint: {
     color: colors.onSurfaceVariant,
+  },
+  chatButton: {
+    marginTop: spacing.sm,
   },
   earningsCard: {
     marginBottom: spacing.md,

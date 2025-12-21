@@ -1,76 +1,138 @@
 import { prisma } from '../../shared/prisma.js';
-import { CreateAddressInput, UpdateAddressInput } from './addresses.schemas.js';
+import { geocodingService } from '../../shared/services/geocoding.service.js';
 
-// Lookup basique pour le geocoding MVP (grandes villes françaises)
-const CITY_COORDS: Record<string, { lat: number; lng: number }> = {
-  'paris': { lat: 48.8566, lng: 2.3522 },
-  'lyon': { lat: 45.7640, lng: 4.8357 },
-  'marseille': { lat: 43.2965, lng: 5.3698 },
-  'toulouse': { lat: 43.6047, lng: 1.4442 },
-  'nice': { lat: 43.7102, lng: 7.2620 },
-  'nantes': { lat: 47.2184, lng: -1.5536 },
-  'bordeaux': { lat: 44.8378, lng: -0.5792 },
-  'lille': { lat: 50.6292, lng: 3.0573 },
-  'rennes': { lat: 48.1173, lng: -1.6778 },
-  'strasbourg': { lat: 48.5734, lng: 7.7521 },
-};
+interface CreateAddressInput {
+  label: string;
+  street: string;
+  city: string;
+  postalCode: string;
+  country?: string;
+  latitude?: number;
+  longitude?: number;
+  instructions?: string;
+  isDefault?: boolean;
+}
+
+interface UpdateAddressInput {
+  label?: string;
+  street?: string;
+  city?: string;
+  postalCode?: string;
+  country?: string;
+  latitude?: number;
+  longitude?: number;
+  instructions?: string;
+  isDefault?: boolean;
+}
 
 export class AddressesService {
+  // Méthode renommée pour correspondre au controller
   async getAddresses(userId: string) {
-    return prisma.address.findMany({
+    const addresses = await prisma.address.findMany({
       where: { userId },
       orderBy: [{ isDefault: 'desc' }, { createdAt: 'desc' }],
     });
+
+    return addresses;
   }
 
   async createAddress(userId: string, input: CreateAddressInput) {
-    // Si c'est la première adresse ou isDefault=true, gérer le défaut
+    let { latitude, longitude } = input;
+
+   // Si pas de coordonnées fournies OU coordonnées par défaut de Paris, géocoder l'adresse
+const isDefaultCoords = latitude === 48.8566 && longitude === 2.3522;
+if (!latitude || !longitude || isDefaultCoords) {
+      console.log('Géocodage de l\'adresse:', input.street, input.city);
+      
+      const geocoded = await geocodingService.geocode(
+        input.street,
+        input.city,
+        input.postalCode,
+        input.country || 'France'
+      );
+
+      if (geocoded) {
+        latitude = geocoded.latitude;
+        longitude = geocoded.longitude;
+        console.log('Coordonnées trouvées:', latitude, longitude);
+      } else {
+        // Coordonnées par défaut (centre de la France) si géocodage échoue
+        console.warn('Géocodage échoué, utilisation des coordonnées par défaut');
+        latitude = 46.603354;
+        longitude = 1.888334;
+      }
+    }
+
+    // Si c'est la première adresse ou si isDefault est true, gérer les défauts
     if (input.isDefault) {
       await prisma.address.updateMany({
-        where: { userId },
+        where: { userId, isDefault: true },
         data: { isDefault: false },
       });
     }
 
-    // Si c'est la première adresse, la mettre par défaut
+    // Vérifier si c'est la première adresse
     const existingCount = await prisma.address.count({ where: { userId } });
-    const isDefault = existingCount === 0 ? true : input.isDefault;
+    const shouldBeDefault = existingCount === 0 || input.isDefault;
 
-    return prisma.address.create({
+    const address = await prisma.address.create({
       data: {
         userId,
         label: input.label,
         street: input.street,
         city: input.city,
         postalCode: input.postalCode,
-        country: input.country,
-        latitude: input.latitude,
-        longitude: input.longitude,
+        country: input.country || 'France',
+        latitude,
+        longitude,
         instructions: input.instructions,
-        isDefault,
+        isDefault: shouldBeDefault,
       },
     });
+
+    return address;
   }
 
   async updateAddress(userId: string, addressId: string, input: UpdateAddressInput) {
     // Vérifier que l'adresse appartient à l'utilisateur
-    const address = await prisma.address.findFirst({
+    const existing = await prisma.address.findFirst({
       where: { id: addressId, userId },
     });
 
-    if (!address) {
+    if (!existing) {
       throw new Error('Adresse non trouvée');
     }
 
-    // Gérer le isDefault
+    let { latitude, longitude } = input;
+
+    // Si l'adresse change, re-géocoder
+    if (
+      (input.street && input.street !== existing.street) ||
+      (input.city && input.city !== existing.city) ||
+      (input.postalCode && input.postalCode !== existing.postalCode)
+    ) {
+      const geocoded = await geocodingService.geocode(
+        input.street || existing.street,
+        input.city || existing.city,
+        input.postalCode || existing.postalCode,
+        input.country || existing.country
+      );
+
+      if (geocoded) {
+        latitude = geocoded.latitude;
+        longitude = geocoded.longitude;
+      }
+    }
+
+    // Gérer le défaut
     if (input.isDefault) {
       await prisma.address.updateMany({
-        where: { userId, id: { not: addressId } },
+        where: { userId, isDefault: true, id: { not: addressId } },
         data: { isDefault: false },
       });
     }
 
-    return prisma.address.update({
+    const address = await prisma.address.update({
       where: { id: addressId },
       data: {
         ...(input.label && { label: input.label }),
@@ -78,62 +140,90 @@ export class AddressesService {
         ...(input.city && { city: input.city }),
         ...(input.postalCode && { postalCode: input.postalCode }),
         ...(input.country && { country: input.country }),
-        ...(input.latitude && { latitude: input.latitude }),
-        ...(input.longitude && { longitude: input.longitude }),
+        ...(latitude && { latitude }),
+        ...(longitude && { longitude }),
         ...(input.instructions !== undefined && { instructions: input.instructions }),
         ...(input.isDefault !== undefined && { isDefault: input.isDefault }),
       },
     });
+
+    return address;
   }
 
   async deleteAddress(userId: string, addressId: string) {
     // Vérifier que l'adresse appartient à l'utilisateur
-    const address = await prisma.address.findFirst({
+    const existing = await prisma.address.findFirst({
       where: { id: addressId, userId },
     });
 
-    if (!address) {
+    if (!existing) {
       throw new Error('Adresse non trouvée');
-    }
-
-    // Vérifier si des parcels PENDING utilisent cette adresse
-    const pendingParcels = await prisma.parcel.count({
-      where: {
-        pickupAddressId: addressId,
-        status: 'PENDING',
-      },
-    });
-
-    if (pendingParcels > 0) {
-      throw new Error('Impossible de supprimer cette adresse car elle est utilisée par des colis en attente');
     }
 
     await prisma.address.delete({
       where: { id: addressId },
     });
 
-    return { message: 'Adresse supprimée' };
-  }
+    // Si c'était l'adresse par défaut, définir une autre comme défaut
+    if (existing.isDefault) {
+      const firstAddress = await prisma.address.findFirst({
+        where: { userId },
+        orderBy: { createdAt: 'desc' },
+      });
 
-  async geocode(address: string): Promise<{ latitude: number; longitude: number; formattedAddress: string }> {
-    // MVP: Lookup basique par ville
-    const cityMatch = address.toLowerCase();
-    
-    for (const [city, coords] of Object.entries(CITY_COORDS)) {
-      if (cityMatch.includes(city)) {
-        return {
-          latitude: coords.lat,
-          longitude: coords.lng,
-          formattedAddress: address,
-        };
+      if (firstAddress) {
+        await prisma.address.update({
+          where: { id: firstAddress.id },
+          data: { isDefault: true },
+        });
       }
     }
 
-    // Par défaut: Paris avec un petit décalage aléatoire
-    return {
-      latitude: 48.8566 + (Math.random() - 0.5) * 0.1,
-      longitude: 2.3522 + (Math.random() - 0.5) * 0.1,
-      formattedAddress: address,
-    };
+    return { message: 'Adresse supprimée' };
+  }
+
+  async setDefaultAddress(userId: string, addressId: string) {
+    // Vérifier que l'adresse appartient à l'utilisateur
+    const existing = await prisma.address.findFirst({
+      where: { id: addressId, userId },
+    });
+
+    if (!existing) {
+      throw new Error('Adresse non trouvée');
+    }
+
+    // Retirer le défaut des autres adresses
+    await prisma.address.updateMany({
+      where: { userId, isDefault: true },
+      data: { isDefault: false },
+    });
+
+    // Définir celle-ci comme défaut
+    const address = await prisma.address.update({
+      where: { id: addressId },
+      data: { isDefault: true },
+    });
+
+    return address;
+  }
+
+  // Méthode pour le géocodage direct (si utilisée par le controller)
+  async geocode(address: string) {
+    const parts = address.split(',').map(p => p.trim());
+    const street = parts[0] || '';
+    const rest = parts.slice(1).join(' ');
+    
+    // Essayer d'extraire code postal et ville
+    const postalMatch = rest.match(/(\d{5})/);
+    const postalCode = postalMatch ? postalMatch[1] : '';
+    const city = rest.replace(/\d{5}/, '').trim();
+
+    const result = await geocodingService.geocode(street, city, postalCode);
+    
+    if (!result) {
+      throw new Error('Adresse non trouvée');
+    }
+
+    return result;
   }
 }
