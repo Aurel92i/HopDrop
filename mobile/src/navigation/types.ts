@@ -9,7 +9,8 @@ export type VendorStackParamList = {
   CreateParcel: undefined;
   ParcelDetail: { parcelId: string };
   VendorHistory: undefined;
-  Tracking: { parcelId: string; carrierId: string };  // AJOUTER
+  Tracking: { parcelId: string; carrierId: string };
+  Chat: { parcelId: string };
 };
 
 export type CarrierStackParamList = {
@@ -17,15 +18,21 @@ export type CarrierStackParamList = {
   AvailableMissions: undefined;
   MissionDetail: { missionId: string };
   CarrierDocuments: undefined;
+  Chat: { parcelId: string };
 };
 
 export type ProfileStackParamList = {
   Profile: undefined;
   Addresses: undefined;
   Settings: undefined;
-  CarrierDocuments: undefined;  // Ajouté pour accès depuis le profil
+  CarrierDocuments: undefined;
 };
 
 export type AdminStackParamList = {
   AdminDashboard: undefined;
+};
+
+export type ChatStackParamList = {
+  ConversationsList: undefined;
+  Chat: { parcelId: string };
 };

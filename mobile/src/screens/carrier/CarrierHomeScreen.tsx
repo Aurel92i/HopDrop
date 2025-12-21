@@ -1,6 +1,6 @@
-import React, { useEffect, useCallback, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { View, StyleSheet, FlatList, RefreshControl } from 'react-native';
-import { Text, Button, Card, Switch, FAB } from 'react-native-paper';
+import { Text, Card, Switch, FAB } from 'react-native-paper';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -41,7 +41,7 @@ export function CarrierHomeScreen({ navigation }: CarrierHomeScreenProps) {
   const loadData = async () => {
     await fetchCurrentMissions();
     try {
-      const { profile } = await api.getCarrierProfile();
+      const profile = await api.getCarrierProfile();
       setIsAvailable(profile.isAvailable);
     } catch (e) {
       console.log('Pas de profil carrier');
@@ -119,13 +119,13 @@ export function CarrierHomeScreen({ navigation }: CarrierHomeScreenProps) {
       {/* Status Card */}
       <Card style={styles.statusCard}>
         <Card.Content style={styles.statusContent}>
-          <View>
+          <View style={styles.statusInfo}>
             <Text variant="titleMedium">Disponibilité</Text>
             <Text variant="bodySmall" style={styles.statusHint}>
               {isAvailable ? 'Vous recevez des notifications' : 'Activez pour recevoir des missions'}
             </Text>
           </View>
-          <Switch value={isAvailable} onValueChange={toggleAvailability} />
+          <Switch value={isAvailable} onValueChange={toggleAvailability} color={colors.primary} />
         </Card.Content>
       </Card>
 
@@ -199,6 +199,10 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
+  statusInfo: {
+    flex: 1,
+    marginRight: spacing.md,
+  },
   statusHint: {
     color: colors.onSurfaceVariant,
   },
@@ -215,10 +219,12 @@ const styles = StyleSheet.create({
   trackingInfo: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.md,
+    flex: 1,
+    marginRight: spacing.md,
   },
   trackingText: {
     flex: 1,
+    marginLeft: spacing.md,
   },
   trackingDescription: {
     color: colors.onSurfaceVariant,

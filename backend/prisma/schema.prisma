@@ -115,16 +115,17 @@ model User {
   updatedAt              DateTime  @updatedAt
 
   addresses        Address[]
-  parcelsAsVendor  Parcel[]       @relation("VendorParcels")
-  parcelsAsCarrier Parcel[]       @relation("CarrierParcels")
+  parcelsAsVendor  Parcel[]         @relation("VendorParcels")
+  parcelsAsCarrier Parcel[]         @relation("CarrierParcels")
   missions         Mission[]
-  reviewsGiven     Review[]       @relation("ReviewsGiven")
-  reviewsReceived  Review[]       @relation("ReviewsReceived")
+  reviewsGiven     Review[]         @relation("ReviewsGiven")
+  reviewsReceived  Review[]         @relation("ReviewsReceived")
   transactionsAsPayer Transaction[] @relation("PayerTransactions")
   transactionsAsPayee Transaction[] @relation("PayeeTransactions")
   refreshTokens    RefreshToken[]
   carrierProfile   CarrierProfile?
   carrierDocuments CarrierDocument[]
+  messages         Message[]
 
   @@map("users")
 }
@@ -151,35 +152,36 @@ model Address {
 }
 
 model Parcel {
-  id              String       @id @default(uuid())
-  vendorId        String
+  id                String       @id @default(uuid())
+  vendorId          String
   assignedCarrierId String?
-  pickupAddressId String
-  dropoffType     DropoffType
-  dropoffName     String
-  dropoffAddress  String
-  size            ParcelSize
-  weightEstimate  Float?
-  description     String?
-  photoUrl        String?
-  carrier         Carrier      @default(OTHER)
-  hasShippingLabel Boolean     @default(false)
-  shippingLabelUrl String?
+  pickupAddressId   String
+  dropoffType       DropoffType
+  dropoffName       String
+  dropoffAddress    String
+  size              ParcelSize
+  weightEstimate    Float?
+  description       String?
+  photoUrl          String?
+  carrier           Carrier      @default(OTHER)
+  hasShippingLabel  Boolean      @default(false)
+  shippingLabelUrl  String?
   pickupMode        PickupMode   @default(SCHEDULED)
-  status          ParcelStatus @default(PENDING)
-  price           Decimal      @db.Decimal(10, 2)
-  pickupSlotStart DateTime
-  pickupSlotEnd   DateTime
-  pickupCode      String
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
+  status            ParcelStatus @default(PENDING)
+  price             Decimal      @db.Decimal(10, 2)
+  pickupSlotStart   DateTime
+  pickupSlotEnd     DateTime
+  pickupCode        String
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
 
-  vendor        User          @relation("VendorParcels", fields: [vendorId], references: [id])
-  assignedCarrier User?       @relation("CarrierParcels", fields: [assignedCarrierId], references: [id])
-  pickupAddress Address       @relation(fields: [pickupAddressId], references: [id])
-  mission       Mission?
-  transactions  Transaction[]
-  reviews       Review[]
+  vendor          User          @relation("VendorParcels", fields: [vendorId], references: [id])
+  assignedCarrier User?         @relation("CarrierParcels", fields: [assignedCarrierId], references: [id])
+  pickupAddress   Address       @relation(fields: [pickupAddressId], references: [id])
+  mission         Mission?
+  transactions    Transaction[]
+  reviews         Review[]
+  conversation    Conversation?
 
   @@index([status, pickupSlotStart])
   @@map("parcels")
@@ -278,17 +280,43 @@ model RefreshToken {
 }
 
 model CarrierDocument {
-  id          String         @id @default(uuid())
-  carrierId   String
-  type        DocumentType
-  fileUrl     String
-  status      DocumentStatus @default(PENDING)
+  id              String         @id @default(uuid())
+  carrierId       String
+  type            DocumentType
+  fileUrl         String
+  status          DocumentStatus @default(PENDING)
   rejectionReason String?
-  uploadedAt  DateTime       @default(now())
-  reviewedAt  DateTime?
+  uploadedAt      DateTime       @default(now())
+  reviewedAt      DateTime?
 
-  carrier     User           @relation(fields: [carrierId], references: [id], onDelete: Cascade)
+  carrier User @relation(fields: [carrierId], references: [id], onDelete: Cascade)
 
   @@unique([carrierId, type])
   @@map("carrier_documents")
+}
+
+model Conversation {
+  id        String    @id @default(uuid())
+  parcelId  String    @unique
+  parcel    Parcel    @relation(fields: [parcelId], references: [id])
+  messages  Message[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@map("conversations")
+}
+
+model Message {
+  id             String       @id @default(uuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id])
+  senderId       String
+  sender         User         @relation(fields: [senderId], references: [id])
+  content        String
+  isRead         Boolean      @default(false)
+  createdAt      DateTime     @default(now())
+
+  @@index([conversationId])
+  @@index([senderId])
+  @@map("messages")
 }

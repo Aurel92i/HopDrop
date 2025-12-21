@@ -3,14 +3,19 @@ import { View, ActivityIndicator } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { useTheme, Text } from 'react-native-paper';
+import { useTheme } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { TrackingScreen } from '../screens/vendor/TrackingScreen';
 
 import { useAuthStore } from '../stores/authStore';
 import { colors } from '../theme';
 
-import { AuthStackParamList, VendorStackParamList, CarrierStackParamList, ProfileStackParamList, AdminStackParamList } from './types';
+import {
+  AuthStackParamList,
+  VendorStackParamList,
+  CarrierStackParamList,
+  ProfileStackParamList,
+  AdminStackParamList,
+} from './types';
 
 // Auth Screens
 import { LoginScreen } from '../screens/auth/LoginScreen';
@@ -21,6 +26,7 @@ import { ForgotPasswordScreen } from '../screens/auth/ForgotPasswordScreen';
 import { VendorHomeScreen } from '../screens/vendor/VendorHomeScreen';
 import { CreateParcelScreen } from '../screens/vendor/CreateParcelScreen';
 import { ParcelDetailScreen } from '../screens/vendor/ParcelDetailScreen';
+import { TrackingScreen } from '../screens/vendor/TrackingScreen';
 
 // Carrier Screens
 import { CarrierHomeScreen } from '../screens/carrier/CarrierHomeScreen';
@@ -35,6 +41,9 @@ import { AdminDashboardScreen } from '../screens/admin/AdminDashboardScreen';
 import { ProfileScreen } from '../screens/shared/ProfileScreen';
 import { AddressesScreen } from '../screens/shared/AddressesScreen';
 import { SettingsScreen } from '../screens/shared/SettingsScreen';
+
+// Chat Screens
+import { ChatScreen } from '../screens/chat/ChatScreen';
 
 // Navigators
 const AuthStack = createNativeStackNavigator<AuthStackParamList>();
@@ -64,26 +73,31 @@ function VendorNavigator() {
         headerTintColor: colors.onSurface,
       }}
     >
-      <VendorStack.Screen 
-        name="VendorHome" 
+      <VendorStack.Screen
+        name="VendorHome"
         component={VendorHomeScreen}
         options={{ title: 'Mes Colis' }}
       />
-      <VendorStack.Screen 
-        name="CreateParcel" 
+      <VendorStack.Screen
+        name="CreateParcel"
         component={CreateParcelScreen}
         options={{ title: 'Nouveau Colis' }}
       />
-      <VendorStack.Screen 
-        name="ParcelDetail" 
+      <VendorStack.Screen
+        name="ParcelDetail"
         component={ParcelDetailScreen}
         options={{ title: 'Détail du Colis' }}
       />
-      <VendorStack.Screen 
-  name="Tracking" 
-  component={TrackingScreen}
-  options={{ title: 'Suivi du livreur' }}
-/>
+      <VendorStack.Screen
+        name="Tracking"
+        component={TrackingScreen}
+        options={{ title: 'Suivi du livreur' }}
+      />
+      <VendorStack.Screen
+        name="Chat"
+        component={ChatScreen}
+        options={{ title: 'Chat' }}
+      />
     </VendorStack.Navigator>
   );
 }
@@ -97,25 +111,30 @@ function CarrierNavigator() {
         headerTintColor: colors.onSurface,
       }}
     >
-      <CarrierStack.Screen 
-        name="CarrierHome" 
+      <CarrierStack.Screen
+        name="CarrierHome"
         component={CarrierHomeScreen}
         options={{ title: 'Missions' }}
       />
-      <CarrierStack.Screen 
-        name="AvailableMissions" 
+      <CarrierStack.Screen
+        name="AvailableMissions"
         component={AvailableMissionsScreen}
         options={{ title: 'Missions Disponibles' }}
       />
-      <CarrierStack.Screen 
-        name="MissionDetail" 
+      <CarrierStack.Screen
+        name="MissionDetail"
         component={MissionDetailScreen}
         options={{ title: 'Détail Mission' }}
       />
-      <CarrierStack.Screen 
-        name="CarrierDocuments" 
+      <CarrierStack.Screen
+        name="CarrierDocuments"
         component={CarrierDocumentsScreen}
         options={{ title: 'Mes documents' }}
+      />
+      <CarrierStack.Screen
+        name="Chat"
+        component={ChatScreen}
+        options={{ title: 'Chat' }}
       />
     </CarrierStack.Navigator>
   );
@@ -130,23 +149,23 @@ function ProfileNavigator() {
         headerTintColor: colors.onSurface,
       }}
     >
-      <ProfileStack.Screen 
-        name="Profile" 
+      <ProfileStack.Screen
+        name="Profile"
         component={ProfileScreen}
         options={{ title: 'Mon Profil' }}
       />
-      <ProfileStack.Screen 
-        name="Addresses" 
+      <ProfileStack.Screen
+        name="Addresses"
         component={AddressesScreen}
         options={{ title: 'Mes Adresses' }}
       />
-      <ProfileStack.Screen 
-        name="Settings" 
+      <ProfileStack.Screen
+        name="Settings"
         component={SettingsScreen}
         options={{ title: 'Paramètres' }}
       />
-      <ProfileStack.Screen 
-        name="CarrierDocuments" 
+      <ProfileStack.Screen
+        name="CarrierDocuments"
         component={CarrierDocumentsScreen}
         options={{ title: 'Mes Documents' }}
       />
@@ -252,7 +271,14 @@ export function AppNavigator() {
 
   if (isLoading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background }}>
+      <View
+        style={{
+          flex: 1,
+          justifyContent: 'center',
+          alignItems: 'center',
+          backgroundColor: colors.background,
+        }}
+      >
         <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );

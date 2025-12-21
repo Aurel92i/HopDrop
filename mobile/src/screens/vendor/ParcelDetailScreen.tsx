@@ -235,6 +235,18 @@ export function ParcelDetailScreen({ navigation, route }: ParcelDetailScreenProp
         </Button>
       )}
 
+      {/* Chat Button */}
+      {currentParcel.status === 'ACCEPTED' && currentParcel.assignedCarrierId && (
+        <Button
+          mode="outlined"
+          icon="chat"
+          onPress={() => navigation.navigate('Chat', { parcelId: currentParcel.id })}
+          style={styles.chatButton}
+        >
+          Contacter le livreur
+        </Button>
+      )}
+
       {/* Actions */}
       {currentParcel.status === 'PENDING' && (
         <Button
@@ -344,6 +356,9 @@ const styles = StyleSheet.create({
   trackingButton: {
     marginBottom: spacing.md,
     backgroundColor: colors.primary,
+  },
+  chatButton: {
+    marginBottom: spacing.md,
   },
   cancelButton: {
     marginTop: spacing.md,

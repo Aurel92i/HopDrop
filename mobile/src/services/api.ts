@@ -306,6 +306,27 @@ class ApiService {
     return response.data;
   }
 
+  // === Chat ===
+  async getConversations() {
+    const response = await this.api.get('/chat/conversations');
+    return response.data;
+  }
+
+  async getConversation(parcelId: string) {
+    const response = await this.api.get(`/chat/parcel/${parcelId}`);
+    return response.data;
+  }
+
+  async sendMessage(conversationId: string, content: string) {
+    const response = await this.api.post(`/chat/${conversationId}/messages`, { content });
+    return response.data;
+  }
+
+  async markConversationAsRead(conversationId: string) {
+    const response = await this.api.post(`/chat/${conversationId}/read`);
+    return response.data;
+  }
+
   // === Uploads ===
   async uploadFile(fileUri: string, folder: string): Promise<{ url: string; publicId: string }> {
     // Lire le fichier et le convertir en base64

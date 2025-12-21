@@ -60,28 +60,29 @@ export interface Address {
 export interface Parcel {
   id: string;
   vendorId: string;
-  carrierId: string | null;
+  assignedCarrierId?: string;
   pickupAddressId: string;
   dropoffType: 'POST_OFFICE' | 'RELAY_POINT' | 'OTHER';
   dropoffName: string;
   dropoffAddress: string;
   size: ParcelSize;
-  weightEstimate: number | null;
-  description: string | null;
-  photoUrl: string | null;
+  weightEstimate?: number;
+  description?: string;
+  photoUrl?: string;
+  carrier: Carrier;
+  hasShippingLabel: boolean;
+  shippingLabelUrl?: string;
+  pickupMode: PickupMode;
   status: ParcelStatus;
   price: number;
   pickupSlotStart: string;
   pickupSlotEnd: string;
   pickupCode: string;
+  createdAt: string;
+  updatedAt: string;
   pickupAddress?: Address;
-  carrier?: User;
   vendor?: User;
-  export interface Parcel {
-  // ... champs existants ...
-  pickupMode: PickupMode;  // AJOUTER
-  // ... reste des champs ...
-}
+  assignedCarrier?: User;
 }
 
 export interface Mission {
@@ -114,34 +115,6 @@ export interface CarrierProfile {
 export interface AuthTokens {
   accessToken: string;
   refreshToken: string;
-}
-
-// Mets à jour l'interface Parcel (ajoute ces 3 champs)
-export interface Parcel {
-  id: string;
-  vendorId: string;
-  assignedCarrierId?: string;
-  pickupAddressId: string;
-  dropoffType: 'POST_OFFICE' | 'RELAY_POINT' | 'OTHER';
-  dropoffName: string;
-  dropoffAddress: string;
-  size: ParcelSize;
-  weightEstimate?: number;
-  description?: string;
-  photoUrl?: string;
-  carrier: Carrier;           // NOUVEAU
-  hasShippingLabel: boolean;  // NOUVEAU
-  shippingLabelUrl?: string;  // NOUVEAU
-  status: ParcelStatus;
-  price: number;
-  pickupSlotStart: string;
-  pickupSlotEnd: string;
-  pickupCode: string;
-  createdAt: string;
-  updatedAt: string;
-  pickupAddress?: Address;
-  vendor?: User;
-  assignedCarrier?: User;
 }
 
 export interface AdminStats {
@@ -179,4 +152,43 @@ export interface PendingDocument {
     email: string;
     phone?: string;
   };
+}
+
+export interface Message {
+  id: string;
+  conversationId: string;
+  senderId: string;
+  content: string;
+  isRead: boolean;
+  createdAt: string;
+  sender: {
+    id: string;
+    firstName: string;
+    avatarUrl: string | null;
+  };
+}
+
+export interface Conversation {
+  id: string;
+  parcelId: string;
+  createdAt: string;
+  updatedAt: string;
+  messages: Message[];
+  parcel: {
+    id: string;
+    status: ParcelStatus;
+    dropoffName: string;
+    vendor: {
+      id: string;
+      firstName: string;
+      avatarUrl: string | null;
+    };
+    assignedCarrier: {
+      id: string;
+      firstName: string;
+      avatarUrl: string | null;
+    } | null;
+  };
+  unreadCount?: number;
+  lastMessage?: Message | null;
 }
