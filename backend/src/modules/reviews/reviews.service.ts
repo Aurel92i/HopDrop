@@ -6,7 +6,7 @@ export class ReviewsService {
     // Récupérer le parcel
     const parcel = await prisma.parcel.findUnique({
       where: { id: input.parcelId },
-      include: { vendor: true, carrier: true },
+      include: { vendor: true, assignedCarrier: true },
     });
 
     if (!parcel) {
@@ -22,11 +22,11 @@ export class ReviewsService {
     
     if (reviewerId === parcel.vendorId) {
       // Le vendeur note le livreur
-      if (!parcel.carrierId) {
+      if (!parcel.assignedCarrierId) {
         throw new Error('Pas de livreur à évaluer');
       }
-      revieweeId = parcel.carrierId;
-    } else if (reviewerId === parcel.carrierId) {
+      revieweeId = parcel.assignedCarrierId;
+    } else if (reviewerId === parcel.assignedCarrierId) {
       // Le livreur note le vendeur
       revieweeId = parcel.vendorId;
     } else {

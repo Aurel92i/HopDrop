@@ -218,6 +218,35 @@ export function ParcelDetailScreen({ navigation, route }: ParcelDetailScreenProp
         </Card>
       )}
 
+      {/* Review Section */}
+      {currentParcel.status === 'DELIVERED' && currentParcel.reviews && currentParcel.reviews.length > 0 && (
+        <Card style={styles.card}>
+          <Card.Content>
+            <Text variant="titleMedium" style={styles.sectionTitle}>
+              ⭐ Votre avis
+            </Text>
+            <View style={styles.reviewStars}>
+              {[1, 2, 3, 4, 5].map((star) => (
+                <MaterialCommunityIcons
+                  key={star}
+                  name={star <= currentParcel.reviews[0].rating ? 'star' : 'star-outline'}
+                  size={24}
+                  color="#F59E0B"
+                />
+              ))}
+            </View>
+            {currentParcel.reviews[0].comment && (
+              <Text variant="bodyMedium" style={styles.reviewComment}>
+                "{currentParcel.reviews[0].comment}"
+              </Text>
+            )}
+            <Text variant="bodySmall" style={styles.reviewDate}>
+              Laissé le {new Date(currentParcel.reviews[0].createdAt).toLocaleDateString('fr-FR')}
+            </Text>
+          </Card.Content>
+        </Card>
+      )}
+
       {/* Tracking Button */}
       {currentParcel.status === 'ACCEPTED' && currentParcel.assignedCarrierId && (
         <Button
@@ -244,6 +273,25 @@ export function ParcelDetailScreen({ navigation, route }: ParcelDetailScreenProp
           style={styles.chatButton}
         >
           Contacter le livreur
+        </Button>
+      )}
+
+{/* Review Button */}
+      {currentParcel.status === 'DELIVERED' && (
+        <Button
+          mode="contained"
+          icon="star"
+          onPress={() =>
+            navigation.navigate('Review', {
+              parcelId: currentParcel.id,
+              carrierName: currentParcel.assignedCarrier?.firstName,
+              dropoffName: currentParcel.dropoffName,
+            })
+          }
+          style={styles.reviewButton}
+          buttonColor="#F59E0B"
+        >
+          Laisser un avis
         </Button>
       )}
 
@@ -363,5 +411,20 @@ const styles = StyleSheet.create({
   cancelButton: {
     marginTop: spacing.md,
     borderColor: colors.error,
+  },
+  reviewButton: {
+    marginBottom: spacing.md,
+  },
+  reviewStars: {
+    flexDirection: 'row',
+    marginBottom: spacing.sm,
+  },
+  reviewComment: {
+    fontStyle: 'italic',
+    color: colors.onSurface,
+    marginBottom: spacing.xs,
+  },
+  reviewDate: {
+    color: colors.onSurfaceVariant,
   },
 });

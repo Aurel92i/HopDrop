@@ -162,7 +162,15 @@ export class ParcelsService {
         },
         mission: true,
         transactions: true,
-        reviews: true,
+        reviews: {
+          where: { reviewerId: vendorId },
+          select: {
+            id: true,
+            rating: true,
+            comment: true,
+            createdAt: true,
+          },
+        },
       },
     });
 

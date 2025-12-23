@@ -11,6 +11,7 @@ export type VendorStackParamList = {
   VendorHistory: undefined;
   Tracking: { parcelId: string; carrierId: string };
   Chat: { parcelId: string };
+  Review: { parcelId: string; carrierName?: string; dropoffName?: string };
 };
 
 export type CarrierStackParamList = {
@@ -19,6 +20,7 @@ export type CarrierStackParamList = {
   MissionDetail: { missionId: string };
   CarrierDocuments: undefined;
   CarrierHistory: undefined;
+  CarrierProfile: undefined;
   Chat: { parcelId: string };
 };
 

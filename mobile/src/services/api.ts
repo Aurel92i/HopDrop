@@ -130,7 +130,7 @@ class ApiService {
   }
 
   // Users
-  async updateProfile(data: { firstName?: string; lastName?: string; phone?: string }) {
+ async updateProfile(data: { firstName?: string; lastName?: string; phone?: string; avatarUrl?: string }) {
     const response = await this.api.put('/users/me', data);
     return response.data;
   }

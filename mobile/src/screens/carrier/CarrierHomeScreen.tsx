@@ -42,11 +42,18 @@ export function CarrierHomeScreen({ navigation }: CarrierHomeScreenProps) {
   React.useLayoutEffect(() => {
     navigation.setOptions({
       headerRight: () => (
-        <IconButton
-          icon="history"
-          size={24}
-          onPress={() => navigation.navigate('CarrierHistory')}
-        />
+        <View style={{ flexDirection: 'row' }}>
+          <IconButton
+            icon="account-circle"
+            size={24}
+            onPress={() => navigation.navigate('CarrierProfile')}
+          />
+          <IconButton
+            icon="history"
+            size={24}
+            onPress={() => navigation.navigate('CarrierHistory')}
+          />
+        </View>
       ),
     });
   }, [navigation]);

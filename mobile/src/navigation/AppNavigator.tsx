@@ -9,6 +9,8 @@ import { VendorHistoryScreen } from '../screens/vendor/VendorHistoryScreen';
 import { CarrierHistoryScreen } from '../screens/carrier/CarrierHistoryScreen';
 import { useAuthStore } from '../stores/authStore';
 import { colors } from '../theme';
+import { ReviewScreen } from '../screens/shared/ReviewScreen';
+import { CarrierProfileScreen } from '../screens/carrier/CarrierProfileScreen';
 
 import {
   AuthStackParamList,
@@ -104,6 +106,11 @@ function VendorNavigator() {
         component={ChatScreen}
         options={{ title: 'Chat' }}
       />
+      <VendorStack.Screen
+        name="Review"
+        component={ReviewScreen}
+        options={{ title: 'Laisser un avis' }}
+      />  
     </VendorStack.Navigator>
   );
 }
@@ -146,6 +153,11 @@ function CarrierNavigator() {
         name="Chat"
         component={ChatScreen}
         options={{ title: 'Chat' }}
+      />
+      <CarrierStack.Screen
+        name="CarrierProfile"
+        component={CarrierProfileScreen}
+        options={{ title: 'Mon profil livreur' }}
       />
     </CarrierStack.Navigator>
   );

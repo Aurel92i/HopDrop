@@ -123,19 +123,33 @@ export function VendorHistoryScreen({ navigation }: VendorHistoryScreenProps) {
             </Text>
 
             {item.status === 'DELIVERED' && !item.hasReview && (
-              <Chip
-                icon="star"
-                compact
-                style={styles.reviewChip}
-                textStyle={styles.reviewChipText}
-              >
-                Laisser un avis
-              </Chip>
-            )}
+  <Chip
+    icon="star"
+    compact
+    style={styles.reviewChip}
+    textStyle={styles.reviewChipText}
+    onPress={() => navigation.navigate('Review', {
+      parcelId: item.id,
+      carrierName: item.assignedCarrier?.firstName,
+      dropoffName: item.dropoffName,
+    })}
+  >
+    Laisser un avis
+  </Chip>
+)}
 
-            {item.hasReview && (
-              <MaterialCommunityIcons name="star-check" size={20} color="#F59E0B" />
-            )}
+            {item.hasReview && item.reviews && item.reviews[0] && (
+  <View style={styles.starsRow}>
+    {[1, 2, 3, 4, 5].map((star) => (
+      <MaterialCommunityIcons
+        key={star}
+        name={star <= item.reviews[0].rating ? 'star' : 'star-outline'}
+        size={16}
+        color="#F59E0B"
+      />
+    ))}
+  </View>
+)}
           </View>
 
           {item.assignedCarrier && (
@@ -239,5 +253,8 @@ const styles = StyleSheet.create({
   },
   carrierName: {
     color: colors.onSurfaceVariant,
+  },
+  starsRow: {
+    flexDirection: 'row',
   },
 });
