@@ -39,10 +39,12 @@ export class AddressesService {
   async createAddress(userId: string, input: CreateAddressInput) {
     let { latitude, longitude } = input;
 
-   // Si pas de coordonnées fournies OU coordonnées par défaut de Paris, géocoder l'adresse
-const isDefaultCoords = latitude === 48.8566 && longitude === 2.3522;
-if (!latitude || !longitude || isDefaultCoords) {
-      console.log('Géocodage de l\'adresse:', input.street, input.city);
+    // Si pas de coordonnées fournies OU coordonnées par défaut/invalides, géocoder l'adresse
+    const needsGeocoding = !latitude || !longitude || 
+      (Math.abs(latitude - 48.8566) < 0.001 && Math.abs(longitude - 2.3522) < 0.001);
+    
+    if (needsGeocoding) {
+      console.log('🌍 Géocodage de l\'adresse:', input.street, input.postalCode, input.city);
       
       const geocoded = await geocodingService.geocode(
         input.street,
@@ -54,43 +56,16 @@ if (!latitude || !longitude || isDefaultCoords) {
       if (geocoded) {
         latitude = geocoded.latitude;
         longitude = geocoded.longitude;
-        console.log('Coordonnées trouvées:', latitude, longitude);
+        console.log('✅ Coordonnées trouvées:', latitude, longitude);
       } else {
         // Coordonnées par défaut (centre de la France) si géocodage échoue
-        console.warn('Géocodage échoué, utilisation des coordonnées par défaut');
+        console.warn('⚠️ Géocodage échoué, utilisation des coordonnées par défaut');
         latitude = 46.603354;
         longitude = 1.888334;
       }
     }
 
-    // Si c'est la première adresse ou si isDefault est true, gérer les défauts
-    if (input.isDefault) {
-      await prisma.address.updateMany({
-        where: { userId, isDefault: true },
-        data: { isDefault: false },
-      });
-    }
-
-    // Vérifier si c'est la première adresse
-    const existingCount = await prisma.address.count({ where: { userId } });
-    const shouldBeDefault = existingCount === 0 || input.isDefault;
-
-    const address = await prisma.address.create({
-      data: {
-        userId,
-        label: input.label,
-        street: input.street,
-        city: input.city,
-        postalCode: input.postalCode,
-        country: input.country || 'France',
-        latitude,
-        longitude,
-        instructions: input.instructions,
-        isDefault: shouldBeDefault,
-      },
-    });
-
-    return address;
+    // ... reste du code
   }
 
   async updateAddress(userId: string, addressId: string, input: UpdateAddressInput) {
@@ -158,6 +133,15 @@ if (!latitude || !longitude || isDefaultCoords) {
 
     if (!existing) {
       throw new Error('Adresse non trouvée');
+    }
+
+    // Vérifier si l'adresse est utilisée par un colis
+    const parcelsUsingAddress = await prisma.parcel.count({
+      where: { pickupAddressId: addressId },
+    });
+
+    if (parcelsUsingAddress > 0) {
+      throw new Error('Cette adresse est utilisée par un ou plusieurs colis et ne peut pas être supprimée');
     }
 
     await prisma.address.delete({

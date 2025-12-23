@@ -5,7 +5,8 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useTheme } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-
+import { VendorHistoryScreen } from '../screens/vendor/VendorHistoryScreen';
+import { CarrierHistoryScreen } from '../screens/carrier/CarrierHistoryScreen';
 import { useAuthStore } from '../stores/authStore';
 import { colors } from '../theme';
 
@@ -89,6 +90,11 @@ function VendorNavigator() {
         options={{ title: 'Détail du Colis' }}
       />
       <VendorStack.Screen
+        name="VendorHistory"
+        component={VendorHistoryScreen}
+        options={{ title: 'Historique' }}
+      />
+      <VendorStack.Screen
         name="Tracking"
         component={TrackingScreen}
         options={{ title: 'Suivi du livreur' }}
@@ -130,6 +136,11 @@ function CarrierNavigator() {
         name="CarrierDocuments"
         component={CarrierDocumentsScreen}
         options={{ title: 'Mes documents' }}
+      />
+      <CarrierStack.Screen
+        name="CarrierHistory"
+        component={CarrierHistoryScreen}
+        options={{ title: 'Historique' }}
       />
       <CarrierStack.Screen
         name="Chat"

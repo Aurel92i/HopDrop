@@ -1,6 +1,6 @@
 import React, { useEffect, useCallback } from 'react';
 import { View, StyleSheet, FlatList, RefreshControl } from 'react-native';
-import { FAB, Searchbar, SegmentedButtons, Text } from 'react-native-paper';
+import { FAB, SegmentedButtons, Text, IconButton } from 'react-native-paper';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
 
@@ -19,6 +19,19 @@ export function VendorHomeScreen({ navigation }: VendorHomeScreenProps) {
   const { parcels, isLoading, fetchParcels } = useParcelStore();
   const [filter, setFilter] = React.useState('all');
   const [refreshing, setRefreshing] = React.useState(false);
+
+  // Ajouter le bouton historique dans le header
+  React.useLayoutEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        <IconButton
+          icon="history"
+          size={24}
+          onPress={() => navigation.navigate('VendorHistory')}
+        />
+      ),
+    });
+  }, [navigation]);
 
   useFocusEffect(
     useCallback(() => {
@@ -56,7 +69,6 @@ export function VendorHomeScreen({ navigation }: VendorHomeScreenProps) {
             { value: 'all', label: 'Tous' },
             { value: 'pending', label: 'En attente' },
             { value: 'accepted', label: 'En cours' },
-            { value: 'delivered', label: 'Livrés' },
           ]}
           style={styles.segmentedButtons}
         />

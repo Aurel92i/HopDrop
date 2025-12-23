@@ -6,8 +6,8 @@ export const createAddressSchema = z.object({
   city: z.string().min(1, 'La ville est requise'),
   postalCode: z.string().min(5, 'Le code postal est requis'),
   country: z.string().default('France'),
-  latitude: z.number(),
-  longitude: z.number(),
+  latitude: z.number().optional(),
+  longitude: z.number().optional(),
   instructions: z.string().optional(),
   isDefault: z.boolean().default(false),
 });

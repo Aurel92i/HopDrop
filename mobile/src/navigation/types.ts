@@ -18,6 +18,7 @@ export type CarrierStackParamList = {
   AvailableMissions: undefined;
   MissionDetail: { missionId: string };
   CarrierDocuments: undefined;
+  CarrierHistory: undefined;
   Chat: { parcelId: string };
 };
 

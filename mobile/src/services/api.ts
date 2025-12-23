@@ -237,9 +237,9 @@ class ApiService {
     return response.data;
   } 
 
-  async getCarrierProfile() {
+ async getCarrierProfile() {
     const response = await this.api.get('/carrier/profile');
-    return response.data;
+    return response.data.profile;  // Extraire directement le profile
   }
 
   // === Admin ===
@@ -350,6 +350,12 @@ class ApiService {
       reader.onerror = () => reject(new Error('Erreur lecture fichier'));
       reader.readAsDataURL(blob);
     });
+  }
+
+// Historique vendeur
+  async getParcelHistory(page: number = 1, limit: number = 10) {
+    const response = await this.api.get(`/parcels/history?page=${page}&limit=${limit}`);
+    return response.data;
   }
 }
 

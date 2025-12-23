@@ -282,4 +282,54 @@ export class ParcelsService {
 
     return updatedParcel;
   }
+
+  async getParcelHistory(vendorId: string, page: number = 1, limit: number = 10) {
+    const skip = (page - 1) * limit;
+
+    const [parcels, total] = await Promise.all([
+      prisma.parcel.findMany({
+        where: {
+          vendorId,
+          status: { in: ['DELIVERED', 'CANCELLED'] },
+        },
+        include: {
+          pickupAddress: true,
+          assignedCarrier: {
+            select: {
+              id: true,
+              firstName: true,
+              avatarUrl: true,
+            },
+          },
+          reviews: {
+            where: { reviewerId: vendorId },
+            take: 1,
+          },
+        },
+        orderBy: { updatedAt: 'desc' },
+        skip,
+        take: limit,
+      }),
+      prisma.parcel.count({
+        where: {
+          vendorId,
+          status: { in: ['DELIVERED', 'CANCELLED'] },
+        },
+      }),
+    ]);
+
+    return {
+      parcels: parcels.map(p => ({
+        ...p,
+        hasReview: p.reviews.length > 0,
+      })),
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
+
 }

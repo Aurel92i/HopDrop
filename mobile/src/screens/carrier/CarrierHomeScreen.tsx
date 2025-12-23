@@ -1,6 +1,6 @@
 import React, { useCallback, useState } from 'react';
 import { View, StyleSheet, FlatList, RefreshControl } from 'react-native';
-import { Text, Card, Switch, FAB } from 'react-native-paper';
+import { Text, Card, Switch, FAB, IconButton } from 'react-native-paper';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -38,11 +38,24 @@ export function CarrierHomeScreen({ navigation }: CarrierHomeScreenProps) {
     }, [])
   );
 
-  const loadData = async () => {
+  // Ajouter le bouton historique dans le header
+  React.useLayoutEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        <IconButton
+          icon="history"
+          size={24}
+          onPress={() => navigation.navigate('CarrierHistory')}
+        />
+      ),
+    });
+  }, [navigation]);
+
+   const loadData = async () => {
     await fetchCurrentMissions();
     try {
       const profile = await api.getCarrierProfile();
-      setIsAvailable(profile.isAvailable);
+      setIsAvailable(profile.isAvailable ?? false);
     } catch (e) {
       console.log('Pas de profil carrier');
     }

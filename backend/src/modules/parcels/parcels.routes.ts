@@ -30,4 +30,21 @@ export async function parcelsRoutes(app: FastifyInstance) {
   app.post('/parcels/:id/confirm-pickup', {
     preHandler: [app.authenticate],
   }, parcelsController.confirmPickup.bind(parcelsController));
+
+  // Historique des colis (livrés/annulés)
+  app.get('/parcels/history', {
+    preHandler: [app.authenticate],
+  }, async (request, reply) => {
+    const userId = (request.user as any).userId;
+    const { page = '1', limit = '10' } = request.query as { page?: string; limit?: string };
+    
+    const result = await parcelsController['parcelsService'].getParcelHistory(
+      userId,
+      parseInt(page),
+      parseInt(limit)
+    );
+    
+    return reply.send(result);
+  });
+
 }
