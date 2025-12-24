@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { View, StyleSheet, ScrollView, Alert } from 'react-native';
-import { Text, Card, Button, Chip, Divider } from 'react-native-paper';
+import { Text, Card, Button, Chip, Divider, Avatar } from 'react-native-paper';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -196,22 +196,27 @@ export function ParcelDetailScreen({ navigation, route }: ParcelDetailScreenProp
         </Card.Content>
       </Card>
 
-      {/* Carrier Info */}
-      {currentParcel.carrier && (
+     {/* Carrier Info */}
+      {currentParcel.assignedCarrier && (
         <Card style={styles.card}>
           <Card.Content>
             <Text variant="titleMedium" style={styles.sectionTitle}>
               🚴 Livreur
             </Text>
             <View style={styles.carrierRow}>
-              <MaterialCommunityIcons name="account-circle" size={48} color={colors.primary} />
+              {currentParcel.assignedCarrier.avatarUrl ? (
+                <Avatar.Image 
+                  size={48} 
+                  source={{ uri: currentParcel.assignedCarrier.avatarUrl }} 
+                />
+              ) : (
+                <MaterialCommunityIcons name="account-circle" size={48} color={colors.primary} />
+              )}
               <View style={styles.carrierInfo}>
-                <Text variant="titleMedium">{currentParcel.carrier.firstName}</Text>
-                {currentParcel.carrier.phone && (
-                  <Text variant="bodySmall" style={styles.carrierPhone}>
-                    {currentParcel.carrier.phone}
-                  </Text>
-                )}
+                <Text variant="titleMedium">
+                  {currentParcel.assignedCarrier.firstName} {currentParcel.assignedCarrier.lastName}
+                </Text>
+                
               </View>
             </View>
           </Card.Content>
@@ -248,19 +253,31 @@ export function ParcelDetailScreen({ navigation, route }: ParcelDetailScreenProp
       )}
 
       {/* Tracking Button */}
-      {currentParcel.status === 'ACCEPTED' && currentParcel.assignedCarrierId && (
+      {currentParcel.status === 'ACCEPTED' && currentParcel.assignedCarrier && (
         <Button
           mode="contained"
           icon="map-marker"
           onPress={() =>
             navigation.navigate('Tracking', {
               parcelId: currentParcel.id,
-              carrierId: currentParcel.assignedCarrierId!,
+              carrierId: currentParcel.assignedCarrier!.id,
             })
           }
           style={styles.trackingButton}
         >
           Suivre le livreur
+        </Button>
+      )}
+
+      {/* Chat Button */}
+      {currentParcel.status === 'ACCEPTED' && currentParcel.assignedCarrier && (
+        <Button
+          mode="outlined"
+          icon="chat"
+          onPress={() => navigation.navigate('Chat', { parcelId: currentParcel.id })}
+          style={styles.chatButton}
+        >
+          Contacter le livreur
         </Button>
       )}
 

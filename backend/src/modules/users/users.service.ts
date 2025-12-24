@@ -31,13 +31,14 @@ export class UsersService {
     };
   }
 
-  async updateMe(userId: string, input: UpdateUserInput): Promise<SafeUser> {
+    async updateMe(userId: string, input: UpdateUserInput): Promise<SafeUser> {
     const user = await prisma.user.update({
       where: { id: userId },
       data: {
         ...(input.firstName && { firstName: input.firstName }),
         ...(input.lastName && { lastName: input.lastName }),
         ...(input.phone && { phone: input.phone }),
+        ...(input.avatarUrl !== undefined && { avatarUrl: input.avatarUrl }),
       },
     });
 

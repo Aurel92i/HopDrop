@@ -75,7 +75,7 @@ async updateFcmToken(request: FastifyRequest<{ Body: { fcmToken: string } }>, re
       const userId = (request.user as any).userId;
       const { fcmToken } = request.body;
       
-      await this.service.updateFcmToken(userId, fcmToken);
+      await this.usersService.updateFcmToken(userId, fcmToken);
       return reply.send({ success: true });
     } catch (error: any) {
       return reply.status(400).send({ error: error.message });

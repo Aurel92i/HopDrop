@@ -73,19 +73,19 @@ export function CarrierProfileScreen() {
     loadProfile();
   };
 
-  const pickImage = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    const takePhoto = async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
     
     if (status !== 'granted') {
-      Alert.alert('Permission refusée', 'Nous avons besoin de la permission pour accéder à vos photos');
+      Alert.alert('Permission refusée', 'Nous avons besoin de la permission pour accéder à la caméra');
       return;
     }
 
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+    const result = await ImagePicker.launchCameraAsync({
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.8,
+      cameraType: ImagePicker.CameraType.front,
     });
 
     if (!result.canceled && result.assets[0]) {
@@ -143,7 +143,7 @@ export function CarrierProfileScreen() {
     >
       {/* Avatar Section */}
       <View style={styles.avatarSection}>
-        <TouchableOpacity onPress={pickImage} disabled={isUploading}>
+        <TouchableOpacity onPress={takePhoto} disabled={isUploading}>
           {user?.avatarUrl ? (
             <Avatar.Image 
               size={100} 

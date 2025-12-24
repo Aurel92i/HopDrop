@@ -1,17 +1,61 @@
-import React from 'react';
-import { View, StyleSheet, ScrollView, Alert } from 'react-native';
+import React, { useState } from 'react';
+import { View, StyleSheet, ScrollView, Alert, TouchableOpacity } from 'react-native';
 import { Text, Button, Card, Avatar, List, Divider } from 'react-native-paper';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useNavigation } from '@react-navigation/native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
+
 import { useAuthStore } from '../../stores/authStore';
+import { api } from '../../services/api';
 import { ProfileStackParamList } from '../../navigation/types';
 import { colors, spacing } from '../../theme';
 
 export function ProfileScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<ProfileStackParamList>>();
-  const { user, logout } = useAuthStore();
+  const { user, logout, updateUser } = useAuthStore();
+  const [isUploading, setIsUploading] = useState(false);
 
   const isCarrier = user?.role === 'CARRIER' || user?.role === 'BOTH';
+
+  const takePhoto = async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    
+    if (status !== 'granted') {
+      Alert.alert('Permission refusée', 'Nous avons besoin de la permission pour accéder à la caméra');
+      return;
+    }
+
+    const result = await ImagePicker.launchCameraAsync({
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+      cameraType: ImagePicker.CameraType.front,
+    });
+
+    if (!result.canceled && result.assets[0]) {
+      uploadAvatar(result.assets[0].uri);
+    }
+  };
+
+  const uploadAvatar = async (uri: string) => {
+    setIsUploading(true);
+    try {
+      const uploadResult = await api.uploadFile(uri, 'avatars');
+      await api.updateProfile({ avatarUrl: uploadResult.url });
+      
+      // Mettre à jour le store local
+      if (user) {
+        updateUser({ ...user, avatarUrl: uploadResult.url });
+      }
+      
+      Alert.alert('Succès', 'Photo de profil mise à jour !');
+    } catch (e: any) {
+      Alert.alert('Erreur', 'Impossible de mettre à jour la photo');
+    } finally {
+      setIsUploading(false);
+    }
+  };
 
   const handleLogout = () => {
     Alert.alert(
@@ -32,11 +76,31 @@ export function ProfileScreen() {
     <ScrollView style={styles.container}>
       <Card style={styles.profileCard}>
         <Card.Content style={styles.profileContent}>
-          <Avatar.Text
-            size={80}
-            label={`${user?.firstName?.[0] || ''}${user?.lastName?.[0] || ''}`}
-            style={styles.avatar}
-          />
+          <TouchableOpacity onPress={takePhoto} disabled={isUploading}>
+            {user?.avatarUrl ? (
+              <Avatar.Image
+                size={80}
+                source={{ uri: user.avatarUrl }}
+                style={styles.avatar}
+              />
+            ) : (
+              <Avatar.Text
+                size={80}
+                label={`${user?.firstName?.[0] || ''}${user?.lastName?.[0] || ''}`}
+                style={styles.avatar}
+              />
+            )}
+            <View style={styles.editBadge}>
+              <MaterialCommunityIcons 
+                name={isUploading ? 'loading' : 'camera'} 
+                size={14} 
+                color="white" 
+              />
+            </View>
+          </TouchableOpacity>
+          <Text variant="bodySmall" style={styles.photoHint}>
+            Appuyez pour prendre une photo
+          </Text>
           <Text variant="headlineSmall" style={styles.name}>
             {user?.firstName} {user?.lastName}
           </Text>
@@ -128,6 +192,21 @@ const styles = StyleSheet.create({
   },
   avatar: {
     backgroundColor: colors.primary,
+  },
+  editBadge: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    backgroundColor: colors.primary,
+    borderRadius: 10,
+    width: 24,
+    height: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  photoHint: {
+    color: colors.onSurfaceVariant,
+    marginTop: spacing.xs,
   },
   name: {
     marginTop: spacing.md,
