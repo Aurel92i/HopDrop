@@ -20,6 +20,7 @@ export const createParcelSchema = z.object({
   carrier: Carrier.default('OTHER'),
   hasShippingLabel: z.boolean().default(false),
   shippingLabelUrl: z.string().url().optional(),
+  qrCodeUrl: z.string().url().optional(),
   pickupMode: PickupMode.default('SCHEDULED'),
   pickupInstructions: z.string().max(500).optional(),
   // Créneaux optionnels si mode IMMEDIATE

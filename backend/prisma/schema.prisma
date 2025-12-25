@@ -167,6 +167,7 @@ model Parcel {
   carrier           Carrier      @default(OTHER)
   hasShippingLabel  Boolean      @default(false)
   shippingLabelUrl  String?
+  qrCodeUrl         String? 
   pickupMode        PickupMode   @default(SCHEDULED)
   status            ParcelStatus @default(PENDING)
   price             Decimal      @db.Decimal(10, 2)

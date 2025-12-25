@@ -72,17 +72,32 @@ export interface Parcel {
   carrier: Carrier;
   hasShippingLabel: boolean;
   shippingLabelUrl?: string;
+  qrCodeUrl?: string;
   pickupMode: PickupMode;
   status: ParcelStatus;
   price: number;
   pickupSlotStart: string;
   pickupSlotEnd: string;
+  pickupInstructions?: string;
   pickupCode: string;
   createdAt: string;
   updatedAt: string;
   pickupAddress?: Address;
   vendor?: User;
   assignedCarrier?: User;
+  // Photo article (IA)
+  itemPhotoUrl?: string;
+  itemCategory?: string;
+  suggestedSize?: ParcelSize;
+  // Avis
+  reviews?: Review[];
+}
+
+export interface Review {
+  id: string;
+  rating: number;
+  comment?: string;
+  createdAt: string;
 }
 
 export interface Mission {

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, TouchableOpacity, Image, Alert } from 'react-native';
-import { Text, Button, Card, RadioButton, Snackbar, ActivityIndicator, Chip, Modal, Portal, TextInput } from 'react-native-paper';
+import { Text, Button, Card, RadioButton, Snackbar, ActivityIndicator, Chip, Modal, Portal, TextInput, Checkbox } from 'react-native-paper';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -23,6 +23,8 @@ const createParcelSchema = z.object({
   carrier: z.enum(['VINTED', 'MONDIAL_RELAY', 'COLISSIMO', 'CHRONOPOST', 'RELAIS_COLIS', 'UPS', 'OTHER']),
   hasShippingLabel: z.boolean(),
   shippingLabelUrl: z.string().optional(),
+  qrCodeUrl: z.string().optional(),
+  willPrintLabel: z.boolean(),
   pickupMode: z.enum(['SCHEDULED', 'IMMEDIATE']),
   pickupDate: z.string().optional(),
   pickupTimeStart: z.string().optional(),
@@ -117,6 +119,8 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
       carrier: 'VINTED',
       hasShippingLabel: false,
       shippingLabelUrl: '',
+      qrCodeUrl: '',
+      willPrintLabel: false,
       pickupMode: 'SCHEDULED',
       pickupDate: availableDates[1]?.value,
       pickupTimeStart: '14:00',
@@ -131,6 +135,7 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
   const selectedSize = watch('size');
   const selectedCarrier = watch('carrier');
   const hasShippingLabel = watch('hasShippingLabel');
+  const willPrintLabel = watch('willPrintLabel');
   const pickupMode = watch('pickupMode');
   const pickupDate = watch('pickupDate');
   const pickupTimeStart = watch('pickupTimeStart');
@@ -264,6 +269,22 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
     }
   };
 
+  const handlePickQrCode = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: ['application/pdf', 'image/*'],
+        copyToCacheDirectory: true,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const file = result.assets[0];
+        setValue('qrCodeUrl', file.uri);
+      }
+    } catch (err) {
+      console.error('Erreur lors de la sélection du QR code:', err);
+    }
+  };
+
   const onSubmit = async (data: CreateParcelFormData) => {
     try {
       let pickupSlotStart: string;
@@ -285,8 +306,9 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
         pickupAddressId: data.pickupAddressId,
         size: data.size,
         carrier: data.carrier,
-        hasShippingLabel: data.hasShippingLabel,
+        hasShippingLabel: data.willPrintLabel, // Le client imprime lui-même = il a le bordereau
         shippingLabelUrl: data.shippingLabelUrl || undefined,
+        qrCodeUrl: data.qrCodeUrl || undefined,
         pickupMode: data.pickupMode,
         dropoffType: 'RELAY_POINT',
         dropoffName: 'Point relais',
@@ -582,103 +604,126 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
         )}
       />
 
-      {/* Question Bordereau */}
+      {/* Section Upload Documents */}
       <Card style={styles.labelCard}>
         <Card.Content>
           <Text variant="titleSmall" style={styles.labelQuestion}>
-            📄 Avez-vous imprimé votre bordereau d'envoi ?
+            📄 Documents d'expédition
+          </Text>
+          <Text variant="bodySmall" style={styles.uploadSubtitle}>
+            Ajoutez vos documents pour faciliter l'envoi (optionnel)
           </Text>
 
+          {/* Upload Bordereau */}
+          <View style={styles.uploadItem}>
+            <View style={styles.uploadItemHeader}>
+              <MaterialCommunityIcons name="file-document-outline" size={22} color={colors.primary} />
+              <Text variant="bodyMedium" style={styles.uploadItemTitle}>Bordereau d'envoi</Text>
+            </View>
+            <Controller
+              control={control}
+              name="shippingLabelUrl"
+              render={({ field: { value } }) => (
+                <View>
+                  {value ? (
+                    <View style={styles.uploadedFile}>
+                      <MaterialCommunityIcons name="file-check" size={24} color={colors.primary} />
+                      <Text style={styles.uploadedFileName} numberOfLines={1}>
+                        Bordereau ajouté ✓
+                      </Text>
+                      <TouchableOpacity onPress={() => setValue('shippingLabelUrl', '')}>
+                        <MaterialCommunityIcons name="close-circle" size={24} color={colors.error} />
+                      </TouchableOpacity>
+                    </View>
+                  ) : (
+                    <Button
+                      mode="outlined"
+                      icon="upload"
+                      style={styles.uploadButton}
+                      onPress={handlePickDocument}
+                      compact
+                    >
+                      Ajouter le bordereau
+                    </Button>
+                  )}
+                </View>
+              )}
+            />
+          </View>
+
+          {/* Upload QR Code */}
+          <View style={styles.uploadItem}>
+            <View style={styles.uploadItemHeader}>
+              <MaterialCommunityIcons name="qrcode" size={22} color={colors.primary} />
+              <Text variant="bodyMedium" style={styles.uploadItemTitle}>QR Code</Text>
+            </View>
+            <Controller
+              control={control}
+              name="qrCodeUrl"
+              render={({ field: { value } }) => (
+                <View>
+                  {value ? (
+                    <View style={styles.uploadedFile}>
+                      <MaterialCommunityIcons name="qrcode" size={24} color={colors.primary} />
+                      <Text style={styles.uploadedFileName} numberOfLines={1}>
+                        QR Code ajouté ✓
+                      </Text>
+                      <TouchableOpacity onPress={() => setValue('qrCodeUrl', '')}>
+                        <MaterialCommunityIcons name="close-circle" size={24} color={colors.error} />
+                      </TouchableOpacity>
+                    </View>
+                  ) : (
+                    <Button
+                      mode="outlined"
+                      icon="upload"
+                      style={styles.uploadButton}
+                      onPress={handlePickQrCode}
+                      compact
+                    >
+                      Ajouter le QR code
+                    </Button>
+                  )}
+                </View>
+              )}
+            />
+          </View>
+
+          {/* Checkbox imprimer soi-même */}
           <Controller
             control={control}
-            name="hasShippingLabel"
+            name="willPrintLabel"
             render={({ field: { onChange, value } }) => (
-              <View style={styles.labelOptions}>
-                <TouchableOpacity
-                  style={[styles.labelOption, value === true && styles.labelOptionSelected]}
-                  onPress={() => onChange(true)}
-                >
-                  <MaterialCommunityIcons
-                    name="check-circle"
-                    size={24}
-                    color={value === true ? colors.primary : colors.onSurfaceVariant}
-                  />
-                  <Text style={[styles.labelOptionText, value === true && styles.labelSelected]}>
-                    Oui, j'ai déjà imprimé le bordereau
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[styles.labelOption, value === false && styles.labelOptionSelectedSecondary]}
-                  onPress={() => onChange(false)}
-                >
-                  <MaterialCommunityIcons
-                    name="printer"
-                    size={24}
-                    color={value === false ? colors.secondary : colors.onSurfaceVariant}
-                  />
-                  <Text style={[styles.labelOptionText, value === false && styles.labelSelectedSecondary]}>
-                    Non, le livreur l'imprimera pour moi
-                  </Text>
-                </TouchableOpacity>
-              </View>
+              <TouchableOpacity 
+                style={styles.checkboxRow}
+                onPress={() => onChange(!value)}
+              >
+                <Checkbox
+                  status={value ? 'checked' : 'unchecked'}
+                  onPress={() => onChange(!value)}
+                  color={colors.primary}
+                />
+                <Text variant="bodyMedium" style={styles.checkboxLabel}>
+                  Je souhaite imprimer moi-même le bordereau
+                </Text>
+              </TouchableOpacity>
             )}
           />
-
-          {hasShippingLabel && (
-            <View style={styles.infoBoxSuccess}>
-              <MaterialCommunityIcons name="check-circle" size={20} color={colors.primary} />
-              <Text variant="bodySmall" style={styles.infoText}>
-                Parfait ! Vous remettrez le bordereau imprimé au livreur lors de la prise en charge.
-              </Text>
-            </View>
-          )}
-
-          {!hasShippingLabel && (
-            <View style={styles.uploadSection}>
-              <Text variant="bodySmall" style={styles.uploadHint}>
-                Ajoutez votre bordereau (PDF ou photo) pour que le livreur puisse l'imprimer :
-              </Text>
-
-              <Controller
-                control={control}
-                name="shippingLabelUrl"
-                render={({ field: { value } }) => (
-                  <View>
-                    {value ? (
-                      <View style={styles.uploadedFile}>
-                        <MaterialCommunityIcons name="file-check" size={24} color={colors.primary} />
-                        <Text style={styles.uploadedFileName} numberOfLines={1}>
-                          Bordereau ajouté ✓
-                        </Text>
-                        <TouchableOpacity onPress={() => setValue('shippingLabelUrl', '')}>
-                          <MaterialCommunityIcons name="close-circle" size={24} color={colors.error} />
-                        </TouchableOpacity>
-                      </View>
-                    ) : (
-                      <Button
-                        mode="outlined"
-                        icon="upload"
-                        style={styles.uploadButton}
-                        onPress={handlePickDocument}
-                      >
-                        Ajouter le bordereau
-                      </Button>
-                    )}
-                  </View>
-                )}
-              />
-
-              <View style={styles.infoBoxWarning}>
-                <MaterialCommunityIcons name="information" size={20} color={colors.secondary} />
-                <Text variant="bodySmall" style={styles.infoText}>
-                  Le livreur imprimera le bordereau et l'apposera sur votre colis.
-                </Text>
-              </View>
-            </View>
-          )}
         </Card.Content>
       </Card>
+
+      {/* Encadré informatif */}
+      <View style={styles.infoCard}>
+        <MaterialCommunityIcons name="information-outline" size={24} color={colors.primary} />
+        <View style={styles.infoCardContent}>
+          <Text variant="bodyMedium" style={styles.infoCardTitle}>
+            Information livreur
+          </Text>
+          <Text variant="bodySmall" style={styles.infoCardText}>
+            Le livreur sera automatiquement informé des documents à imprimer selon vos choix. 
+            {!willPrintLabel && ' Il pourra imprimer le bordereau pour vous si nécessaire.'}
+          </Text>
+        </View>
+      </View>
 
       <View style={styles.buttonRow}>
         <Button mode="outlined" onPress={() => setStep(2)} style={styles.halfButton}>
@@ -688,7 +733,6 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
           mode="contained"
           onPress={() => setStep(4)}
           style={styles.halfButton}
-          disabled={!hasShippingLabel && !watch('shippingLabelUrl')}
         >
           Suivant
         </Button>
@@ -952,6 +996,22 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
                 : `📅 ${availableDates.find((d) => d.value === pickupDate)?.label} ${pickupTimeStart}-${pickupTimeEnd}`}
             </Text>
           </View>
+
+          {/* Informations complémentaires */}
+          {watch('pickupInstructions') && (
+            <>
+              <View style={styles.divider} />
+              <View style={styles.summaryInstructions}>
+                <MaterialCommunityIcons name="information-outline" size={18} color={colors.primary} />
+                <View style={styles.summaryInstructionsContent}>
+                  <Text variant="bodySmall" style={styles.summaryLabel}>Informations complémentaires :</Text>
+                  <Text variant="bodyMedium" style={styles.summaryInstructionsText}>
+                    {watch('pickupInstructions')}
+                  </Text>
+                </View>
+              </View>
+            </>
+          )}
         </Card.Content>
       </Card>
 
@@ -959,7 +1019,7 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
         control={control}
         name="description"
         label="Note pour le livreur (optionnel)"
-        placeholder="Ex: Code interphone 1234, 3ème étage..."
+        placeholder="Ex: Sonner 2 fois, demander Pierre..."
         multiline
         numberOfLines={2}
       />
@@ -1112,7 +1172,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: spacing.md,
-    paddingBottom: spacing.xl * 2,
+    paddingBottom: 120,
   },
   progressContainer: {
     flexDirection: 'row',
@@ -1391,6 +1451,60 @@ const styles = StyleSheet.create({
     color: colors.primary,
     fontWeight: '500',
   },
+  uploadSubtitle: {
+    color: colors.onSurfaceVariant,
+    marginBottom: spacing.md,
+  },
+  uploadItem: {
+    marginBottom: spacing.md,
+    padding: spacing.md,
+    backgroundColor: colors.surfaceVariant,
+    borderRadius: 8,
+  },
+  uploadItemHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  uploadItemTitle: {
+    color: colors.onSurface,
+    fontWeight: '500',
+  },
+  checkboxRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: spacing.md,
+    paddingVertical: spacing.xs,
+  },
+  checkboxLabel: {
+    flex: 1,
+    color: colors.onSurface,
+  },
+  infoCard: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.md,
+    padding: spacing.md,
+    marginTop: spacing.md,
+    marginBottom: spacing.md,
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.outline,
+  },
+  infoCardContent: {
+    flex: 1,
+  },
+  infoCardTitle: {
+    color: colors.onSurface,
+    fontWeight: '600',
+    marginBottom: spacing.xs,
+  },
+  infoCardText: {
+    color: colors.onSurfaceVariant,
+    lineHeight: 18,
+  },
   // Mode styles
   modeOptions: {
     gap: spacing.md,
@@ -1547,6 +1661,20 @@ const styles = StyleSheet.create({
   summaryPrice: {
     color: colors.primary,
     fontWeight: 'bold',
+  },
+  summaryInstructions: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
+    marginTop: spacing.xs,
+  },
+  summaryInstructionsContent: {
+    flex: 1,
+  },
+  summaryInstructionsText: {
+    color: colors.onSurface,
+    marginTop: spacing.xs,
+    fontStyle: 'italic',
   },
   // Info boxes
   infoBox: {

@@ -129,12 +129,12 @@ export function ParcelDetailScreen({ navigation, route }: ParcelDetailScreenProp
             </Text>
           </View>
 
-          {currentParcel.description && (
+          {currentParcel.itemCategory && (
             <View style={styles.infoRow}>
               <Text variant="bodyMedium" style={styles.label}>
-                Description
+                Catégorie
               </Text>
-              <Text variant="bodyMedium">{currentParcel.description}</Text>
+              <Text variant="bodyMedium">{currentParcel.itemCategory}</Text>
             </View>
           )}
         </Card.Content>
@@ -161,6 +161,21 @@ export function ParcelDetailScreen({ navigation, route }: ParcelDetailScreenProp
               )}
             </View>
           </View>
+
+          {/* Informations complémentaires */}
+          {currentParcel.pickupInstructions && (
+            <View style={styles.instructionsBox}>
+              <MaterialCommunityIcons name="information-outline" size={18} color={colors.primary} />
+              <View style={styles.instructionsContent}>
+                <Text variant="labelSmall" style={styles.instructionsLabel}>
+                  Informations complémentaires
+                </Text>
+                <Text variant="bodyMedium" style={styles.instructionsText}>
+                  {currentParcel.pickupInstructions}
+                </Text>
+              </View>
+            </View>
+          )}
 
           <Divider style={styles.divider} />
 
@@ -195,6 +210,23 @@ export function ParcelDetailScreen({ navigation, route }: ParcelDetailScreenProp
           </Text>
         </Card.Content>
       </Card>
+
+      {/* Note pour le livreur */}
+      {currentParcel.description && (
+        <Card style={styles.noteCard}>
+          <Card.Content>
+            <View style={styles.noteHeader}>
+              <MaterialCommunityIcons name="note-text-outline" size={20} color={colors.secondary} />
+              <Text variant="titleSmall" style={styles.noteTitle}>
+                Note pour le livreur
+              </Text>
+            </View>
+            <Text variant="bodyMedium" style={styles.noteText}>
+              {currentParcel.description}
+            </Text>
+          </Card.Content>
+        </Card>
+      )}
 
       {/* Carrier Info */}
       {currentParcel.assignedCarrier && (
@@ -321,6 +353,7 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: spacing.md,
+    paddingBottom: 100,
   },
   statusCard: {
     marginBottom: spacing.md,
@@ -388,11 +421,50 @@ const styles = StyleSheet.create({
   addressText: {
     color: colors.onSurfaceVariant,
   },
+  instructionsBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
+    marginTop: spacing.md,
+    marginLeft: spacing.xl + spacing.md,
+    padding: spacing.sm,
+    backgroundColor: colors.primaryContainer,
+    borderRadius: 8,
+  },
+  instructionsContent: {
+    flex: 1,
+  },
+  instructionsLabel: {
+    color: colors.primary,
+    fontWeight: '600',
+  },
+  instructionsText: {
+    color: colors.onSurface,
+    marginTop: spacing.xs,
+  },
   divider: {
     marginVertical: spacing.md,
   },
   slotEnd: {
     color: colors.onSurfaceVariant,
+  },
+  noteCard: {
+    marginBottom: spacing.md,
+    backgroundColor: colors.secondaryContainer,
+  },
+  noteHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  noteTitle: {
+    color: colors.secondary,
+    fontWeight: '600',
+  },
+  noteText: {
+    color: colors.onSurface,
+    fontStyle: 'italic',
   },
   carrierRow: {
     flexDirection: 'row',
