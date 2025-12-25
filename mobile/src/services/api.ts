@@ -221,6 +221,27 @@ class ApiService {
     return response.data;
   }
 
+  // Tracking missions
+  async missionDepart(missionId: string, latitude: number, longitude: number) {
+    const response = await this.api.post(`/missions/${missionId}/depart`, { latitude, longitude });
+    return response.data;
+  }
+
+  async missionArrived(missionId: string) {
+    const response = await this.api.post(`/missions/${missionId}/arrived`);
+    return response.data;
+  }
+
+  async confirmPackaging(missionId: string, photoUrl: string) {
+    const response = await this.api.post(`/missions/${missionId}/packaging`, { photoUrl });
+    return response.data;
+  }
+
+  async vendorConfirmPackaging(parcelId: string) {
+    const response = await this.api.post(`/parcels/${parcelId}/confirm-packaging`);
+    return response.data;
+  }
+
   // Carrier
   async updateAvailability(isAvailable: boolean) {
     const response = await this.api.put('/carrier/availability', { isAvailable });

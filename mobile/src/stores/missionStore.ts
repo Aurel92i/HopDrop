@@ -11,10 +11,16 @@ interface AvailableMission {
   pickupSlot: { start: string; end: string };
   price: { total: number; carrierPayout: number };
   distance: number;
-  pickupArea: { city: string; postalCode: string };
+  pickupAddress: {
+    id: string;
+    latitude: number;
+    longitude: number;
+    city: string;
+    postalCode: string;
+    street: string;
+  };
   vendor: { id: string; firstName: string; avatarUrl: string | null };
 }
-
 interface MissionState {
   availableMissions: AvailableMission[];
   currentMissions: Mission[];
@@ -43,8 +49,8 @@ export const useMissionStore = create<MissionState>((set, get) => ({
   fetchAvailableMissions: async (latitude, longitude, radius = 5) => {
     set({ isLoading: true, error: null });
     try {
-      const { parcels } = await api.getAvailableMissions(latitude, longitude, radius);
-      set({ availableMissions: parcels, isLoading: false });
+      const { missions } = await api.getAvailableMissions(latitude, longitude, radius);
+      set({ availableMissions: missions || [], isLoading: false });
     } catch (error: any) {
       set({ error: error.message, isLoading: false });
     }

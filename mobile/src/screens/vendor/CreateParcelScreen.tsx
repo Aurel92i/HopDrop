@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, TouchableOpacity } from 'react-native';
-import { Text, Button, Card, RadioButton, Snackbar } from 'react-native-paper';
+import { View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, TouchableOpacity, Image, Alert } from 'react-native';
+import { Text, Button, Card, RadioButton, Snackbar, ActivityIndicator, Chip, Modal, Portal, TextInput } from 'react-native-paper';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
+import * as ImagePicker from 'expo-image-picker';
 
 import { FormInput } from '../../components/forms/FormInput';
 import { useParcelStore } from '../../stores/parcelStore';
@@ -14,6 +15,7 @@ import { api } from '../../services/api';
 import { VendorStackParamList } from '../../navigation/types';
 import { Address, ParcelSize, Carrier, PickupMode } from '../../types';
 import { colors, spacing, sizes, carriers } from '../../theme';
+import { AddressAutocomplete } from '../../components/forms/AddressAutocomplete';
 
 const createParcelSchema = z.object({
   pickupAddressId: z.string().min(1, 'Sélectionnez une adresse'),
@@ -25,13 +27,30 @@ const createParcelSchema = z.object({
   pickupDate: z.string().optional(),
   pickupTimeStart: z.string().optional(),
   pickupTimeEnd: z.string().optional(),
+  pickupInstructions: z.string().optional(),
   description: z.string().optional(),
+  itemPhotoUrl: z.string().optional(),
+  itemCategory: z.string().optional(),
 });
 
 type CreateParcelFormData = z.infer<typeof createParcelSchema>;
 
 type CreateParcelScreenProps = {
   navigation: NativeStackNavigationProp<VendorStackParamList, 'CreateParcel'>;
+};
+
+// Catégories d'articles détectables par l'IA
+const ITEM_CATEGORIES: Record<string, { label: string; icon: string; suggestedSize: ParcelSize }> = {
+  shoes: { label: 'Chaussures', icon: 'shoe-sneaker', suggestedSize: 'MEDIUM' },
+  clothing: { label: 'Vêtements', icon: 'tshirt-crew', suggestedSize: 'SMALL' },
+  electronics: { label: 'Électronique', icon: 'cellphone', suggestedSize: 'SMALL' },
+  book: { label: 'Livre', icon: 'book-open-variant', suggestedSize: 'SMALL' },
+  bag: { label: 'Sac', icon: 'bag-personal', suggestedSize: 'MEDIUM' },
+  jewelry: { label: 'Bijoux/Accessoires', icon: 'diamond-stone', suggestedSize: 'SMALL' },
+  toy: { label: 'Jouet', icon: 'toy-brick', suggestedSize: 'MEDIUM' },
+  home: { label: 'Décoration', icon: 'home', suggestedSize: 'LARGE' },
+  sport: { label: 'Sport', icon: 'basketball', suggestedSize: 'LARGE' },
+  other: { label: 'Autre', icon: 'package-variant', suggestedSize: 'MEDIUM' },
 };
 
 // Générer les créneaux horaires disponibles
@@ -68,6 +87,19 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
   const { createParcel, isLoading, error, clearError } = useParcelStore();
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [step, setStep] = useState(1);
+  const [itemPhoto, setItemPhoto] = useState<string | null>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [detectedCategory, setDetectedCategory] = useState<string | null>(null);
+  const [showTempAddressModal, setShowTempAddressModal] = useState(false);
+  const [tempAddress, setTempAddress] = useState({
+    label: 'Adresse temporaire',
+    street: '',
+    city: '',
+    postalCode: '',
+    latitude: 0,
+    longitude: 0,
+  });
+  
   const timeSlots = generateTimeSlots();
   const availableDates = generateAvailableDates();
 
@@ -86,10 +118,13 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
       hasShippingLabel: false,
       shippingLabelUrl: '',
       pickupMode: 'SCHEDULED',
-      pickupDate: availableDates[1]?.value, // Demain par défaut
+      pickupDate: availableDates[1]?.value,
       pickupTimeStart: '14:00',
       pickupTimeEnd: '16:00',
+      pickupInstructions: '',
       description: '',
+      itemPhotoUrl: '',
+      itemCategory: '',
     },
   });
 
@@ -104,6 +139,114 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
   useEffect(() => {
     loadAddresses();
   }, []);
+
+  const loadAddresses = async () => {
+    try {
+      const { addresses: addr } = await api.getAddresses();
+      setAddresses(addr);
+    } catch (e) {
+      console.error('Error loading addresses:', e);
+    }
+  };
+
+  // Prendre une photo de l'article
+  const takePhoto = async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission refusée', 'Autorisez l\'accès à la caméra pour prendre une photo');
+      return;
+    }
+
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [4, 3],
+      quality: 0.8,
+    });
+
+    if (!result.canceled && result.assets[0]) {
+      setItemPhoto(result.assets[0].uri);
+      analyzePhoto(result.assets[0].uri);
+    }
+  };
+
+  // Sélectionner une photo depuis la galerie
+  const pickPhoto = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission refusée', 'Autorisez l\'accès à la galerie');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [4, 3],
+      quality: 0.8,
+    });
+
+    if (!result.canceled && result.assets[0]) {
+      setItemPhoto(result.assets[0].uri);
+      analyzePhoto(result.assets[0].uri);
+    }
+  };
+
+  // Analyser la photo avec l'IA (simulation pour le MVP)
+  const analyzePhoto = async (photoUri: string) => {
+    setIsAnalyzing(true);
+    setValue('itemPhotoUrl', photoUri);
+
+    // Simulation de l'analyse IA (à remplacer par un vrai appel API)
+    setTimeout(() => {
+      // Pour le MVP, on détecte aléatoirement une catégorie
+      const categories = Object.keys(ITEM_CATEGORIES);
+      const randomCategory = categories[Math.floor(Math.random() * (categories.length - 1))];
+      
+      setDetectedCategory(randomCategory);
+      setValue('itemCategory', ITEM_CATEGORIES[randomCategory].label);
+      setValue('size', ITEM_CATEGORIES[randomCategory].suggestedSize);
+      setIsAnalyzing(false);
+    }, 2000);
+  };
+
+  // Créer une adresse temporaire
+  const handleCreateTempAddress = async () => {
+    if (!tempAddress.street || !tempAddress.city || !tempAddress.postalCode) {
+      Alert.alert('Erreur', 'Veuillez remplir tous les champs');
+      return;
+    }
+
+    try {
+      const { address } = await api.createAddress({
+        ...tempAddress,
+        isTemporary: true,
+      });
+      
+      setAddresses([...addresses, address]);
+      setValue('pickupAddressId', address.id);
+      setShowTempAddressModal(false);
+      setTempAddress({ label: 'Adresse temporaire', street: '', city: '', postalCode: '', latitude: 0, longitude: 0 });
+    } catch (e) {
+      Alert.alert('Erreur', 'Impossible de créer l\'adresse');
+    }
+  };
+
+  const handleTempAddressSelect = (selectedAddress: {
+    street: string;
+    city: string;
+    postalCode: string;
+    latitude: number;
+    longitude: number;
+  }) => {
+    setTempAddress({
+      ...tempAddress,
+      street: selectedAddress.street,
+      city: selectedAddress.city,
+      postalCode: selectedAddress.postalCode,
+      latitude: selectedAddress.latitude,
+      longitude: selectedAddress.longitude,
+    });
+  };
 
   const handlePickDocument = async () => {
     try {
@@ -121,28 +264,17 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
     }
   };
 
-  const loadAddresses = async () => {
-    try {
-      const { addresses: addr } = await api.getAddresses();
-      setAddresses(addr);
-    } catch (e) {
-      console.error('Error loading addresses:', e);
-    }
-  };
-
   const onSubmit = async (data: CreateParcelFormData) => {
     try {
       let pickupSlotStart: string;
       let pickupSlotEnd: string;
 
       if (data.pickupMode === 'IMMEDIATE') {
-        // Mode immédiat : pas de créneaux à envoyer
         const now = new Date();
         pickupSlotStart = now.toISOString();
         const later = new Date(now.getTime() + 2 * 60 * 60 * 1000);
         pickupSlotEnd = later.toISOString();
       } else {
-        // Mode programmé : construire les créneaux
         const startDate = new Date(`${data.pickupDate}T${data.pickupTimeStart}:00`);
         const endDate = new Date(`${data.pickupDate}T${data.pickupTimeEnd}:00`);
         pickupSlotStart = startDate.toISOString();
@@ -161,7 +293,10 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
         dropoffAddress: 'À définir par le livreur',
         pickupSlotStart,
         pickupSlotEnd,
-        description: data.description || undefined,
+        pickupInstructions: data.pickupInstructions || undefined,
+        description: data.description || data.itemCategory || undefined,
+        itemPhotoUrl: data.itemPhotoUrl || undefined,
+        itemCategory: data.itemCategory || undefined,
       });
 
       navigation.replace('ParcelDetail', { parcelId: parcel.id });
@@ -189,9 +324,6 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
               <Card style={styles.emptyCard}>
                 <Card.Content>
                   <Text style={styles.emptyText}>Aucune adresse enregistrée</Text>
-                  <Button mode="outlined" style={styles.addAddressButton}>
-                    Ajouter une adresse
-                  </Button>
                 </Card.Content>
               </Card>
             ) : (
@@ -211,7 +343,14 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
                       onPress={() => onChange(address.id)}
                     />
                     <View style={styles.addressInfo}>
-                      <Text variant="titleSmall">{address.label}</Text>
+                      <View style={styles.addressLabelRow}>
+                        <Text variant="titleSmall">{address.label}</Text>
+                        {address.isTemporary && (
+                          <Chip compact style={styles.tempChip} textStyle={styles.tempChipText}>
+                            Temporaire
+                          </Chip>
+                        )}
+                      </View>
                       <Text variant="bodySmall" style={styles.addressText}>
                         {address.street}, {address.postalCode} {address.city}
                       </Text>
@@ -220,11 +359,40 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
                 </Card>
               ))
             )}
+
+            {/* Bouton ajouter adresse temporaire */}
+            <TouchableOpacity
+              style={styles.addTempAddressButton}
+              onPress={() => setShowTempAddressModal(true)}
+            >
+              <MaterialCommunityIcons name="plus-circle-outline" size={24} color={colors.primary} />
+              <Text style={styles.addTempAddressText}>Utiliser une autre adresse</Text>
+            </TouchableOpacity>
           </View>
         )}
       />
       {errors.pickupAddressId && (
         <Text style={styles.errorText}>{errors.pickupAddressId.message}</Text>
+      )}
+
+      {/* Informations complémentaires */}
+      {watch('pickupAddressId') && (
+        <Controller
+          control={control}
+          name="pickupInstructions"
+          render={({ field: { onChange, value } }) => (
+            <TextInput
+              label="Informations complémentaires (optionnel)"
+              value={value}
+              onChangeText={onChange}
+              mode="outlined"
+              style={styles.instructionsInput}
+              placeholder="Ex: 2ème étage, code portail 1234, à l'arrière du bâtiment..."
+              multiline
+              numberOfLines={2}
+            />
+          )}
+        />
       )}
 
       <Button
@@ -238,65 +406,130 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
     </View>
   );
 
-  // ========== STEP 2: Taille ==========
+  // ========== STEP 2: Photo de l'article ==========
   const renderStep2 = () => (
     <View>
       <Text variant="titleMedium" style={styles.stepTitle}>
-        📦 Taille du colis
+        📸 Photo de l'article
       </Text>
       <Text variant="bodySmall" style={styles.stepSubtitle}>
-        Sélectionnez la taille qui correspond à votre article
+        Prenez une photo de votre article pour déterminer automatiquement la taille d'emballage
       </Text>
 
-      <Controller
-        control={control}
-        name="size"
-        render={({ field: { onChange, value } }) => (
-          <View style={styles.sizeGrid}>
-            {(Object.keys(sizes.parcel) as ParcelSize[]).map((size) => {
-              const sizeInfo = sizes.parcel[size];
-              const isSelected = value === size;
+      {!itemPhoto ? (
+        <Card style={styles.photoCard}>
+          <Card.Content style={styles.photoContent}>
+            <MaterialCommunityIcons name="camera-plus" size={64} color={colors.onSurfaceVariant} />
+            <Text variant="bodyMedium" style={styles.photoHint}>
+              Prenez ou sélectionnez une photo de votre article
+            </Text>
+            <View style={styles.photoButtons}>
+              <Button mode="contained" icon="camera" onPress={takePhoto} style={styles.photoButton}>
+                Prendre une photo
+              </Button>
+              <Button mode="outlined" icon="image" onPress={pickPhoto} style={styles.photoButton}>
+                Galerie
+              </Button>
+            </View>
+          </Card.Content>
+        </Card>
+      ) : (
+        <View>
+          <Card style={styles.photoPreviewCard}>
+            <Image source={{ uri: itemPhoto }} style={styles.photoPreview} />
+            <TouchableOpacity
+              style={styles.removePhotoButton}
+              onPress={() => {
+                setItemPhoto(null);
+                setDetectedCategory(null);
+                setValue('itemPhotoUrl', '');
+                setValue('itemCategory', '');
+              }}
+            >
+              <MaterialCommunityIcons name="close-circle" size={32} color={colors.error} />
+            </TouchableOpacity>
+          </Card>
 
-              return (
-                <Card
-                  key={size}
-                  style={[styles.sizeCard, isSelected && styles.cardSelected]}
-                  onPress={() => onChange(size)}
+          {isAnalyzing ? (
+            <Card style={styles.analysisCard}>
+              <Card.Content style={styles.analysisContent}>
+                <ActivityIndicator size="large" color={colors.primary} />
+                <Text variant="bodyMedium" style={styles.analysisText}>
+                  Analyse de l'article en cours...
+                </Text>
+              </Card.Content>
+            </Card>
+          ) : detectedCategory ? (
+            <Card style={styles.resultCard}>
+              <Card.Content>
+                <View style={styles.resultHeader}>
+                  <MaterialCommunityIcons
+                    name={ITEM_CATEGORIES[detectedCategory].icon as any}
+                    size={40}
+                    color={colors.primary}
+                  />
+                  <View style={styles.resultInfo}>
+                    <Text variant="titleMedium">
+                      {ITEM_CATEGORIES[detectedCategory].label}
+                    </Text>
+                    <Text variant="bodySmall" style={styles.resultSubtext}>
+                      Article détecté automatiquement
+                    </Text>
+                  </View>
+                  <Chip style={styles.sizeChip}>
+                    {sizes.parcel[ITEM_CATEGORIES[detectedCategory].suggestedSize].label}
+                  </Chip>
+                </View>
+
+                <View style={styles.resultBox}>
+                  <MaterialCommunityIcons name="package-variant" size={20} color={colors.secondary} />
+                  <Text variant="bodyMedium" style={styles.resultBoxText}>
+                    Taille recommandée : {sizes.parcel[selectedSize].label} - {sizes.parcel[selectedSize].price}
+                  </Text>
+                </View>
+
+                {/* Option de correction manuelle */}
+                <TouchableOpacity
+                  style={styles.correctButton}
+                  onPress={() => Alert.alert(
+                    'Modifier la catégorie',
+                    'Sélectionnez la bonne catégorie',
+                    Object.entries(ITEM_CATEGORIES).map(([key, value]) => ({
+                      text: value.label,
+                      onPress: () => {
+                        setDetectedCategory(key);
+                        setValue('itemCategory', value.label);
+                        setValue('size', value.suggestedSize);
+                      },
+                    }))
+                  )}
                 >
-                  <Card.Content style={styles.sizeContent}>
-                    <MaterialCommunityIcons
-                      name="package-variant"
-                      size={32}
-                      color={isSelected ? colors.primary : colors.onSurfaceVariant}
-                    />
-                    <Text
-                      variant="titleSmall"
-                      style={[styles.sizeLabel, isSelected && styles.labelSelected]}
-                    >
-                      {sizeInfo.label}
-                    </Text>
-                    <Text variant="bodySmall" style={styles.sizeDescription}>
-                      {sizeInfo.description}
-                    </Text>
-                    <Text
-                      variant="titleMedium"
-                      style={[styles.sizePrice, isSelected && styles.priceSelected]}
-                    >
-                      {sizeInfo.price}
-                    </Text>
-                  </Card.Content>
-                </Card>
-              );
-            })}
-          </View>
-        )}
-      />
+                  <MaterialCommunityIcons name="pencil" size={16} color={colors.primary} />
+                  <Text style={styles.correctButtonText}>Corriger la détection</Text>
+                </TouchableOpacity>
+              </Card.Content>
+            </Card>
+          ) : null}
+        </View>
+      )}
+
+      <View style={styles.infoBox}>
+        <MaterialCommunityIcons name="shield-check" size={20} color={colors.primary} />
+        <Text variant="bodySmall" style={styles.infoText}>
+          Votre photo reste confidentielle. Seule la catégorie générale est partagée avec le livreur.
+        </Text>
+      </View>
 
       <View style={styles.buttonRow}>
         <Button mode="outlined" onPress={() => setStep(1)} style={styles.halfButton}>
           Retour
         </Button>
-        <Button mode="contained" onPress={() => setStep(3)} style={styles.halfButton}>
+        <Button
+          mode="contained"
+          onPress={() => setStep(3)}
+          style={styles.halfButton}
+          disabled={!itemPhoto || isAnalyzing}
+        >
           Suivant
         </Button>
       </View>
@@ -467,7 +700,7 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
   const renderStep4 = () => (
     <View>
       <Text variant="titleMedium" style={styles.stepTitle}>
-        ⏰ Mode de prise en charge
+        ⏰ Créneau de prise en charge
       </Text>
       <Text variant="bodySmall" style={styles.stepSubtitle}>
         Quand souhaitez-vous que le livreur vienne ?
@@ -598,7 +831,6 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
                         style={[styles.timeCard, value === time && styles.timeCardSelected]}
                         onPress={() => {
                           onChange(time);
-                          // Auto-sélectionner une heure de fin +2h
                           const hour = parseInt(time.split(':')[0]);
                           const endHour = Math.min(hour + 2, 20);
                           setValue('pickupTimeEnd', `${endHour.toString().padStart(2, '0')}:00`);
@@ -640,7 +872,6 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
               )}
             />
 
-            {/* Résumé du créneau */}
             <View style={styles.slotSummary}>
               <MaterialCommunityIcons name="clock-outline" size={20} color={colors.primary} />
               <Text variant="bodyMedium" style={styles.slotSummaryText}>
@@ -651,7 +882,6 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
         </Card>
       )}
 
-      {/* Info mode immédiat */}
       {pickupMode === 'IMMEDIATE' && (
         <View style={styles.infoBoxWarning}>
           <MaterialCommunityIcons name="lightning-bolt" size={20} color={colors.secondary} />
@@ -672,7 +902,7 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
     </View>
   );
 
-  // ========== STEP 5: Description + Confirmation ==========
+  // ========== STEP 5: Récapitulatif ==========
   const renderStep5 = () => (
     <View>
       <Text variant="titleMedium" style={styles.stepTitle}>
@@ -681,10 +911,25 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
 
       <Card style={styles.summaryCard}>
         <Card.Content>
+          {/* Photo et catégorie */}
+          {itemPhoto && (
+            <View style={styles.summaryPhotoRow}>
+              <Image source={{ uri: itemPhoto }} style={styles.summaryPhoto} />
+              <View style={styles.summaryPhotoInfo}>
+                <Text variant="titleSmall">{watch('itemCategory') || 'Article'}</Text>
+                <Text variant="bodySmall" style={styles.summaryLabel}>
+                  Taille : {sizes.parcel[selectedSize]?.label}
+                </Text>
+              </View>
+            </View>
+          )}
+
+          <View style={styles.divider} />
+
           <View style={styles.summaryRow}>
-            <Text variant="bodyMedium" style={styles.summaryLabel}>Taille :</Text>
-            <Text variant="bodyMedium" style={styles.summaryValue}>
-              {sizes.parcel[selectedSize]?.label} - {sizes.parcel[selectedSize]?.price}
+            <Text variant="bodyMedium" style={styles.summaryLabel}>Prix :</Text>
+            <Text variant="titleMedium" style={styles.summaryPrice}>
+              {sizes.parcel[selectedSize]?.price}
             </Text>
           </View>
           <View style={styles.summaryRow}>
@@ -696,14 +941,14 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
           <View style={styles.summaryRow}>
             <Text variant="bodyMedium" style={styles.summaryLabel}>Bordereau :</Text>
             <Text variant="bodyMedium" style={styles.summaryValue}>
-              {hasShippingLabel ? '✅ Imprimé par vous' : '🖨️ À imprimer par le livreur'}
+              {hasShippingLabel ? '✅ Imprimé' : '🖨️ À imprimer'}
             </Text>
           </View>
           <View style={styles.summaryRow}>
             <Text variant="bodyMedium" style={styles.summaryLabel}>Prise en charge :</Text>
             <Text variant="bodyMedium" style={styles.summaryValue}>
               {pickupMode === 'IMMEDIATE' 
-                ? '⚡ Immédiat (dans les 2h)' 
+                ? '⚡ Immédiat' 
                 : `📅 ${availableDates.find((d) => d.value === pickupDate)?.label} ${pickupTimeStart}-${pickupTimeEnd}`}
             </Text>
           </View>
@@ -713,16 +958,16 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
       <FormInput
         control={control}
         name="description"
-        label="Description (optionnel)"
-        placeholder="Ex: Vêtements Vinted, livre..."
+        label="Note pour le livreur (optionnel)"
+        placeholder="Ex: Code interphone 1234, 3ème étage..."
         multiline
-        numberOfLines={3}
+        numberOfLines={2}
       />
 
       <View style={styles.infoBox}>
         <MaterialCommunityIcons name="information" size={20} color={colors.primary} />
         <Text variant="bodySmall" style={styles.infoText}>
-          Le livreur viendra récupérer votre colis et le déposera au point relais de son choix dans les 12h.
+          Le livreur viendra récupérer votre colis, l'emballera avec vous, et le déposera au point relais.
         </Text>
       </View>
 
@@ -743,18 +988,104 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
     </View>
   );
 
+  // Modal pour adresse temporaire
+  const renderTempAddressModal = () => (
+  <Portal>
+    <Modal
+      visible={showTempAddressModal}
+      onDismiss={() => setShowTempAddressModal(false)}
+      contentContainerStyle={styles.modalContainer}
+    >
+      <Text variant="titleLarge" style={styles.modalTitle}>
+        📍 Adresse temporaire
+      </Text>
+      <Text variant="bodySmall" style={styles.modalSubtitle}>
+        Cette adresse sera utilisée uniquement pour ce colis
+      </Text>
+
+      {/* Autocomplétion d'adresse */}
+      <View style={styles.autocompleteWrapper}>
+        <AddressAutocomplete
+          value={tempAddress.street}
+          onAddressSelect={handleTempAddressSelect}
+          label="Rechercher une adresse"
+          placeholder="Tapez une adresse..."
+        />
+      </View>
+
+      {/* Affichage de l'adresse sélectionnée */}
+      {tempAddress.street && tempAddress.city && (
+        <View style={styles.selectedTempAddress}>
+          <MaterialCommunityIcons name="check-circle" size={20} color={colors.primary} />
+          <View style={styles.selectedTempAddressContent}>
+            <Text variant="bodyMedium" style={styles.selectedTempAddressStreet}>
+              {tempAddress.street}
+            </Text>
+            <Text variant="bodySmall" style={styles.selectedTempAddressCity}>
+              {tempAddress.postalCode} {tempAddress.city}
+            </Text>
+          </View>
+          <TouchableOpacity 
+            onPress={() => setTempAddress({ 
+              label: 'Adresse temporaire', 
+              street: '', 
+              city: '', 
+              postalCode: '',
+              latitude: 0,
+              longitude: 0,
+            })}
+          >
+            <MaterialCommunityIcons name="close" size={20} color={colors.onSurfaceVariant} />
+          </TouchableOpacity>
+        </View>
+      )}
+
+      <View style={styles.modalButtons}>
+        <Button 
+          mode="outlined" 
+          onPress={() => setShowTempAddressModal(false)} 
+          style={styles.modalButton}
+        >
+          Annuler
+        </Button>
+        <Button 
+          mode="contained" 
+          onPress={handleCreateTempAddress} 
+          style={styles.modalButton}
+          disabled={!tempAddress.street || !tempAddress.city || !tempAddress.postalCode}
+        >
+          Ajouter
+        </Button>
+      </View>
+    </Modal>
+  </Portal>
+);
+
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={styles.container}
     >
       <ScrollView contentContainerStyle={styles.scrollContent}>
+        {/* Progress indicator */}
         <View style={styles.progressContainer}>
           {[1, 2, 3, 4, 5].map((s) => (
             <View
               key={s}
-              style={[styles.progressDot, s <= step && styles.progressDotActive]}
-            />
+              style={[
+                styles.progressStep,
+                s <= step && styles.progressStepActive,
+                s < step && styles.progressStepCompleted,
+              ]}
+            >
+              {s < step ? (
+                <MaterialCommunityIcons name="check" size={14} color="white" />
+              ) : (
+                <Text style={[styles.progressText, s <= step && styles.progressTextActive]}>
+                  {s}
+                </Text>
+              )}
+            </View>
           ))}
         </View>
 
@@ -765,12 +1096,9 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
         {step === 5 && renderStep5()}
       </ScrollView>
 
-      <Snackbar
-        visible={!!error}
-        onDismiss={clearError}
-        duration={3000}
-        action={{ label: 'OK', onPress: clearError }}
-      >
+      {renderTempAddressModal()}
+
+      <Snackbar visible={!!error} onDismiss={clearError} duration={3000}>
         {error}
       </Snackbar>
     </KeyboardAvoidingView>
@@ -783,31 +1111,46 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   scrollContent: {
-    padding: spacing.lg,
+    padding: spacing.md,
+    paddingBottom: spacing.xl * 2,
   },
   progressContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
     gap: spacing.sm,
-    marginBottom: spacing.xl,
+    marginBottom: spacing.lg,
   },
-  progressDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: colors.outline,
+  progressStep: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: colors.surfaceVariant,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  progressDotActive: {
+  progressStepActive: {
     backgroundColor: colors.primary,
+  },
+  progressStepCompleted: {
+    backgroundColor: colors.primary,
+  },
+  progressText: {
+    color: colors.onSurfaceVariant,
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  progressTextActive: {
+    color: 'white',
   },
   stepTitle: {
     marginBottom: spacing.xs,
     color: colors.onSurface,
   },
   stepSubtitle: {
-    marginBottom: spacing.md,
+    marginBottom: spacing.lg,
     color: colors.onSurfaceVariant,
   },
+  // Address styles
   addressList: {
     gap: spacing.sm,
   },
@@ -824,53 +1167,140 @@ const styles = StyleSheet.create({
     flex: 1,
     marginLeft: spacing.sm,
   },
+  addressLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
   addressText: {
     color: colors.onSurfaceVariant,
   },
-  emptyCard: {
-    backgroundColor: colors.surface,
-    alignItems: 'center',
+  tempChip: {
+    height: 20,
+    backgroundColor: colors.secondaryContainer,
   },
-  emptyText: {
-    color: colors.onSurfaceVariant,
-    textAlign: 'center',
-    marginBottom: spacing.md,
-  },
-  addAddressButton: {
-    marginTop: spacing.sm,
-  },
-  sizeGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
-  },
-  sizeCard: {
-    width: '48%',
-    backgroundColor: colors.surface,
-    borderWidth: 2,
-    borderColor: 'transparent',
-  },
-  sizeContent: {
-    alignItems: 'center',
-    padding: spacing.sm,
-  },
-  sizeLabel: {
-    marginTop: spacing.xs,
-    color: colors.onSurface,
-  },
-  sizeDescription: {
-    color: colors.onSurfaceVariant,
-    textAlign: 'center',
+  tempChipText: {
     fontSize: 10,
   },
-  sizePrice: {
-    marginTop: spacing.xs,
+  emptyCard: {
+    backgroundColor: colors.surfaceVariant,
+  },
+  emptyText: {
+    textAlign: 'center',
     color: colors.onSurfaceVariant,
   },
-  priceSelected: {
-    color: colors.primary,
-    fontWeight: 'bold',
+  addTempAddressButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: spacing.md,
+    borderWidth: 2,
+    borderColor: colors.primary,
+    borderStyle: 'dashed',
+    borderRadius: 8,
+    gap: spacing.sm,
   },
+  addTempAddressText: {
+    color: colors.primary,
+    fontWeight: '500',
+  },
+  instructionsInput: {
+    marginTop: spacing.md,
+    marginBottom: spacing.sm,
+    backgroundColor: colors.surface,
+  },
+  // Photo styles
+  photoCard: {
+    backgroundColor: colors.surface,
+    marginBottom: spacing.md,
+  },
+  photoContent: {
+    alignItems: 'center',
+    padding: spacing.xl,
+  },
+  photoHint: {
+    color: colors.onSurfaceVariant,
+    textAlign: 'center',
+    marginVertical: spacing.md,
+  },
+  photoButtons: {
+    flexDirection: 'row',
+    gap: spacing.md,
+  },
+  photoButton: {
+    flex: 1,
+  },
+  photoPreviewCard: {
+    marginBottom: spacing.md,
+    overflow: 'hidden',
+  },
+  photoPreview: {
+    width: '100%',
+    height: 200,
+    borderRadius: 8,
+  },
+  removePhotoButton: {
+    position: 'absolute',
+    top: spacing.sm,
+    right: spacing.sm,
+    backgroundColor: 'white',
+    borderRadius: 16,
+  },
+  analysisCard: {
+    backgroundColor: colors.primaryContainer,
+    marginBottom: spacing.md,
+  },
+  analysisContent: {
+    alignItems: 'center',
+    padding: spacing.lg,
+  },
+  analysisText: {
+    marginTop: spacing.md,
+    color: colors.onSurface,
+  },
+  resultCard: {
+    backgroundColor: colors.surface,
+    marginBottom: spacing.md,
+  },
+  resultHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    marginBottom: spacing.md,
+  },
+  resultInfo: {
+    flex: 1,
+  },
+  resultSubtext: {
+    color: colors.onSurfaceVariant,
+  },
+  sizeChip: {
+    backgroundColor: colors.primaryContainer,
+  },
+  resultBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    padding: spacing.md,
+    backgroundColor: colors.secondaryContainer,
+    borderRadius: 8,
+  },
+  resultBoxText: {
+    color: colors.onSurface,
+  },
+  correctButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    marginTop: spacing.md,
+    padding: spacing.sm,
+  },
+  correctButtonText: {
+    color: colors.primary,
+    fontSize: 12,
+  },
+  // Carrier styles
   carrierGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -895,6 +1325,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: 11,
   },
+  // Label styles
   labelCard: {
     backgroundColor: colors.surface,
     marginBottom: spacing.md,
@@ -1075,6 +1506,48 @@ const styles = StyleSheet.create({
     color: colors.primary,
     flex: 1,
   },
+  // Summary styles
+  summaryCard: {
+    backgroundColor: colors.surface,
+    marginBottom: spacing.lg,
+  },
+  summaryPhotoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    marginBottom: spacing.md,
+  },
+  summaryPhoto: {
+    width: 80,
+    height: 80,
+    borderRadius: 8,
+  },
+  summaryPhotoInfo: {
+    flex: 1,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: colors.outline,
+    marginVertical: spacing.md,
+  },
+  summaryRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: spacing.sm,
+  },
+  summaryLabel: {
+    color: colors.onSurfaceVariant,
+  },
+  summaryValue: {
+    color: colors.onSurface,
+    fontWeight: '500',
+    flex: 1,
+    textAlign: 'right',
+  },
+  summaryPrice: {
+    color: colors.primary,
+    fontWeight: 'bold',
+  },
   // Info boxes
   infoBox: {
     flexDirection: 'row',
@@ -1107,25 +1580,56 @@ const styles = StyleSheet.create({
     flex: 1,
     color: colors.onSurface,
   },
-  // Summary
-  summaryCard: {
+  // Modal styles
+  modalContainer: {
     backgroundColor: colors.surface,
+    margin: spacing.lg,
+    padding: spacing.lg,
+    borderRadius: 16,
+  },
+  modalTitle: {
+    marginBottom: spacing.xs,
+  },
+  modalSubtitle: {
+    color: colors.onSurfaceVariant,
     marginBottom: spacing.lg,
   },
-  summaryRow: {
+  modalInput: {
+    marginBottom: spacing.md,
+    backgroundColor: colors.surface,
+  },
+  modalButtons: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: spacing.sm,
+    gap: spacing.md,
+    marginTop: spacing.md,
   },
-  summaryLabel: {
-    color: colors.onSurfaceVariant,
+  modalButton: {
+    flex: 1,
   },
-  summaryValue: {
+  autocompleteWrapper: {
+    marginBottom: spacing.md,
+    zIndex: 1000,
+  },
+  selectedTempAddress: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: spacing.md,
+    backgroundColor: colors.primaryContainer,
+    borderRadius: 8,
+    marginBottom: spacing.md,
+    gap: spacing.sm,
+  },
+  selectedTempAddressContent: {
+    flex: 1,
+  },
+  selectedTempAddressStreet: {
     color: colors.onSurface,
     fontWeight: '500',
-    flex: 1,
-    textAlign: 'right',
   },
+  selectedTempAddressCity: {
+    color: colors.onSurfaceVariant,
+  },
+
   // Common
   cardSelected: {
     borderColor: colors.primary,
@@ -1144,5 +1648,5 @@ const styles = StyleSheet.create({
   errorText: {
     color: colors.error,
     marginTop: spacing.xs,
-  },
+     },
 });

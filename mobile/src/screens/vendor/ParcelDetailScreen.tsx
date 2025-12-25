@@ -196,7 +196,7 @@ export function ParcelDetailScreen({ navigation, route }: ParcelDetailScreenProp
         </Card.Content>
       </Card>
 
-     {/* Carrier Info */}
+      {/* Carrier Info */}
       {currentParcel.assignedCarrier && (
         <Card style={styles.card}>
           <Card.Content>
@@ -216,7 +216,6 @@ export function ParcelDetailScreen({ navigation, route }: ParcelDetailScreenProp
                 <Text variant="titleMedium">
                   {currentParcel.assignedCarrier.firstName} {currentParcel.assignedCarrier.lastName}
                 </Text>
-                
               </View>
             </View>
           </Card.Content>
@@ -252,8 +251,8 @@ export function ParcelDetailScreen({ navigation, route }: ParcelDetailScreenProp
         </Card>
       )}
 
-      {/* Tracking Button */}
-      {currentParcel.status === 'ACCEPTED' && currentParcel.assignedCarrier && (
+      {/* Tracking Button - Afficher pour ACCEPTED et PICKED_UP */}
+      {(currentParcel.status === 'ACCEPTED' || currentParcel.status === 'PICKED_UP') && currentParcel.assignedCarrier && (
         <Button
           mode="contained"
           icon="map-marker"
@@ -269,8 +268,8 @@ export function ParcelDetailScreen({ navigation, route }: ParcelDetailScreenProp
         </Button>
       )}
 
-      {/* Chat Button */}
-      {currentParcel.status === 'ACCEPTED' && currentParcel.assignedCarrier && (
+      {/* Chat Button - UN SEUL bouton */}
+      {(currentParcel.status === 'ACCEPTED' || currentParcel.status === 'PICKED_UP') && currentParcel.assignedCarrier && (
         <Button
           mode="outlined"
           icon="chat"
@@ -281,19 +280,7 @@ export function ParcelDetailScreen({ navigation, route }: ParcelDetailScreenProp
         </Button>
       )}
 
-      {/* Chat Button */}
-      {currentParcel.status === 'ACCEPTED' && currentParcel.assignedCarrierId && (
-        <Button
-          mode="outlined"
-          icon="chat"
-          onPress={() => navigation.navigate('Chat', { parcelId: currentParcel.id })}
-          style={styles.chatButton}
-        >
-          Contacter le livreur
-        </Button>
-      )}
-
-{/* Review Button */}
+      {/* Review Button */}
       {currentParcel.status === 'DELIVERED' && (
         <Button
           mode="contained"

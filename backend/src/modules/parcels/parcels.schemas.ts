@@ -21,9 +21,13 @@ export const createParcelSchema = z.object({
   hasShippingLabel: z.boolean().default(false),
   shippingLabelUrl: z.string().url().optional(),
   pickupMode: PickupMode.default('SCHEDULED'),
+  pickupInstructions: z.string().max(500).optional(),
   // Créneaux optionnels si mode IMMEDIATE
   pickupSlotStart: z.string().datetime().optional(),
   pickupSlotEnd: z.string().datetime().optional(),
+  // Photo article (IA)
+  itemPhotoUrl: z.string().optional(),
+  itemCategory: z.string().max(100).optional(),
 }).refine((data) => {
   // Si mode SCHEDULED, les créneaux sont obligatoires
   if (data.pickupMode === 'SCHEDULED') {
@@ -44,6 +48,7 @@ export const updateParcelSchema = z.object({
   hasShippingLabel: z.boolean().optional(),
   shippingLabelUrl: z.string().url().optional(),
   pickupMode: PickupMode.optional(),
+  pickupInstructions: z.string().max(500).optional(),
 });
 
 // Schema pour confirmer la récupération

@@ -11,6 +11,7 @@ import { useAuthStore } from '../stores/authStore';
 import { colors } from '../theme';
 import { ReviewScreen } from '../screens/shared/ReviewScreen';
 import { CarrierProfileScreen } from '../screens/carrier/CarrierProfileScreen';
+import { ActiveMissionsScreen } from '../screens/carrier/ActiveMissionsScreen';
 
 import {
   AuthStackParamList,
@@ -159,6 +160,11 @@ function CarrierNavigator() {
         component={CarrierProfileScreen}
         options={{ title: 'Mon profil livreur' }}
       />
+      <CarrierStack.Screen 
+  name="ActiveMissions" 
+  component={ActiveMissionsScreen}
+  options={{ title: 'Missions en cours' }}
+/>
     </CarrierStack.Navigator>
   );
 }

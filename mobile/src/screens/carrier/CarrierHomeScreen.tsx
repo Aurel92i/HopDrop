@@ -1,36 +1,49 @@
-import React, { useCallback, useState } from 'react';
-import { View, StyleSheet, FlatList, RefreshControl } from 'react-native';
-import { Text, Card, Switch, FAB, IconButton } from 'react-native-paper';
+import React, { useCallback, useState, useRef, useEffect } from 'react';
+import { View, StyleSheet, Dimensions, Alert } from 'react-native';
+import { Text, Card, Switch, FAB, IconButton, Chip } from 'react-native-paper';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import MapView, { Marker, PROVIDER_GOOGLE, Callout, Region } from 'react-native-maps';
+import * as Location from 'expo-location';
 
-import { EmptyState } from '../../components/common/EmptyState';
 import { LoadingScreen } from '../../components/common/LoadingScreen';
 import { useMissionStore } from '../../stores/missionStore';
 import { api } from '../../services/api';
 import { CarrierStackParamList } from '../../navigation/types';
 import { colors, spacing } from '../../theme';
-import { Mission, MissionStatus } from '../../types';
+import { Parcel } from '../../types';
 import { locationService } from '../../services/location';
 
 type CarrierHomeScreenProps = {
   navigation: NativeStackNavigationProp<CarrierStackParamList, 'CarrierHome'>;
 };
 
-const statusConfig: Record<MissionStatus, { label: string; color: string; icon: string }> = {
-  ACCEPTED: { label: 'À récupérer', color: colors.primary, icon: 'package-variant' },
-  IN_PROGRESS: { label: 'En cours', color: colors.tertiary, icon: 'bike' },
-  PICKED_UP: { label: 'À livrer', color: colors.secondary, icon: 'package-variant-closed' },
-  DELIVERED: { label: 'Livré', color: '#10B981', icon: 'check-all' },
-  CANCELLED: { label: 'Annulé', color: colors.error, icon: 'close-circle' },
-};
+const { width, height } = Dimensions.get('window');
+
+// Points d'intérêt statiques pour le MVP (à remplacer par une API)
+const POINTS_OF_INTEREST = [
+  { id: 'locker1', type: 'locker', name: 'Locker Amazon', latitude: 48.1180, longitude: -1.5280 },
+  { id: 'locker2', type: 'locker', name: 'Relais Colis', latitude: 48.1220, longitude: -1.5350 },
+  { id: 'post1', type: 'post', name: 'La Poste Acigné', latitude: 48.1350, longitude: -1.5400 },
+  { id: 'post2', type: 'post', name: 'La Poste Noyal', latitude: 48.1170, longitude: -1.5200 },
+];
 
 export function CarrierHomeScreen({ navigation }: CarrierHomeScreenProps) {
-  const { currentMissions, isLoading, fetchCurrentMissions } = useMissionStore();
+  const { currentMissions, fetchCurrentMissions } = useMissionStore();
   const [isAvailable, setIsAvailable] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
   const [isTracking, setIsTracking] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [availableParcels, setAvailableParcels] = useState<Parcel[]>([]);
+  const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
+  const mapRef = useRef<MapView>(null);
+
+  const [region, setRegion] = useState<Region>({
+    latitude: 48.1173,
+    longitude: -1.5234,
+    latitudeDelta: 0.05,
+    longitudeDelta: 0.05,
+  });
 
   useFocusEffect(
     useCallback(() => {
@@ -38,7 +51,11 @@ export function CarrierHomeScreen({ navigation }: CarrierHomeScreenProps) {
     }, [])
   );
 
-  // Ajouter le bouton historique dans le header
+  useEffect(() => {
+    getUserLocation();
+  }, []);
+
+  // Header avec boutons
   React.useLayoutEffect(() => {
     navigation.setOptions({
       headerRight: () => (
@@ -58,7 +75,33 @@ export function CarrierHomeScreen({ navigation }: CarrierHomeScreenProps) {
     });
   }, [navigation]);
 
-   const loadData = async () => {
+  const getUserLocation = async () => {
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission refusée', 'Activez la localisation pour voir les missions proches');
+        return;
+      }
+
+      const location = await Location.getCurrentPositionAsync({});
+      const { latitude, longitude } = location.coords;
+      
+      setUserLocation({ latitude, longitude });
+      setRegion({
+        latitude,
+        longitude,
+        latitudeDelta: 0.05,
+        longitudeDelta: 0.05,
+      });
+
+      // Charger les colis disponibles autour de cette position
+      loadAvailableParcels(latitude, longitude);
+    } catch (error) {
+      console.error('Erreur localisation:', error);
+    }
+  };
+
+  const loadData = async () => {
     await fetchCurrentMissions();
     try {
       const profile = await api.getCarrierProfile();
@@ -66,18 +109,25 @@ export function CarrierHomeScreen({ navigation }: CarrierHomeScreenProps) {
     } catch (e) {
       console.log('Pas de profil carrier');
     }
+    setIsLoading(false);
   };
 
-  const onRefresh = async () => {
-    setRefreshing(true);
-    await loadData();
-    setRefreshing(false);
+  const loadAvailableParcels = async (latitude: number, longitude: number) => {
+    try {
+      const { missions } = await api.getAvailableMissions(latitude, longitude, 10);
+      setAvailableParcels(missions || []);
+    } catch (e) {
+      console.error('Erreur chargement missions:', e);
+    }
   };
 
   const toggleTracking = async (value: boolean) => {
     if (value) {
       const success = await locationService.startForegroundTracking((location) => {
-        console.log('Position:', location.coords);
+        const { latitude, longitude } = location.coords;
+        setUserLocation({ latitude, longitude });
+        // Mettre à jour la position sur le serveur
+        api.updateLocation(latitude, longitude);
       });
       setIsTracking(success);
     } else {
@@ -96,106 +146,215 @@ export function CarrierHomeScreen({ navigation }: CarrierHomeScreenProps) {
     }
   };
 
-  const renderMissionItem = ({ item }: { item: Mission }) => {
-    const status = statusConfig[item.status];
-
-    return (
-      <Card
-        style={[styles.missionCard, { borderLeftColor: status.color }]}
-        onPress={() => navigation.navigate('MissionDetail', { missionId: item.id })}
-      >
-        <Card.Content>
-          <View style={styles.missionHeader}>
-            <View style={styles.missionStatus}>
-              <MaterialCommunityIcons name={status.icon as any} size={20} color={status.color} />
-              <Text variant="labelLarge" style={{ color: status.color }}>
-                {status.label}
-              </Text>
-            </View>
-            <MaterialCommunityIcons name="chevron-right" size={24} color={colors.onSurfaceVariant} />
-          </View>
-
-          {item.parcel && (
-            <>
-              <Text variant="bodyMedium" style={styles.dropoffName}>
-                → {item.parcel.dropoffName}
-              </Text>
-              <Text variant="bodySmall" style={styles.description}>
-                {item.parcel.description || 'Colis'}
-              </Text>
-            </>
-          )}
-        </Card.Content>
-      </Card>
-    );
+  const centerOnUser = () => {
+    if (userLocation && mapRef.current) {
+      mapRef.current.animateToRegion({
+        ...userLocation,
+        latitudeDelta: 0.02,
+        longitudeDelta: 0.02,
+      }, 500);
+    }
   };
 
-  if (isLoading && currentMissions.length === 0) {
-    return <LoadingScreen message="Chargement des missions..." />;
+  const getMarkerColor = (type: string) => {
+    switch (type) {
+      case 'locker': return '#8B5CF6'; // Violet
+      case 'post': return '#F59E0B'; // Orange
+      default: return colors.primary;
+    }
+  };
+
+  const getMarkerIcon = (type: string) => {
+    switch (type) {
+      case 'locker': return 'locker';
+      case 'post': return 'email';
+      default: return 'package-variant';
+    }
+  };
+
+  if (isLoading) {
+    return <LoadingScreen message="Chargement..." />;
   }
 
   return (
     <View style={styles.container}>
-      {/* Status Card */}
-      <Card style={styles.statusCard}>
-        <Card.Content style={styles.statusContent}>
-          <View style={styles.statusInfo}>
-            <Text variant="titleMedium">Disponibilité</Text>
-            <Text variant="bodySmall" style={styles.statusHint}>
-              {isAvailable ? 'Vous recevez des notifications' : 'Activez pour recevoir des missions'}
-            </Text>
-          </View>
-          <Switch value={isAvailable} onValueChange={toggleAvailability} color={colors.primary} />
-        </Card.Content>
-      </Card>
+      {/* Carte */}
+      <MapView
+        ref={mapRef}
+        style={styles.map}
+        provider={PROVIDER_GOOGLE}
+        initialRegion={region}
+        showsUserLocation
+        showsMyLocationButton={false}
+        onRegionChangeComplete={setRegion}
+      >
+      {/* Marqueurs des colis disponibles */}
+        {availableParcels.map((parcel: any) => (
+          parcel.pickupAddress && (
+            <Marker
+              key={parcel.id}
+              coordinate={{
+                latitude: parcel.pickupAddress.latitude,
+                longitude: parcel.pickupAddress.longitude,
+              }}
+            >
+              <View style={styles.parcelMarker}>
+                <MaterialCommunityIcons name="package-variant" size={24} color="white" />
+              </View>
+              <Callout onPress={() => navigation.navigate('AvailableMissions')}>
+                <View style={styles.callout}>
+                  <Text variant="titleSmall" style={styles.calloutTitle}>
+                    {parcel.dropoffName}
+                  </Text>
+                  <Text variant="bodySmall" style={styles.calloutSubtitle}>
+                    {parcel.size} • {parcel.price?.total?.toFixed(2) || Number(parcel.price).toFixed(2)}€
+                  </Text>
+                  <Text variant="bodySmall" style={styles.calloutAddress}>
+                    📍 {parcel.pickupAddress.city}
+                  </Text>
+                  <Text variant="bodySmall" style={styles.calloutHint}>
+                    Appuyez pour voir les détails
+                  </Text>
+                </View>
+              </Callout>
+            </Marker>
+          )
+        ))}
 
-      {/* Tracking Card */}
-      <Card style={styles.trackingCard}>
-        <Card.Content style={styles.trackingContent}>
-          <View style={styles.trackingInfo}>
-            <MaterialCommunityIcons
-              name={isTracking ? 'map-marker' : 'map-marker-off'}
-              size={24}
-              color={isTracking ? colors.primary : colors.onSurfaceVariant}
-            />
-            <View style={styles.trackingText}>
-              <Text variant="titleSmall">Partage de position</Text>
-              <Text variant="bodySmall" style={styles.trackingDescription}>
-                {isTracking ? 'Position partagée avec les clients' : 'Position non partagée'}
+        {/* Marqueurs des points d'intérêt */}
+        {POINTS_OF_INTEREST.map((poi) => (
+          <Marker
+            key={poi.id}
+            coordinate={{
+              latitude: poi.latitude,
+              longitude: poi.longitude,
+            }}
+          >
+            <View style={[styles.poiMarker, { backgroundColor: getMarkerColor(poi.type) }]}>
+              <MaterialCommunityIcons 
+                name={getMarkerIcon(poi.type) as any} 
+                size={18} 
+                color="white" 
+              />
+            </View>
+            <Callout>
+              <View style={styles.callout}>
+                <Text variant="titleSmall">{poi.name}</Text>
+                <Text variant="bodySmall" style={styles.calloutSubtitle}>
+                  {poi.type === 'locker' ? 'Point relais' : 'Bureau de poste'}
+                </Text>
+              </View>
+            </Callout>
+          </Marker>
+        ))}
+
+        {/* Marqueurs des missions en cours */}
+        {currentMissions.map((mission) => (
+          mission.parcel?.pickupAddress && (
+            <Marker
+              key={`mission-${mission.id}`}
+              coordinate={{
+                latitude: mission.parcel.pickupAddress.latitude,
+                longitude: mission.parcel.pickupAddress.longitude,
+              }}
+            >
+              <View style={styles.missionMarker}>
+                <MaterialCommunityIcons name="bike" size={20} color="white" />
+              </View>
+              <Callout onPress={() => navigation.navigate('MissionDetail', { missionId: mission.id })}>
+                <View style={styles.callout}>
+                  <Text variant="titleSmall" style={styles.calloutTitle}>
+                    Mission en cours
+                  </Text>
+                  <Text variant="bodySmall">
+                    → {mission.parcel.dropoffName}
+                  </Text>
+                </View>
+              </Callout>
+            </Marker>
+          )
+        ))}
+      </MapView>
+
+      {/* Overlay: Cards de statut */}
+      <View style={styles.overlay}>
+        {/* Status Card */}
+        <Card style={styles.statusCard}>
+          <Card.Content style={styles.statusContent}>
+            <View style={styles.statusInfo}>
+              <Text variant="titleMedium">Disponibilité</Text>
+              <Text variant="bodySmall" style={styles.statusHint}>
+                {isAvailable ? 'Vous recevez des notifications' : 'Activez pour recevoir des missions'}
               </Text>
             </View>
-          </View>
-          <Switch value={isTracking} onValueChange={toggleTracking} color={colors.primary} />
-        </Card.Content>
-      </Card>
+            <Switch value={isAvailable} onValueChange={toggleAvailability} color={colors.primary} />
+          </Card.Content>
+        </Card>
 
-      {/* Current Missions */}
-      <Text variant="titleMedium" style={styles.sectionTitle}>
-        Mes missions en cours
-      </Text>
+        {/* Tracking Card */}
+        <Card style={styles.trackingCard}>
+          <Card.Content style={styles.trackingContent}>
+            <View style={styles.trackingInfo}>
+              <MaterialCommunityIcons
+                name={isTracking ? 'map-marker' : 'map-marker-off'}
+                size={24}
+                color={isTracking ? colors.primary : colors.onSurfaceVariant}
+              />
+              <View style={styles.trackingText}>
+                <Text variant="titleSmall">Partage de position</Text>
+                <Text variant="bodySmall" style={styles.trackingDescription}>
+                  {isTracking ? 'Position partagée' : 'Position non partagée'}
+                </Text>
+              </View>
+            </View>
+            <Switch value={isTracking} onValueChange={toggleTracking} color={colors.primary} />
+          </Card.Content>
+        </Card>
+      </View>
 
-      <FlatList
-        data={currentMissions}
-        keyExtractor={(item) => item.id}
-        renderItem={renderMissionItem}
-        contentContainerStyle={styles.listContent}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} />
-        }
-        ListEmptyComponent={
-          <EmptyState
-            icon="bike"
-            title="Aucune mission"
-            description="Cherchez des missions disponibles près de vous !"
-            actionLabel="Chercher des missions"
-            onAction={() => navigation.navigate('AvailableMissions')}
-          />
-        }
+      {/* Légende */}
+      <View style={styles.legend}>
+        <Chip icon="package-variant" compact style={styles.legendChip} textStyle={styles.legendText}>
+          Colis
+        </Chip>
+        <Chip icon="locker" compact style={[styles.legendChip, { backgroundColor: '#8B5CF6' }]} textStyle={styles.legendText}>
+          Relais
+        </Chip>
+        <Chip icon="email" compact style={[styles.legendChip, { backgroundColor: '#F59E0B' }]} textStyle={styles.legendText}>
+          Poste
+        </Chip>
+      </View>
+
+      {/* Bouton centrer sur moi */}
+      <FAB
+        icon="crosshairs-gps"
+        style={styles.centerFab}
+        onPress={centerOnUser}
+        size="small"
+        color={colors.primary}
+        mode="flat"
       />
 
+      {/* Missions en cours badge */}
+{currentMissions.length > 0 && (
+  <Card 
+    style={styles.missionsCard} 
+    onPress={() => navigation.navigate('ActiveMissions')}
+  >
+    <Card.Content style={styles.missionsContent}>
+      <MaterialCommunityIcons name="bike" size={24} color={colors.primary} />
+      <View style={styles.missionsInfo}>
+        <Text variant="titleSmall">{currentMissions.length} mission(s) en cours</Text>
+      </View>
+      <MaterialCommunityIcons name="chevron-right" size={24} color={colors.onSurfaceVariant} />
+    </Card.Content>
+  </Card>
+)}
+
+      {/* FAB Liste */}
       <FAB
-        icon="magnify"
-        label="Chercher"
+        icon="format-list-bulleted"
+        label="Liste"
         style={styles.fab}
         onPress={() => navigation.navigate('AvailableMissions')}
         color={colors.onPrimary}
@@ -207,12 +366,22 @@ export function CarrierHomeScreen({ navigation }: CarrierHomeScreenProps) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+  },
+  map: {
+    width,
+    height,
+  },
+  overlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    padding: spacing.md,
   },
   statusCard: {
-    margin: spacing.md,
     marginBottom: spacing.sm,
     backgroundColor: colors.surface,
+    elevation: 4,
   },
   statusContent: {
     flexDirection: 'row',
@@ -227,9 +396,8 @@ const styles = StyleSheet.create({
     color: colors.onSurfaceVariant,
   },
   trackingCard: {
-    marginHorizontal: spacing.md,
-    marginBottom: spacing.md,
     backgroundColor: colors.surface,
+    elevation: 4,
   },
   trackingContent: {
     flexDirection: 'row',
@@ -249,37 +417,75 @@ const styles = StyleSheet.create({
   trackingDescription: {
     color: colors.onSurfaceVariant,
   },
-  sectionTitle: {
-    marginHorizontal: spacing.md,
-    marginBottom: spacing.sm,
-    color: colors.onSurface,
+  parcelMarker: {
+    backgroundColor: colors.primary,
+    padding: 8,
+    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: 'white',
   },
-  listContent: {
-    padding: spacing.md,
-    paddingTop: 0,
-    flexGrow: 1,
+  poiMarker: {
+    padding: 6,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: 'white',
   },
-  missionCard: {
-    marginBottom: spacing.sm,
-    borderLeftWidth: 4,
+  missionMarker: {
+    backgroundColor: '#10B981',
+    padding: 8,
+    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: 'white',
   },
-  missionHeader: {
+  callout: {
+    padding: spacing.sm,
+    minWidth: 150,
+  },
+  calloutTitle: {
+    fontWeight: 'bold',
+  },
+  calloutSubtitle: {
+    color: colors.onSurfaceVariant,
+  },
+  calloutHint: {
+    color: colors.primary,
+    marginTop: spacing.xs,
+  },
+  legend: {
+    position: 'absolute',
+    bottom: 100,
+    left: spacing.md,
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.xs,
-  },
-  missionStatus: {
-    flexDirection: 'row',
-    alignItems: 'center',
     gap: spacing.xs,
   },
-  dropoffName: {
-    color: colors.onSurface,
-    fontWeight: '500',
+  legendChip: {
+    backgroundColor: colors.primary,
   },
-  description: {
-    color: colors.onSurfaceVariant,
+  legendText: {
+    color: 'white',
+    fontSize: 10,
+  },
+  centerFab: {
+    position: 'absolute',
+    right: spacing.md,
+    bottom: 170,
+    backgroundColor: colors.surface,
+  },
+  missionsCard: {
+    position: 'absolute',
+    bottom: 80,
+    left: spacing.md,
+    right: spacing.md,
+    backgroundColor: colors.surface,
+    elevation: 4,
+  },
+  missionsContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  missionsInfo: {
+    flex: 1,
   },
   fab: {
     position: 'absolute',
@@ -287,5 +493,9 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     backgroundColor: colors.primary,
+  },
+  calloutAddress: {
+    color: colors.onSurface,
+    marginTop: spacing.xs,
   },
 });

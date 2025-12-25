@@ -1,11 +1,12 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, StyleSheet, FlatList, Alert } from 'react-native';
+import { View, StyleSheet, FlatList, Alert, ScrollView } from 'react-native';
 import { Text, Card, FAB, Button, IconButton, Portal, Modal, TextInput } from 'react-native-paper';
 import { useFocusEffect } from '@react-navigation/native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { LoadingScreen } from '../../components/common/LoadingScreen';
 import { EmptyState } from '../../components/common/EmptyState';
+import { AddressAutocomplete } from '../../components/forms/AddressAutocomplete';
 import { api } from '../../services/api';
 import { Address } from '../../types';
 import { colors, spacing } from '../../theme';
@@ -22,6 +23,8 @@ export function AddressesScreen() {
     postalCode: '',
     country: 'France',
     instructions: '',
+    latitude: 0,
+    longitude: 0,
   });
 
   useFocusEffect(
@@ -51,6 +54,8 @@ export function AddressesScreen() {
         postalCode: address.postalCode,
         country: address.country,
         instructions: address.instructions || '',
+        latitude: address.latitude || 0,
+        longitude: address.longitude || 0,
       });
     } else {
       setEditingAddress(null);
@@ -61,6 +66,8 @@ export function AddressesScreen() {
         postalCode: '',
         country: 'France',
         instructions: '',
+        latitude: 0,
+        longitude: 0,
       });
     }
     setModalVisible(true);
@@ -69,6 +76,24 @@ export function AddressesScreen() {
   const closeModal = () => {
     setModalVisible(false);
     setEditingAddress(null);
+  };
+
+  // Callback quand une adresse est sélectionnée dans l'autocomplete
+  const handleAddressSelect = (selectedAddress: {
+    street: string;
+    city: string;
+    postalCode: string;
+    latitude: number;
+    longitude: number;
+  }) => {
+    setForm({
+      ...form,
+      street: selectedAddress.street,
+      city: selectedAddress.city,
+      postalCode: selectedAddress.postalCode,
+      latitude: selectedAddress.latitude,
+      longitude: selectedAddress.longitude,
+    });
   };
 
   const handleSave = async () => {
@@ -81,8 +106,8 @@ export function AddressesScreen() {
       if (editingAddress) {
         await api.updateAddress(editingAddress.id, form);
       } else {
-  await api.createAddress(form);
-}
+        await api.createAddress(form);
+      }
       closeModal();
       loadAddresses();
     } catch (e: any) {
@@ -187,61 +212,106 @@ export function AddressesScreen() {
           onDismiss={closeModal}
           contentContainerStyle={styles.modal}
         >
-          <Text variant="titleLarge" style={styles.modalTitle}>
-            {editingAddress ? 'Modifier l\'adresse' : 'Nouvelle adresse'}
-          </Text>
+          <ScrollView showsVerticalScrollIndicator={false}>
+            <Text variant="titleLarge" style={styles.modalTitle}>
+              {editingAddress ? 'Modifier l\'adresse' : 'Nouvelle adresse'}
+            </Text>
 
-          <TextInput
-            label="Nom (ex: Maison, Bureau)"
-            value={form.label}
-            onChangeText={(text) => setForm({ ...form, label: text })}
-            mode="outlined"
-            style={styles.input}
-          />
-
-          <TextInput
-            label="Adresse"
-            value={form.street}
-            onChangeText={(text) => setForm({ ...form, street: text })}
-            mode="outlined"
-            style={styles.input}
-          />
-
-          <View style={styles.row}>
             <TextInput
-              label="Code postal"
-              value={form.postalCode}
-              onChangeText={(text) => setForm({ ...form, postalCode: text })}
+              label="Nom (ex: Maison, Bureau)"
+              value={form.label}
+              onChangeText={(text) => setForm({ ...form, label: text })}
               mode="outlined"
-              style={[styles.input, styles.halfInput]}
-              keyboardType="numeric"
+              style={styles.input}
             />
+
+            {/* Autocomplétion d'adresse */}
+            <View style={styles.autocompleteContainer}>
+              <AddressAutocomplete
+                value={form.street}
+                onAddressSelect={handleAddressSelect}
+                label="Rechercher une adresse"
+                placeholder="Tapez une adresse..."
+              />
+            </View>
+
+            {/* Affichage des champs remplis automatiquement */}
+            {form.street && (
+              <View style={styles.selectedAddressCard}>
+                <MaterialCommunityIcons name="check-circle" size={20} color={colors.primary} />
+                <View style={styles.selectedAddressContent}>
+                  <Text variant="bodyMedium" style={styles.selectedAddressStreet}>
+                    {form.street}
+                  </Text>
+                  <Text variant="bodySmall" style={styles.selectedAddressCity}>
+                    {form.postalCode} {form.city}
+                  </Text>
+                </View>
+                <IconButton
+                  icon="pencil"
+                  size={16}
+                  onPress={() => {
+                    // Permettre l'édition manuelle
+                  }}
+                />
+              </View>
+            )}
+
+            {/* Champs manuels (cachés si autocomplétion utilisée, mais éditables) */}
+            {!form.street && (
+              <>
+                <TextInput
+                  label="Rue"
+                  value={form.street}
+                  onChangeText={(text) => setForm({ ...form, street: text })}
+                  mode="outlined"
+                  style={styles.input}
+                />
+
+                <View style={styles.row}>
+                  <TextInput
+                    label="Code postal"
+                    value={form.postalCode}
+                    onChangeText={(text) => setForm({ ...form, postalCode: text })}
+                    mode="outlined"
+                    style={[styles.input, styles.halfInput]}
+                    keyboardType="numeric"
+                  />
+                  <TextInput
+                    label="Ville"
+                    value={form.city}
+                    onChangeText={(text) => setForm({ ...form, city: text })}
+                    mode="outlined"
+                    style={[styles.input, styles.halfInput]}
+                  />
+                </View>
+              </>
+            )}
+
             <TextInput
-              label="Ville"
-              value={form.city}
-              onChangeText={(text) => setForm({ ...form, city: text })}
+              label="Instructions de livraison (optionnel)"
+              value={form.instructions}
+              onChangeText={(text) => setForm({ ...form, instructions: text })}
               mode="outlined"
-              style={[styles.input, styles.halfInput]}
+              style={styles.input}
+              placeholder="Ex: Code portail 1234, 2ème étage"
+              multiline
             />
-          </View>
 
-          <TextInput
-            label="Instructions (optionnel)"
-            value={form.instructions}
-            onChangeText={(text) => setForm({ ...form, instructions: text })}
-            mode="outlined"
-            style={styles.input}
-            placeholder="Ex: Code portail 1234, 2ème étage"
-          />
-
-          <View style={styles.modalActions}>
-            <Button mode="outlined" onPress={closeModal} style={styles.modalButton}>
-              Annuler
-            </Button>
-            <Button mode="contained" onPress={handleSave} style={styles.modalButton}>
-              Sauvegarder
-            </Button>
-          </View>
+            <View style={styles.modalActions}>
+              <Button mode="outlined" onPress={closeModal} style={styles.modalButton}>
+                Annuler
+              </Button>
+              <Button 
+                mode="contained" 
+                onPress={handleSave} 
+                style={styles.modalButton}
+                disabled={!form.label || !form.street || !form.city || !form.postalCode}
+              >
+                Sauvegarder
+              </Button>
+            </View>
+          </ScrollView>
         </Modal>
       </Portal>
     </View>
@@ -313,6 +383,7 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     margin: spacing.lg,
     borderRadius: 12,
+    maxHeight: '85%',
   },
   modalTitle: {
     marginBottom: spacing.lg,
@@ -320,6 +391,30 @@ const styles = StyleSheet.create({
   },
   input: {
     marginBottom: spacing.sm,
+    backgroundColor: colors.surface,
+  },
+  autocompleteContainer: {
+    marginBottom: spacing.md,
+    zIndex: 1000,
+  },
+  selectedAddressCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: spacing.md,
+    backgroundColor: colors.primaryContainer,
+    borderRadius: 8,
+    marginBottom: spacing.md,
+    gap: spacing.sm,
+  },
+  selectedAddressContent: {
+    flex: 1,
+  },
+  selectedAddressStreet: {
+    color: colors.onSurface,
+    fontWeight: '500',
+  },
+  selectedAddressCity: {
+    color: colors.onSurfaceVariant,
   },
   row: {
     flexDirection: 'row',

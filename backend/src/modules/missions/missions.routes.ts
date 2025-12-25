@@ -1,6 +1,7 @@
 import { FastifyInstance } from 'fastify';
 import { MissionsController } from './missions.controller.js';
 import { MissionsService } from './missions.service.js';
+import { MissionTrackingService } from './missions.tracking.js';
 
 export async function missionsRoutes(app: FastifyInstance) {
   const missionsService = new MissionsService();
@@ -55,4 +56,68 @@ export async function missionsRoutes(app: FastifyInstance) {
   app.get('/carrier/profile', {
     preHandler: [app.authenticate],
   }, missionsController.getCarrierProfile.bind(missionsController));
+
+const trackingService = new MissionTrackingService();
+
+// Livreur démarre le trajet
+app.post('/missions/:id/depart', {
+  preHandler: [app.authenticate],
+}, async (request, reply) => {
+  try {
+    const carrierId = (request.user as any).userId;
+    const { id } = request.params as { id: string };
+    const { latitude, longitude } = request.body as { latitude: number; longitude: number };
+    
+    const result = await trackingService.startJourney(id, carrierId, latitude, longitude);
+    return reply.send(result);
+  } catch (error: any) {
+    return reply.status(400).send({ error: error.message });
+  }
+});
+
+// Livreur est arrivé
+app.post('/missions/:id/arrived', {
+  preHandler: [app.authenticate],
+}, async (request, reply) => {
+  try {
+    const carrierId = (request.user as any).userId;
+    const { id } = request.params as { id: string };
+    
+    const mission = await trackingService.arrivedAtPickup(id, carrierId);
+    return reply.send({ mission });
+  } catch (error: any) {
+    return reply.status(400).send({ error: error.message });
+  }
+});
+
+// Livreur confirme l'emballage
+app.post('/missions/:id/packaging', {
+  preHandler: [app.authenticate],
+}, async (request, reply) => {
+  try {
+    const carrierId = (request.user as any).userId;
+    const { id } = request.params as { id: string };
+    const { photoUrl } = request.body as { photoUrl: string };
+    
+    const result = await trackingService.confirmPackaging(id, carrierId, photoUrl);
+    return reply.send(result);
+  } catch (error: any) {
+    return reply.status(400).send({ error: error.message });
+  }
+});
+
+// Vendeur confirme l'emballage
+app.post('/parcels/:id/confirm-packaging', {
+  preHandler: [app.authenticate],
+}, async (request, reply) => {
+  try {
+    const vendorId = (request.user as any).userId;
+    const { id } = request.params as { id: string };
+    
+    const result = await trackingService.vendorConfirmPackaging(id, vendorId);
+    return reply.send(result);
+  } catch (error: any) {
+    return reply.status(400).send({ error: error.message });
+  }
+});
 }

@@ -144,6 +144,7 @@ model Address {
   isDefault    Boolean  @default(false)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+  isTemporary   Boolean   @default(false)  // Adresse temporaire pour un colis
 
   user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   parcels Parcel[]
@@ -171,6 +172,7 @@ model Parcel {
   price             Decimal      @db.Decimal(10, 2)
   pickupSlotStart   DateTime
   pickupSlotEnd     DateTime
+  pickupInstructions String? 
   pickupCode        String
   createdAt         DateTime     @default(now())
   updatedAt         DateTime     @updatedAt
@@ -182,6 +184,16 @@ model Parcel {
   transactions    Transaction[]
   reviews         Review[]
   conversation    Conversation?
+
+ // Photo de l'article (IA)
+  itemPhotoUrl       String?
+  itemCategory       String?        // "chaussures", "vêtements", "tech", etc.
+  suggestedSize      ParcelSize?    // Taille suggérée par l'IA
+  
+  // Confirmation d'emballage
+  packagingPhotoUrl     String?     // Photo prise par le livreur
+  packagingConfirmedAt  DateTime?   // Confirmation livreur
+  vendorPackagingConfirmedAt DateTime? // Confirmation vendeur
 
   @@index([status, pickupSlotStart])
   @@map("parcels")
@@ -198,6 +210,15 @@ model Mission {
   proofPhotoUrl String?
   carrierNotes  String?
   createdAt     DateTime      @default(now())
+
+  // Tracking du trajet
+  departedAt         DateTime?      // Quand le livreur clique "Je pars"
+  arrivedAt          DateTime?      // Quand le livreur clique "Je suis arrivé"
+  estimatedArrival   DateTime?      // ETA calculé
+  
+  // Stats
+  departureLatitude  Float?
+  departureLongitude Float?
 
   parcel  Parcel @relation(fields: [parcelId], references: [id])
   carrier User   @relation(fields: [carrierId], references: [id])

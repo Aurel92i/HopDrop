@@ -22,6 +22,7 @@ export type CarrierStackParamList = {
   CarrierHistory: undefined;
   CarrierProfile: undefined;
   Chat: { parcelId: string };
+  ActiveMissions: undefined;
 };
 
 export type ProfileStackParamList = {

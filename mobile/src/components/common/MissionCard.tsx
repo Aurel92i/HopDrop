@@ -14,7 +14,13 @@ interface MissionCardProps {
     pickupSlot: { start: string; end: string };
     price: { total: number; carrierPayout: number };
     distance: number;
-    pickupArea: { city: string; postalCode: string };
+    pickupAddress: { 
+      city: string; 
+      postalCode: string;
+      street?: string;
+      latitude?: number;
+      longitude?: number;
+    };
     vendor: { id: string; firstName: string; avatarUrl: string | null };
   };
   onPress: () => void;
@@ -64,7 +70,7 @@ export function MissionCard({ mission, onPress }: MissionCardProps) {
             <View style={styles.detailRow}>
               <MaterialCommunityIcons name="home" size={16} color={colors.onSurfaceVariant} />
               <Text variant="bodySmall" style={styles.detailText}>
-                {mission.pickupArea.city} ({mission.pickupArea.postalCode})
+                {mission.pickupAddress.city} ({mission.pickupAddress.postalCode})
               </Text>
             </View>
 

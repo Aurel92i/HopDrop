@@ -11,7 +11,7 @@ import {
 import { calculatePrice } from '../parcels/parcels.pricing.js';
 
 export class MissionsService {
-  async getAvailableMissions(carrierId: string, query: AvailableMissionsQuery) {
+ async getAvailableMissions(carrierId: string, query: AvailableMissionsQuery) {
     const { latitude, longitude, radius } = query;
 
     const pendingParcels = await prisma.parcel.findMany({
@@ -58,9 +58,13 @@ export class MissionsService {
             carrierPayout: pricing.carrierPayout,
           },
           distance,
-          pickupArea: {
+          pickupAddress: {
+            id: parcel.pickupAddress.id,
+            latitude: parcel.pickupAddress.latitude,
+            longitude: parcel.pickupAddress.longitude,
             city: parcel.pickupAddress.city,
             postalCode: parcel.pickupAddress.postalCode,
+            street: parcel.pickupAddress.street,
           },
           vendor: parcel.vendor,
         };
@@ -68,7 +72,7 @@ export class MissionsService {
       .filter((parcel) => parcel.distance <= radius)
       .sort((a, b) => a.distance - b.distance);
 
-    return { parcels: parcelsWithDistance };
+    return { missions: parcelsWithDistance };
   }
 
   async acceptMission(carrierId: string, parcelId: string) {

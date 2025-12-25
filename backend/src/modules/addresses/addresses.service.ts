@@ -36,7 +36,7 @@ export class AddressesService {
     return addresses;
   }
 
-  async createAddress(userId: string, input: CreateAddressInput) {
+ async createAddress(userId: string, input: CreateAddressInput) {
     let { latitude, longitude } = input;
 
     // Si pas de coordonnées fournies OU coordonnées par défaut/invalides, géocoder l'adresse
@@ -65,7 +65,31 @@ export class AddressesService {
       }
     }
 
-    // ... reste du code
+    // Gérer le défaut - retirer le défaut des autres adresses
+    if (input.isDefault) {
+      await prisma.address.updateMany({
+        where: { userId, isDefault: true },
+        data: { isDefault: false },
+      });
+    }
+
+    // Créer l'adresse
+    const address = await prisma.address.create({
+      data: {
+        userId,
+        label: input.label,
+        street: input.street,
+        city: input.city,
+        postalCode: input.postalCode,
+        country: input.country || 'France',
+        latitude: latitude!,
+        longitude: longitude!,
+        instructions: input.instructions,
+        isDefault: input.isDefault || false,
+      },
+    });
+
+    return address;
   }
 
   async updateAddress(userId: string, addressId: string, input: UpdateAddressInput) {
