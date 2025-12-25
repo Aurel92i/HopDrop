@@ -16,7 +16,6 @@ export type DocumentStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
 
 export type VehicleType = 'NONE' | 'BIKE' | 'SCOOTER' | 'CAR';
 
-
 export interface CarrierDocument {
   type: DocumentType;
   required: boolean;
@@ -41,6 +40,7 @@ export interface User {
   role: UserRole;
   avatarUrl: string | null;
   emailVerified: boolean;
+  pushToken?: string | null;
   createdAt: string;
 }
 
@@ -83,17 +83,24 @@ export interface Parcel {
   pickupCode: string;
   createdAt: string;
   updatedAt: string;
+  
+  // Relations
   pickupAddress?: Address;
   vendor?: User;
   assignedCarrier?: User;
+  
   // Photo article (IA)
   itemPhotoUrl?: string;
   itemCategory?: string;
   suggestedSize?: ParcelSize;
-  // Emballage
-  packagingConfirmedAt?: string;
-  vendorPackagingConfirmedAt?: string;
-  packagingPhotoUrl?: string;
+  
+  // ===== EMBALLAGE =====
+  packagingPhotoUrl?: string;           // Photo de l'emballage prise par le livreur
+  packagingConfirmedAt?: string;        // Date de confirmation par le livreur
+  vendorPackagingConfirmedAt?: string;  // Date de confirmation par le vendeur
+  packagingRejectedAt?: string;         // Date de refus par le vendeur
+  packagingRejectionReason?: string;    // Raison du refus
+  
   // Avis
   reviews?: Review[];
 }
@@ -115,10 +122,13 @@ export interface Mission {
   deliveredAt: string | null;
   proofPhotoUrl: string | null;
   carrierNotes: string | null;
-  // Tracking
+  
+  // Tracking temps réel
   departedAt?: string | null;
   arrivedAt?: string | null;
   estimatedArrival?: string | null;
+  
+  // Relation
   parcel?: Parcel;
 }
 
@@ -217,42 +227,12 @@ export interface Conversation {
   lastMessage?: Message | null;
 }
 
-export const carriers: Record<Carrier, { label: string; icon: string; color: string }> = {
-  VINTED: { 
-    label: 'Vinted', 
-    icon: 'hanger', 
-    color: '#09B1BA' 
-  },
-  MONDIAL_RELAY: { 
-    label: 'Mondial Relay', 
-    icon: 'truck-delivery', 
-    color: '#E30613' 
-  },
-  COLISSIMO: { 
-    label: 'Colissimo', 
-    icon: 'package-variant-closed', 
-    color: '#FFD700' 
-  },
-  CHRONOPOST: { 
-    label: 'Chronopost', 
-    icon: 'lightning-bolt', 
-    color: '#003366' 
-  },
-  RELAIS_COLIS: { 
-    label: 'Relais Colis', 
-    icon: 'store', 
-    color: '#FF6600' 
-  },
-  UPS: { 
-    label: 'UPS', 
-    icon: 'truck', 
-    color: '#351C15' 
-  },
-  OTHER: { 
-    label: 'Autre', 
-    icon: 'package-variant', 
-    color: '#666666' 
-  },
-};
-
-import { Carrier } from '../types';
+// ===== PACKAGING STATUS =====
+export interface PackagingStatus {
+  status: 'PENDING' | 'CARRIER_CONFIRMED' | 'FULLY_CONFIRMED' | 'REJECTED';
+  photoUrl: string | null;
+  carrierConfirmedAt: string | null;
+  vendorConfirmedAt: string | null;
+  rejectedAt: string | null;
+  rejectionReason: string | null;
+}

@@ -2,7 +2,7 @@ import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig } from 'ax
 import * as SecureStore from 'expo-secure-store';
 
 const API_URL = __DEV__
-  ? 'http://192.168.1.78:3000'  // Ton IP locale (à modifier)
+  ? 'http://192.168.1.78:3000'  // Ton IP locale
   : 'https://api.hopdrop.fr';
 
 class ApiService {
@@ -130,7 +130,7 @@ class ApiService {
   }
 
   // Users
- async updateProfile(data: { firstName?: string; lastName?: string; phone?: string; avatarUrl?: string }) {
+  async updateProfile(data: { firstName?: string; lastName?: string; phone?: string; avatarUrl?: string }) {
     const response = await this.api.put('/users/me', data);
     return response.data;
   }
@@ -232,16 +232,6 @@ class ApiService {
     return response.data;
   }
 
-  async confirmPackaging(missionId: string, photoUrl: string) {
-    const response = await this.api.post(`/missions/${missionId}/packaging`, { photoUrl });
-    return response.data;
-  }
-
-  async vendorConfirmPackaging(parcelId: string) {
-    const response = await this.api.post(`/parcels/${parcelId}/confirm-packaging`);
-    return response.data;
-  }
-
   // Carrier
   async updateAvailability(isAvailable: boolean) {
     const response = await this.api.put('/carrier/availability', { isAvailable });
@@ -256,11 +246,11 @@ class ApiService {
   async getCarrierLocation(carrierId: string) {
     const response = await this.api.get(`/carrier/${carrierId}/location`);
     return response.data;
-  } 
+  }
 
- async getCarrierProfile() {
+  async getCarrierProfile() {
     const response = await this.api.get('/carrier/profile');
-    return response.data.profile;  // Extraire directement le profile
+    return response.data.profile;
   }
 
   // === Admin ===
@@ -348,12 +338,77 @@ class ApiService {
     return response.data;
   }
 
+  // ========== PACKAGING ==========
+
+  // Upload d'image pour l'emballage
+  async uploadPackagingImage(uri: string): Promise<string> {
+    const token = await SecureStore.getItemAsync('accessToken');
+    
+    const formData = new FormData();
+    const filename = uri.split('/').pop() || 'photo.jpg';
+    const match = /\.(\w+)$/.exec(filename);
+    const type = match ? `image/${match[1]}` : 'image/jpeg';
+
+    formData.append('file', {
+      uri,
+      name: filename,
+      type,
+    } as any);
+
+    const response = await fetch(`${API_URL}/uploads`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        // Ne PAS mettre Content-Type, fetch le gère automatiquement pour FormData
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: 'Erreur upload' }));
+      throw new Error(error.message || 'Erreur lors de l\'upload de l\'image');
+    }
+
+    const data = await response.json();
+    return data.url;
+  }
+
+  // Livreur confirme l'emballage avec photo
+  async confirmPackaging(missionId: string, photoUri: string) {
+    // 1. D'abord uploader la photo
+    const uploadedPhotoUrl = await this.uploadPackagingImage(photoUri);
+
+    // 2. Puis appeler l'endpoint de confirmation
+    const response = await this.api.post('/packaging/carrier-confirm', {
+      missionId,
+      photoUrl: uploadedPhotoUrl,
+    });
+    return response.data;
+  }
+
+  // Vendeur confirme l'emballage
+  async vendorConfirmPackaging(parcelId: string) {
+    const response = await this.api.post('/packaging/vendor-confirm', { parcelId });
+    return response.data;
+  }
+
+  // Vendeur refuse l'emballage
+  async vendorRejectPackaging(parcelId: string, reason: string) {
+    const response = await this.api.post('/packaging/vendor-reject', { parcelId, reason });
+    return response.data;
+  }
+
+  // Récupérer le statut d'emballage
+  async getPackagingStatus(parcelId: string) {
+    const response = await this.api.get(`/packaging/status/${parcelId}`);
+    return response.data;
+  }
+
   // === Uploads ===
   async uploadFile(fileUri: string, folder: string): Promise<{ url: string; publicId: string }> {
-    // Lire le fichier et le convertir en base64
     const response = await fetch(fileUri);
     const blob = await response.blob();
-    
+
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onloadend = async () => {
@@ -373,7 +428,7 @@ class ApiService {
     });
   }
 
-// Historique vendeur
+  // Historique vendeur
   async getParcelHistory(page: number = 1, limit: number = 10) {
     const response = await this.api.get(`/parcels/history?page=${page}&limit=${limit}`);
     return response.data;

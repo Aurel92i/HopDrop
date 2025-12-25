@@ -53,11 +53,9 @@ export class MissionTrackingService {
       },
     });
 
-    // Mettre à jour le statut du colis
-    await prisma.parcel.update({
-      where: { id: mission.parcelId },
-      data: { status: 'IN_PROGRESS' },
-    });
+    // NOTE: On ne change PAS le status du Parcel ici
+    // Le Parcel reste en "ACCEPTED" jusqu'à ce que le livreur le récupère (PICKED_UP)
+    // Seul le status de la Mission passe à "IN_PROGRESS"
 
     // Notifier le vendeur
     if (mission.parcel.vendor.fcmToken) {
@@ -65,7 +63,7 @@ export class MissionTrackingService {
         mission.parcel.vendor.fcmToken,
         '🚴 Livreur en route !',
         `Votre livreur arrive dans environ ${etaMinutes} minutes`,
-        { 
+        {
           type: 'carrier_departed',
           parcelId: mission.parcelId,
           missionId,
@@ -118,7 +116,7 @@ export class MissionTrackingService {
         mission.parcel.vendor.fcmToken,
         '📍 Livreur arrivé !',
         `Votre livreur est arrivé et vous attend`,
-        { 
+        {
           type: 'carrier_arrived',
           parcelId: mission.parcelId,
           missionId,
@@ -156,7 +154,7 @@ export class MissionTrackingService {
         mission.parcel.vendor.fcmToken,
         '📦 Confirmez l\'emballage',
         'Le livreur a emballé votre colis. Veuillez confirmer.',
-        { 
+        {
           type: 'packaging_confirmation',
           parcelId: mission.parcelId,
           missionId,

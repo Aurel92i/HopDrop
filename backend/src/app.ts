@@ -19,6 +19,8 @@ import { reviewsRoutes } from './modules/reviews/reviews.routes.js';
 import { carrierDocumentsRoutes } from './modules/carrier-documents/carrier-documents.routes.js';
 import { adminRoutes } from './modules/admin/admin.routes.js';
 import { chatRoutes } from './modules/chat/chat.routes.js';
+import { packagingRoutes } from './modules/packaging/packaging.routes.js'; // 🆕 AJOUTÉ
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -88,6 +90,7 @@ await app.register(reviewsRoutes);
 await app.register(carrierDocumentsRoutes, { prefix: '/carrier/documents' });
 await app.register(adminRoutes, { prefix: '/admin' });
 await app.register(chatRoutes, { prefix: '/chat' });
+await app.register(packagingRoutes); // 🆕 AJOUTÉ
 
 // Gestion erreurs
 app.setErrorHandler((error, request, reply) => {

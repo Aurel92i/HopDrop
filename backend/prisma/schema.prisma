@@ -195,6 +195,8 @@ model Parcel {
   packagingPhotoUrl     String?     // Photo prise par le livreur
   packagingConfirmedAt  DateTime?   // Confirmation livreur
   vendorPackagingConfirmedAt DateTime? // Confirmation vendeur
+  packagingRejectedAt          DateTime? // Date de refus par le vendeur
+  packagingRejectionReason     String?   // Raison du refus
 
   @@index([status, pickupSlotStart])
   @@map("parcels")
