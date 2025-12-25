@@ -10,8 +10,8 @@ import * as ImagePicker from 'expo-image-picker';
 import { LoadingScreen } from '../../components/common/LoadingScreen';
 import { api } from '../../services/api';
 import { CarrierStackParamList } from '../../navigation/types';
-import { colors, spacing, sizes } from '../../theme';
-import { Mission, MissionStatus } from '../../types';
+import { colors, spacing, sizes, carriers } from '../../theme';
+import { Mission, MissionStatus, Carrier } from '../../types';
 
 type ActiveMissionsScreenProps = {
   navigation: NativeStackNavigationProp<CarrierStackParamList, 'ActiveMissions'>;
@@ -19,7 +19,7 @@ type ActiveMissionsScreenProps = {
 
 const statusConfig: Record<MissionStatus, { label: string; color: string; icon: string }> = {
   ACCEPTED: { label: 'À récupérer', color: colors.primary, icon: 'package-variant' },
-  IN_PROGRESS: { label: 'En route', color: colors.tertiary, icon: 'bike' },
+  IN_PROGRESS: { label: 'En route', color: '#F59E0B', icon: 'bike' },
   PICKED_UP: { label: 'À livrer', color: colors.secondary, icon: 'package-variant-closed' },
   DELIVERED: { label: 'Livré', color: '#10B981', icon: 'check-all' },
   CANCELLED: { label: 'Annulé', color: colors.error, icon: 'close-circle' },
@@ -128,8 +128,7 @@ export function ActiveMissionsScreen({ navigation }: ActiveMissionsScreenProps) 
 
     setIsActionLoading(true);
     try {
-      // TODO: Upload photo et récupérer l'URL
-      const photoUrl = packagingPhoto; // Pour le MVP
+      const photoUrl = packagingPhoto;
 
       await api.confirmPackaging(selectedMission.id, photoUrl);
       
@@ -198,14 +197,6 @@ export function ActiveMissionsScreen({ navigation }: ActiveMissionsScreenProps) 
     );
   };
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleTimeString('fr-FR', {
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
-
   const formatETA = (dateString: string) => {
     const date = new Date(dateString);
     const now = new Date();
@@ -243,22 +234,25 @@ export function ActiveMissionsScreen({ navigation }: ActiveMissionsScreenProps) 
     const hasArrived = !!mission.arrivedAt;
     const packagingConfirmed = !!parcel?.packagingConfirmedAt;
     const vendorConfirmed = !!parcel?.vendorPackagingConfirmedAt;
+    
+    // Infos transporteur
+    const carrierInfo = parcel?.carrier ? carriers[parcel.carrier as Carrier] : null;
+    const sizeInfo = parcel?.size ? sizes.parcel[parcel.size as keyof typeof sizes.parcel] : null;
 
     return (
       <Card
         key={mission.id}
-        style={[styles.missionCard, isSelected && styles.missionCardSelected]}
+        style={[styles.missionCard, { borderLeftColor: status.color }]}
         onPress={() => setSelectedMission(mission)}
       >
         <Card.Content>
-          {/* Header avec statut */}
+          {/* Header avec statut et ETA */}
           <View style={styles.missionHeader}>
             <View style={styles.statusBadge}>
               <MaterialCommunityIcons name={status.icon as any} size={20} color={status.color} />
               <Text style={[styles.statusText, { color: status.color }]}>{status.label}</Text>
             </View>
             
-            {/* ETA si en route */}
             {mission.status === 'IN_PROGRESS' && mission.estimatedArrival && (
               <Chip icon="clock" compact style={styles.etaChip}>
                 ETA: {formatETA(mission.estimatedArrival)}
@@ -266,61 +260,126 @@ export function ActiveMissionsScreen({ navigation }: ActiveMissionsScreenProps) 
             )}
           </View>
 
-          {/* Info colis */}
           {parcel && (
             <>
-              <View style={styles.parcelInfo}>
-                <MaterialCommunityIcons name="package-variant" size={24} color={colors.primary} />
-                <View style={styles.parcelDetails}>
-                  <Text variant="titleMedium">{parcel.dropoffName}</Text>
-                  <Text variant="bodySmall" style={styles.parcelDescription}>
-                    {sizes.parcel[parcel.size]?.label} • {parcel.description || 'Colis'}
+              {/* ===== TRANSPORTEUR + TAILLE ===== */}
+              <View style={styles.mainInfoRow}>
+                {/* Transporteur */}
+                <View style={styles.carrierBadge}>
+                  <MaterialCommunityIcons 
+                    name={carrierInfo?.icon as any || 'package-variant'} 
+                    size={22} 
+                    color={colors.primary} 
+                  />
+                  <Text variant="titleMedium" style={styles.carrierName}>
+                    {carrierInfo?.label || 'Point relais'}
                   </Text>
                 </View>
+                
+                {/* Taille - CLAIREMENT VISIBLE */}
+                <Chip 
+                  icon="package-variant" 
+                  style={styles.sizeChip}
+                  textStyle={styles.sizeChipText}
+                >
+                  {sizeInfo?.label || parcel.size}
+                </Chip>
               </View>
 
-              {/* Adresse de récupération */}
+              {/* Catégorie si définie */}
+              {parcel.itemCategory && (
+                <Text variant="bodySmall" style={styles.categoryText}>
+                  {parcel.itemCategory}
+                </Text>
+              )}
+
+              {/* Point de dépôt */}
+              <View style={styles.dropoffRow}>
+                <MaterialCommunityIcons name="store" size={16} color={colors.onSurfaceVariant} />
+                <Text variant="bodySmall" style={styles.dropoffText}>
+                  Déposer à : {parcel.dropoffName}
+                </Text>
+              </View>
+
+              <Divider style={styles.divider} />
+
+              {/* ===== ADRESSE DE RÉCUPÉRATION ===== */}
               {parcel.pickupAddress && (
                 <View style={styles.addressSection}>
-                  <MaterialCommunityIcons name="map-marker" size={20} color={colors.secondary} />
-                  <View style={styles.addressInfo}>
-                    <Text variant="bodySmall" style={styles.addressLabel}>Récupération</Text>
-                    <Text variant="bodyMedium">
-                      {parcel.pickupAddress.street}
-                    </Text>
-                    <Text variant="bodySmall" style={styles.addressCity}>
-                      {parcel.pickupAddress.postalCode} {parcel.pickupAddress.city}
-                    </Text>
+                  <View style={styles.addressHeader}>
+                    <MaterialCommunityIcons name="map-marker" size={18} color={colors.primary} />
+                    <Text variant="labelMedium" style={styles.addressLabel}>Récupération</Text>
                   </View>
                   
-                  {/* Bouton navigation */}
-                  <Button
-                    mode="contained-tonal"
-                    compact
-                    icon="navigation"
-                    onPress={() => openGoogleMaps(
-                      parcel.pickupAddress.latitude,
-                      parcel.pickupAddress.longitude,
-                      parcel.pickupAddress.street
-                    )}
-                  >
-                    Y aller
-                  </Button>
+                  <View style={styles.addressContent}>
+                    <View style={styles.addressTextContainer}>
+                      <Text variant="bodyMedium" style={styles.addressStreet}>
+                        {parcel.pickupAddress.street}
+                      </Text>
+                      <Text variant="bodySmall" style={styles.addressCity}>
+                        {parcel.pickupAddress.postalCode} {parcel.pickupAddress.city}
+                      </Text>
+                    </View>
+                    
+                    <Button
+                      mode="contained-tonal"
+                      compact
+                      icon="navigation"
+                      onPress={() => openGoogleMaps(
+                        parcel.pickupAddress!.latitude,
+                        parcel.pickupAddress!.longitude,
+                        parcel.pickupAddress!.street
+                      )}
+                      style={styles.navButton}
+                    >
+                      Y aller
+                    </Button>
+                  </View>
                 </View>
               )}
 
-              {/* Info vendeur */}
+              {/* ===== INFORMATIONS COMPLÉMENTAIRES ===== */}
+              {parcel.pickupInstructions && (
+                <View style={styles.instructionsBox}>
+                  <MaterialCommunityIcons name="information-outline" size={18} color={colors.primary} />
+                  <View style={styles.instructionsContent}>
+                    <Text variant="labelSmall" style={styles.instructionsLabel}>
+                      Informations complémentaires
+                    </Text>
+                    <Text variant="bodyMedium" style={styles.instructionsText}>
+                      {parcel.pickupInstructions}
+                    </Text>
+                  </View>
+                </View>
+              )}
+
+              {/* ===== VENDEUR ===== */}
               {parcel.vendor && (
                 <View style={styles.vendorSection}>
-                  <MaterialCommunityIcons name="account" size={20} color={colors.onSurfaceVariant} />
+                  <MaterialCommunityIcons name="account" size={18} color={colors.onSurfaceVariant} />
                   <Text variant="bodyMedium" style={styles.vendorName}>
                     {parcel.vendor.firstName}
                   </Text>
                 </View>
               )}
 
-              {/* Code de récupération */}
-              {mission.status === 'ACCEPTED' && parcel.pickupCode && (
+              {/* ===== NOTE POUR LE LIVREUR ===== */}
+              {parcel.description && (
+                <View style={styles.noteBox}>
+                  <MaterialCommunityIcons name="note-text-outline" size={18} color={colors.secondary} />
+                  <View style={styles.noteContent}>
+                    <Text variant="labelSmall" style={styles.noteLabel}>
+                      Note du vendeur
+                    </Text>
+                    <Text variant="bodyMedium" style={styles.noteText}>
+                      {parcel.description}
+                    </Text>
+                  </View>
+                </View>
+              )}
+
+              {/* ===== CODE DE VÉRIFICATION ===== */}
+              {(mission.status === 'ACCEPTED' || mission.status === 'IN_PROGRESS') && parcel.pickupCode && (
                 <View style={styles.codeSection}>
                   <Text variant="bodySmall" style={styles.codeLabel}>Code de vérification</Text>
                   <Text variant="headlineMedium" style={styles.codeValue}>
@@ -328,6 +387,20 @@ export function ActiveMissionsScreen({ navigation }: ActiveMissionsScreenProps) 
                   </Text>
                 </View>
               )}
+
+              {/* Info bordereau */}
+              <View style={styles.labelInfo}>
+                <MaterialCommunityIcons 
+                  name={parcel.hasShippingLabel ? 'check-circle' : 'printer'} 
+                  size={16} 
+                  color={parcel.hasShippingLabel ? '#10B981' : colors.secondary} 
+                />
+                <Text variant="bodySmall" style={styles.labelInfoText}>
+                  {parcel.hasShippingLabel 
+                    ? 'Bordereau déjà imprimé par le vendeur' 
+                    : 'Bordereau à imprimer'}
+                </Text>
+              </View>
 
               {/* Statut emballage */}
               {(packagingConfirmed || vendorConfirmed) && (
@@ -357,7 +430,7 @@ export function ActiveMissionsScreen({ navigation }: ActiveMissionsScreenProps) 
 
           <Divider style={styles.divider} />
 
-          {/* Actions */}
+          {/* ===== ACTIONS ===== */}
           <View style={styles.actionsContainer}>
             {/* Bouton Je pars */}
             {mission.status === 'ACCEPTED' && !hasDeparted && (
@@ -367,7 +440,7 @@ export function ActiveMissionsScreen({ navigation }: ActiveMissionsScreenProps) 
                 onPress={() => handleDepart(mission)}
                 loading={isActionLoading}
                 style={styles.actionButton}
-                buttonColor={colors.tertiary}
+                buttonColor="#F59E0B"
               >
                 Je pars
               </Button>
@@ -433,7 +506,7 @@ export function ActiveMissionsScreen({ navigation }: ActiveMissionsScreenProps) 
                   icon="close"
                   onPress={() => handleCancel(mission)}
                   compact
-                  style={styles.secondaryButton}
+                  style={[styles.secondaryButton, styles.cancelButton]}
                   textColor={colors.error}
                 >
                   Annuler
@@ -554,11 +627,7 @@ const styles = StyleSheet.create({
   missionCard: {
     marginBottom: spacing.md,
     backgroundColor: colors.surface,
-    borderWidth: 2,
-    borderColor: 'transparent',
-  },
-  missionCardSelected: {
-    borderColor: colors.primary,
+    borderLeftWidth: 4,
   },
   missionHeader: {
     flexDirection: 'row',
@@ -573,56 +642,144 @@ const styles = StyleSheet.create({
   },
   statusText: {
     fontWeight: '600',
+    fontSize: 14,
   },
   etaChip: {
     backgroundColor: colors.primaryContainer,
   },
-  parcelInfo: {
+  // ===== TRANSPORTEUR + TAILLE =====
+  mainInfoRow: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    gap: spacing.md,
-    marginBottom: spacing.md,
+    marginBottom: spacing.xs,
   },
-  parcelDetails: {
-    flex: 1,
-  },
-  parcelDescription: {
-    color: colors.onSurfaceVariant,
-  },
-  addressSection: {
+  carrierBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    padding: spacing.md,
-    backgroundColor: colors.surfaceVariant,
-    borderRadius: 8,
-    marginBottom: spacing.md,
   },
-  addressInfo: {
-    flex: 1,
+  carrierName: {
+    color: colors.onSurface,
+    fontWeight: '600',
+  },
+  sizeChip: {
+    backgroundColor: colors.secondaryContainer,
+  },
+  sizeChipText: {
+    fontWeight: '600',
+    color: colors.secondary,
+  },
+  categoryText: {
+    color: colors.onSurfaceVariant,
+    marginBottom: spacing.xs,
+  },
+  dropoffRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    marginBottom: spacing.sm,
+  },
+  dropoffText: {
+    color: colors.onSurfaceVariant,
+  },
+  divider: {
+    marginVertical: spacing.sm,
+  },
+  // ===== ADRESSE =====
+  addressSection: {
+    marginBottom: spacing.sm,
+  },
+  addressHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    marginBottom: spacing.xs,
   },
   addressLabel: {
     color: colors.onSurfaceVariant,
-    fontSize: 11,
+  },
+  addressContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: colors.surfaceVariant,
+    padding: spacing.sm,
+    borderRadius: 8,
+  },
+  addressTextContainer: {
+    flex: 1,
+  },
+  addressStreet: {
+    color: colors.onSurface,
+    fontWeight: '500',
   },
   addressCity: {
     color: colors.onSurfaceVariant,
   },
+  navButton: {
+    marginLeft: spacing.sm,
+  },
+  // ===== INFORMATIONS COMPLÉMENTAIRES =====
+  instructionsBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
+    backgroundColor: colors.primaryContainer,
+    padding: spacing.sm,
+    borderRadius: 8,
+    marginBottom: spacing.sm,
+  },
+  instructionsContent: {
+    flex: 1,
+  },
+  instructionsLabel: {
+    color: colors.primary,
+    fontWeight: '600',
+  },
+  instructionsText: {
+    color: colors.onSurface,
+    marginTop: 2,
+  },
+  // ===== VENDEUR =====
   vendorSection: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    marginBottom: spacing.md,
+    marginBottom: spacing.sm,
   },
   vendorName: {
     color: colors.onSurface,
   },
+  // ===== NOTE DU VENDEUR =====
+  noteBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
+    backgroundColor: colors.secondaryContainer,
+    padding: spacing.sm,
+    borderRadius: 8,
+    marginBottom: spacing.sm,
+  },
+  noteContent: {
+    flex: 1,
+  },
+  noteLabel: {
+    color: colors.secondary,
+    fontWeight: '600',
+  },
+  noteText: {
+    color: colors.onSurface,
+    fontStyle: 'italic',
+    marginTop: 2,
+  },
+  // ===== CODE =====
   codeSection: {
     alignItems: 'center',
     padding: spacing.md,
     backgroundColor: colors.primaryContainer,
     borderRadius: 8,
-    marginBottom: spacing.md,
+    marginBottom: spacing.sm,
   },
   codeLabel: {
     color: colors.onSurfaceVariant,
@@ -632,8 +789,20 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     letterSpacing: 4,
   },
+  // ===== BORDEREAU =====
+  labelInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    marginBottom: spacing.sm,
+  },
+  labelInfoText: {
+    color: colors.onSurfaceVariant,
+    fontSize: 13,
+  },
+  // ===== EMBALLAGE =====
   packagingStatus: {
-    marginBottom: spacing.md,
+    marginBottom: spacing.sm,
   },
   packagingBadge: {
     flexDirection: 'row',
@@ -652,9 +821,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     fontSize: 13,
   },
-  divider: {
-    marginVertical: spacing.md,
-  },
+  // ===== ACTIONS =====
   actionsContainer: {
     gap: spacing.sm,
   },
@@ -669,7 +836,10 @@ const styles = StyleSheet.create({
   secondaryButton: {
     flex: 1,
   },
-  // Modal styles
+  cancelButton: {
+    borderColor: colors.error,
+  },
+  // ===== MODAL =====
   modalContainer: {
     backgroundColor: colors.surface,
     margin: spacing.lg,

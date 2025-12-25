@@ -503,4 +503,4 @@ const styles = StyleSheet.create({
   reviewDate: {
     color: colors.onSurfaceVariant,
   },
-});
+}); 
