@@ -40,8 +40,8 @@ export function VendorHomeScreen({ navigation }: VendorHomeScreenProps) {
   );
 
   const loadParcels = async () => {
-    const statusFilter = filter === 'all' ? undefined : filter.toUpperCase();
-    await fetchParcels(statusFilter);
+    // Always fetch all parcels, filtering is done client-side
+    await fetchParcels(undefined);
   };
 
   const onRefresh = async () => {
@@ -52,6 +52,10 @@ export function VendorHomeScreen({ navigation }: VendorHomeScreenProps) {
 
   const filteredParcels = React.useMemo(() => {
     if (filter === 'all') return parcels;
+    if (filter === 'accepted') {
+      // Include both ACCEPTED and PICKED_UP statuses in "En cours" tab
+      return parcels.filter((p) => p.status === 'ACCEPTED' || p.status === 'PICKED_UP');
+    }
     return parcels.filter((p) => p.status === filter.toUpperCase());
   }, [parcels, filter]);
 

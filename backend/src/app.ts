@@ -1,4 +1,4 @@
-﻿import Fastify from 'fastify';
+import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import jwt from '@fastify/jwt';
 import multipart from '@fastify/multipart';
@@ -19,7 +19,9 @@ import { reviewsRoutes } from './modules/reviews/reviews.routes.js';
 import { carrierDocumentsRoutes } from './modules/carrier-documents/carrier-documents.routes.js';
 import { adminRoutes } from './modules/admin/admin.routes.js';
 import { chatRoutes } from './modules/chat/chat.routes.js';
-import { packagingRoutes } from './modules/packaging/packaging.routes.js'; // 🆕 AJOUTÉ
+import { packagingRoutes } from './modules/packaging/packaging.routes.js';
+import { deliveryRoutes } from './modules/delivery/delivery.routes.js'; // 🆕 AJOUTÉ
+import { startDeliveryScheduler } from './modules/delivery/delivery.scheduler.js'; // 🆕 AJOUTÉ
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -86,11 +88,12 @@ await app.register(missionsRoutes);
 await app.register(uploadsRoutes, { prefix: '/uploads' });
 await app.register(paymentsRoutes);
 await app.register(notificationsRoutes);
-await app.register(reviewsRoutes); 
+await app.register(reviewsRoutes);
 await app.register(carrierDocumentsRoutes, { prefix: '/carrier/documents' });
 await app.register(adminRoutes, { prefix: '/admin' });
 await app.register(chatRoutes, { prefix: '/chat' });
-await app.register(packagingRoutes); // 🆕 AJOUTÉ
+await app.register(packagingRoutes);
+await app.register(deliveryRoutes); // 🆕 AJOUTÉ
 
 // Gestion erreurs
 app.setErrorHandler((error, request, reply) => {
@@ -102,12 +105,16 @@ app.setErrorHandler((error, request, reply) => {
   });
 });
 
-// Demarrer
+// Démarrer
 const start = async () => {
   try {
     const port = parseInt(env.PORT);
     await app.listen({ port, host: '0.0.0.0' });
     console.log('HopDrop API started on http://localhost:' + port);
+    
+    // 🆕 Démarrer le scheduler d'auto-confirmation
+    startDeliveryScheduler();
+    
   } catch (err) {
     app.log.error(err);
     process.exit(1);

@@ -97,7 +97,7 @@ class ApiService {
     return response.data;
   }
 
-  // Auth
+  // === Auth ===
   async register(data: {
     email: string;
     password: string;
@@ -129,13 +129,13 @@ class ApiService {
     return response.data;
   }
 
-  // Users
+  // === Users ===
   async updateProfile(data: { firstName?: string; lastName?: string; phone?: string; avatarUrl?: string }) {
     const response = await this.api.put('/users/me', data);
     return response.data;
   }
 
-  // Addresses
+  // === Addresses ===
   async getAddresses() {
     const response = await this.api.get('/addresses');
     return response.data;
@@ -156,7 +156,7 @@ class ApiService {
     return response.data;
   }
 
-  // Parcels
+  // === Parcels ===
   async getParcels(status?: string) {
     const params = status ? { status } : {};
     const response = await this.api.get('/parcels', { params });
@@ -183,7 +183,12 @@ class ApiService {
     return response.data;
   }
 
-  // Missions
+  async getParcelHistory(page: number = 1, limit: number = 10) {
+    const response = await this.api.get(`/parcels/history?page=${page}&limit=${limit}`);
+    return response.data;
+  }
+
+  // === Missions ===
   async getAvailableMissions(latitude: number, longitude: number, radius: number = 5) {
     const response = await this.api.get('/missions/available', {
       params: { latitude, longitude, radius },
@@ -221,7 +226,6 @@ class ApiService {
     return response.data;
   }
 
-  // Tracking missions
   async missionDepart(missionId: string, latitude: number, longitude: number) {
     const response = await this.api.post(`/missions/${missionId}/depart`, { latitude, longitude });
     return response.data;
@@ -232,7 +236,7 @@ class ApiService {
     return response.data;
   }
 
-  // Carrier
+  // === Carrier ===
   async updateAvailability(isAvailable: boolean) {
     const response = await this.api.put('/carrier/availability', { isAvailable });
     return response.data;
@@ -251,6 +255,26 @@ class ApiService {
   async getCarrierProfile() {
     const response = await this.api.get('/carrier/profile');
     return response.data.profile;
+  }
+
+  async getCarrierDocuments() {
+    const response = await this.api.get('/carrier/documents');
+    return response.data;
+  }
+
+  async uploadCarrierDocument(type: string, fileUrl: string) {
+    const response = await this.api.post('/carrier/documents', { type, fileUrl });
+    return response.data;
+  }
+
+  async deleteCarrierDocument(type: string) {
+    const response = await this.api.delete(`/carrier/documents/${type}`);
+    return response.data;
+  }
+
+  async updateCarrierDocumentsProfile(data: { vehicleType?: string; hasOwnPrinter?: boolean }) {
+    const response = await this.api.patch('/carrier/documents/profile', data);
+    return response.data;
   }
 
   // === Admin ===
@@ -274,7 +298,7 @@ class ApiService {
     return response.data;
   }
 
-  // Payments
+  // === Payments ===
   async createPaymentIntent(parcelId: string) {
     const response = await this.api.post('/payments/create-intent', { parcelId });
     return response.data;
@@ -285,7 +309,7 @@ class ApiService {
     return response.data;
   }
 
-  // Reviews
+  // === Reviews ===
   async createReview(data: { parcelId: string; rating: number; comment?: string }) {
     const response = await this.api.post('/reviews', data);
     return response.data;
@@ -293,27 +317,6 @@ class ApiService {
 
   async getMyReviews() {
     const response = await this.api.get('/reviews/received');
-    return response.data;
-  }
-
-  // === Carrier Documents ===
-  async getCarrierDocuments() {
-    const response = await this.api.get('/carrier/documents');
-    return response.data;
-  }
-
-  async uploadCarrierDocument(type: string, fileUrl: string) {
-    const response = await this.api.post('/carrier/documents', { type, fileUrl });
-    return response.data;
-  }
-
-  async deleteCarrierDocument(type: string) {
-    const response = await this.api.delete(`/carrier/documents/${type}`);
-    return response.data;
-  }
-
-  async updateCarrierDocumentsProfile(data: { vehicleType?: string; hasOwnPrinter?: boolean }) {
-    const response = await this.api.patch('/carrier/documents/profile', data);
     return response.data;
   }
 
@@ -338,10 +341,8 @@ class ApiService {
     return response.data;
   }
 
-  // ========== PACKAGING ==========
-
-  // Upload d'image pour l'emballage
-  async uploadPackagingImage(uri: string): Promise<string> {
+  // === Uploads ===
+  async uploadImage(uri: string): Promise<string> {
     const token = await SecureStore.getItemAsync('accessToken');
     
     const formData = new FormData();
@@ -359,52 +360,19 @@ class ApiService {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${token}`,
-        // Ne PAS mettre Content-Type, fetch le gère automatiquement pour FormData
       },
       body: formData,
     });
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({ message: 'Erreur upload' }));
-      throw new Error(error.message || 'Erreur lors de l\'upload de l\'image');
+      throw new Error(error.message || 'Erreur lors de l\'upload');
     }
 
     const data = await response.json();
     return data.url;
   }
 
-  // Livreur confirme l'emballage avec photo
-  async confirmPackaging(missionId: string, photoUri: string) {
-    // 1. D'abord uploader la photo
-    const uploadedPhotoUrl = await this.uploadPackagingImage(photoUri);
-
-    // 2. Puis appeler l'endpoint de confirmation
-    const response = await this.api.post('/packaging/carrier-confirm', {
-      missionId,
-      photoUrl: uploadedPhotoUrl,
-    });
-    return response.data;
-  }
-
-  // Vendeur confirme l'emballage
-  async vendorConfirmPackaging(parcelId: string) {
-    const response = await this.api.post('/packaging/vendor-confirm', { parcelId });
-    return response.data;
-  }
-
-  // Vendeur refuse l'emballage
-  async vendorRejectPackaging(parcelId: string, reason: string) {
-    const response = await this.api.post('/packaging/vendor-reject', { parcelId, reason });
-    return response.data;
-  }
-
-  // Récupérer le statut d'emballage
-  async getPackagingStatus(parcelId: string) {
-    const response = await this.api.get(`/packaging/status/${parcelId}`);
-    return response.data;
-  }
-
-  // === Uploads ===
   async uploadFile(fileUri: string, folder: string): Promise<{ url: string; publicId: string }> {
     const response = await fetch(fileUri);
     const blob = await response.blob();
@@ -428,9 +396,70 @@ class ApiService {
     });
   }
 
-  // Historique vendeur
-  async getParcelHistory(page: number = 1, limit: number = 10) {
-    const response = await this.api.get(`/parcels/history?page=${page}&limit=${limit}`);
+  // === Packaging ===
+  async confirmPackaging(missionId: string, photoUri: string) {
+    const uploadedPhotoUrl = await this.uploadImage(photoUri);
+    const response = await this.api.post('/packaging/carrier-confirm', {
+      missionId,
+      photoUrl: uploadedPhotoUrl,
+    });
+    return response.data;
+  }
+
+  async vendorConfirmPackaging(parcelId: string) {
+    const response = await this.api.post('/packaging/vendor-confirm', { parcelId });
+    return response.data;
+  }
+
+  async vendorRejectPackaging(parcelId: string, reason: string) {
+    const response = await this.api.post('/packaging/vendor-reject', { parcelId, reason });
+    return response.data;
+  }
+
+  async getPackagingStatus(parcelId: string) {
+    const response = await this.api.get(`/packaging/status/${parcelId}`);
+    return response.data;
+  }
+
+  // === Delivery - Confirmation de dépôt avec timer 12H ===
+
+  /**
+   * Livreur confirme le dépôt du colis avec une preuve photo
+   * Déclenche le timer de 12H pour le client
+   */
+  async confirmDelivery(missionId: string, proofUri: string) {
+    const proofUrl = await this.uploadImage(proofUri);
+    const response = await this.api.post('/delivery/confirm', {
+      missionId,
+      proofUrl,
+    });
+    return response.data;
+  }
+
+  /**
+   * Client confirme avoir reçu la notification de dépôt
+   * Déclenche le paiement au livreur
+   * Peut optionnellement inclure une note et un commentaire
+   */
+  async clientConfirmDelivery(parcelId: string, rating?: number, comment?: string) {
+    const response = await this.api.post('/delivery/client-confirm', { parcelId, rating, comment });
+    return response.data;
+  }
+
+  /**
+   * Client conteste la livraison
+   * Ouvre un ticket de support
+   */
+  async clientContestDelivery(parcelId: string, reason: string) {
+    const response = await this.api.post('/delivery/client-contest', { parcelId, reason });
+    return response.data;
+  }
+
+  /**
+   * Récupérer le statut de livraison d'un colis
+   */
+  async getDeliveryStatus(parcelId: string) {
+    const response = await this.api.get(`/delivery/status/${parcelId}`);
     return response.data;
   }
 }

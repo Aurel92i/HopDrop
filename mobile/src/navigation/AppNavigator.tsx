@@ -160,11 +160,12 @@ function CarrierNavigator() {
         component={CarrierProfileScreen}
         options={{ title: 'Mon profil livreur' }}
       />
+      {/* ✅ CORRIGÉ: Stack.Screen → CarrierStack.Screen */}
       <CarrierStack.Screen 
-  name="ActiveMissions" 
-  component={ActiveMissionsScreen}
-  options={{ title: 'Missions en cours' }}
-/>
+        name="ActiveMissions" 
+        component={ActiveMissionsScreen}
+        options={{ title: 'Missions en cours' }}
+      />
     </CarrierStack.Navigator>
   );
 }

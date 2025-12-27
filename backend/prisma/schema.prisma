@@ -210,18 +210,26 @@ model Mission {
   acceptedAt    DateTime      @default(now())
   pickedUpAt    DateTime?
   deliveredAt   DateTime?
-  proofPhotoUrl String?
+  proofPhotoUrl String?       // Ancienne preuve (garder pour compatibilité)
   carrierNotes  String?
   createdAt     DateTime      @default(now())
 
   // Tracking du trajet
-  departedAt         DateTime?      // Quand le livreur clique "Je pars"
-  arrivedAt          DateTime?      // Quand le livreur clique "Je suis arrivé"
-  estimatedArrival   DateTime?      // ETA calculé
-  
+  departedAt         DateTime?
+  arrivedAt          DateTime?
+  estimatedArrival   DateTime?
+
   // Stats
   departureLatitude  Float?
   departureLongitude Float?
+
+  // === NOUVEAU: Système de confirmation de dépôt 24H ===
+  deliveryProofUrl              String?      // Preuve de dépôt (photo ticket/reçu)
+  deliveryConfirmationDeadline  DateTime?    // Deadline 24H pour confirmer
+  clientConfirmedDeliveryAt     DateTime?    // Quand le client a confirmé
+  clientContestedAt             DateTime?    // Si contestation
+  contestReason                 String?      // Raison de la contestation
+  autoConfirmed                 Boolean      @default(false) // Si auto-confirmé après 24H
 
   parcel  Parcel @relation(fields: [parcelId], references: [id])
   carrier User   @relation(fields: [carrierId], references: [id])

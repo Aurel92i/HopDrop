@@ -11,7 +11,7 @@ import {
 import { calculatePrice } from '../parcels/parcels.pricing.js';
 
 export class MissionsService {
- async getAvailableMissions(carrierId: string, query: AvailableMissionsQuery) {
+  async getAvailableMissions(carrierId: string, query: AvailableMissionsQuery) {
     const { latitude, longitude, radius } = query;
 
     const pendingParcels = await prisma.parcel.findMany({
@@ -199,18 +199,38 @@ export class MissionsService {
     };
   }
 
+  // ===== PICKUP MISSION - MODIFIÉ =====
   async pickupMission(carrierId: string, missionId: string) {
     const mission = await prisma.mission.findFirst({
       where: { id: missionId, carrierId },
-      include: { parcel: true },
+      include: { 
+        parcel: {
+          select: {
+            id: true,
+            status: true,
+            packagingConfirmedAt: true,
+            vendorPackagingConfirmedAt: true,
+          },
+        },
+      },
     });
 
     if (!mission) {
       throw new Error('Mission non trouvée');
     }
 
-    if (mission.status !== 'ACCEPTED') {
+    // Vérifier le statut de la mission (ACCEPTED ou IN_PROGRESS)
+    if (!['ACCEPTED', 'IN_PROGRESS'].includes(mission.status)) {
       throw new Error('Cette mission ne peut pas être marquée comme récupérée');
+    }
+
+    // ===== VÉRIFIER QUE L'EMBALLAGE EST CONFIRMÉ DES DEUX CÔTÉS =====
+    if (!mission.parcel.packagingConfirmedAt) {
+      throw new Error('Vous devez d\'abord confirmer l\'emballage avec une photo');
+    }
+
+    if (!mission.parcel.vendorPackagingConfirmedAt) {
+      throw new Error('Le client doit d\'abord confirmer l\'emballage');
     }
 
     const [updatedMission] = await prisma.$transaction([
@@ -224,12 +244,19 @@ export class MissionsService {
           parcel: {
             include: {
               pickupAddress: true,
+              vendor: {
+                select: {
+                  id: true,
+                  firstName: true,
+                  fcmToken: true,
+                },
+              },
             },
           },
         },
       }),
       prisma.parcel.update({
-        where: { id: mission.parcelId },
+        where: { id: mission.parcel.id },
         data: { status: 'PICKED_UP' },
       }),
     ]);
@@ -237,6 +264,8 @@ export class MissionsService {
     return updatedMission;
   }
 
+  // ===== DELIVER MISSION - GARDÉ POUR COMPATIBILITÉ =====
+  // Note: Utiliser plutôt DeliveryService.confirmDelivery() pour le nouveau flow
   async deliverMission(carrierId: string, missionId: string, input: DeliverMissionInput) {
     const mission = await prisma.mission.findFirst({
       where: { id: missionId, carrierId },
@@ -251,6 +280,10 @@ export class MissionsService {
       throw new Error("Le colis doit d'abord être récupéré");
     }
 
+    // Calculer la deadline de confirmation (12H)
+    const deadline = new Date();
+    deadline.setHours(deadline.getHours() + 12);
+
     const [updatedMission] = await prisma.$transaction([
       prisma.mission.update({
         where: { id: missionId },
@@ -258,25 +291,23 @@ export class MissionsService {
           status: 'DELIVERED',
           deliveredAt: new Date(),
           proofPhotoUrl: input.proofPhotoUrl,
+          deliveryProofUrl: input.proofPhotoUrl, // Nouveau champ
+          deliveryConfirmationDeadline: deadline,
           carrierNotes: input.notes,
         },
         include: {
           parcel: true,
         },
       }),
-      prisma.parcel.update({
-        where: { id: mission.parcelId },
-        data: { status: 'DELIVERED' },
-      }),
-      prisma.carrierProfile.update({
-        where: { userId: carrierId },
-        data: {
-          totalDeliveries: { increment: 1 },
-        },
-      }),
+      // Note: On ne change PAS le statut du colis ici
+      // Il passera à DELIVERED après confirmation client ou auto-confirmation
     ]);
 
-    return updatedMission;
+    return {
+      mission: updatedMission,
+      confirmationDeadline: deadline,
+      hoursRemaining: 12,
+    };
   }
 
   async cancelMission(carrierId: string, missionId: string, input: CancelMissionInput) {
