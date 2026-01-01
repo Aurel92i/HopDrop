@@ -91,4 +91,4 @@ export class UsersController {
       return reply.status(404).send({ error: error.message });
     }
   }
-}
+} 

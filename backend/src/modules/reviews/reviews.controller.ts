@@ -10,7 +10,7 @@ export class ReviewsController {
   constructor(private reviewsService: ReviewsService) {}
 
   async createReview(
-    request: FastifyRequest<{ Body: CreateReviewInput }>,
+    request: FastifyRequest,
     reply: FastifyReply
   ) {
     try {
@@ -27,13 +27,14 @@ export class ReviewsController {
   }
 
   async getReviewsForUser(
-    request: FastifyRequest<{ Params: { userId: string } }>,
+    request: FastifyRequest,
     reply: FastifyReply
   ) {
     try {
+      const { userId } = request.params as { userId: string };
       const query = listReviewsSchema.parse(request.query);
       const result = await this.reviewsService.getReviewsForUser(
-        request.params.userId,
+        userId,
         parseInt(query.page),
         parseInt(query.limit)
       );
