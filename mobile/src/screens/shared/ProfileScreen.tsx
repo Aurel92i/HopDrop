@@ -1,0 +1,251 @@
+import React, { useState } from 'react';
+import { View, StyleSheet, ScrollView, Alert, TouchableOpacity } from 'react-native';
+import { Text, Button, Card, Avatar, List, Divider } from 'react-native-paper';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useNavigation } from '@react-navigation/native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
+
+import { useAuthStore } from '../../stores/authStore';
+import { api } from '../../services/api';
+import { ProfileStackParamList } from '../../navigation/types';
+import { colors, spacing } from '../../theme';
+
+export function ProfileScreen() {
+  const navigation = useNavigation<NativeStackNavigationProp<ProfileStackParamList>>();
+  const { user, logout, updateUser } = useAuthStore();
+  const [isUploading, setIsUploading] = useState(false);
+
+  const isCarrier = user?.role === 'CARRIER' || user?.role === 'BOTH';
+
+  const takePhoto = async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    
+    if (status !== 'granted') {
+      Alert.alert('Permission refusée', 'Nous avons besoin de la permission pour accéder à la caméra');
+      return;
+    }
+
+    const result = await ImagePicker.launchCameraAsync({
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+      cameraType: ImagePicker.CameraType.front,
+    });
+
+    if (!result.canceled && result.assets[0]) {
+      uploadAvatar(result.assets[0].uri);
+    }
+  };
+
+  const uploadAvatar = async (uri: string) => {
+    setIsUploading(true);
+    try {
+      const uploadResult = await api.uploadFile(uri, 'avatars');
+      await api.updateProfile({ avatarUrl: uploadResult.url });
+      
+      // Mettre à jour le store local
+      if (user) {
+        updateUser({ ...user, avatarUrl: uploadResult.url });
+      }
+      
+      Alert.alert('Succès', 'Photo de profil mise à jour !');
+    } catch (e: any) {
+      Alert.alert('Erreur', 'Impossible de mettre à jour la photo');
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleLogout = () => {
+    Alert.alert(
+      'Déconnexion',
+      'Êtes-vous sûr de vouloir vous déconnecter ?',
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Déconnexion',
+          style: 'destructive',
+          onPress: () => logout(),
+        },
+      ]
+    );
+  };
+
+  return (
+    <ScrollView style={styles.container}>
+      <Card style={styles.profileCard}>
+        <Card.Content style={styles.profileContent}>
+          <TouchableOpacity onPress={takePhoto} disabled={isUploading}>
+            {user?.avatarUrl ? (
+              <Avatar.Image
+                size={80}
+                source={{ uri: user.avatarUrl }}
+                style={styles.avatar}
+              />
+            ) : (
+              <Avatar.Text
+                size={80}
+                label={`${user?.firstName?.[0] || ''}${user?.lastName?.[0] || ''}`}
+                style={styles.avatar}
+              />
+            )}
+            <View style={styles.editBadge}>
+              <MaterialCommunityIcons 
+                name={isUploading ? 'loading' : 'camera'} 
+                size={14} 
+                color="white" 
+              />
+            </View>
+          </TouchableOpacity>
+          <Text variant="bodySmall" style={styles.photoHint}>
+            Appuyez pour prendre une photo
+          </Text>
+          <Text variant="headlineSmall" style={styles.name}>
+            {user?.firstName} {user?.lastName}
+          </Text>
+          <Text variant="bodyMedium" style={styles.email}>
+            {user?.email}
+          </Text>
+          <Text variant="labelMedium" style={styles.role}>
+            {user?.role === 'VENDOR' ? '📦 Vendeur' : user?.role === 'CARRIER' ? '🚴 Livreur' : '📦🚴 Vendeur & Livreur'}
+          </Text>
+        </Card.Content>
+      </Card>
+
+      <Card style={styles.menuCard}>
+        <List.Item
+          title="Mes adresses"
+          description="Gérer mes adresses de récupération"
+          left={(props) => <List.Icon {...props} icon="map-marker" />}
+          right={(props) => <List.Icon {...props} icon="chevron-right" />}
+          onPress={() => navigation.navigate('Addresses')}
+        />
+        <Divider />
+
+        {/* Section Livreur - visible uniquement pour les carriers */}
+        {isCarrier && (
+          <>
+            <List.Item
+              title="Mes documents"
+              description="Pièces d'identité, Kbis, carte grise"
+              left={(props) => <List.Icon {...props} icon="file-document-multiple" />}
+              right={(props) => <List.Icon {...props} icon="chevron-right" />}
+              onPress={() => navigation.navigate('CarrierDocuments')}
+            />
+            <Divider />
+          </>
+        )}
+
+        <List.Item
+          title="Paramètres"
+          description="Notifications, confidentialité"
+          left={(props) => <List.Icon {...props} icon="cog" />}
+          right={(props) => <List.Icon {...props} icon="chevron-right" />}
+          onPress={() => navigation.navigate('Settings')}
+        />
+      </Card>
+
+      {/* Info vérification pour les livreurs */}
+      {isCarrier && (
+        <Card style={styles.infoCard}>
+          <Card.Content style={styles.infoContent}>
+            <List.Icon icon="shield-check" color={colors.primary} />
+            <View style={styles.infoText}>
+              <Text variant="titleSmall">Vérification livreur</Text>
+              <Text variant="bodySmall" style={styles.infoDescription}>
+                Complétez vos documents pour pouvoir accepter des missions
+              </Text>
+            </View>
+          </Card.Content>
+        </Card>
+      )}
+
+      <Button
+        mode="outlined"
+        onPress={handleLogout}
+        style={styles.logoutButton}
+        textColor={colors.error}
+        icon="logout"
+      >
+        Se déconnecter
+      </Button>
+
+      <Text variant="bodySmall" style={styles.version}>
+        HopDrop v1.0.0
+      </Text>
+    </ScrollView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  profileCard: {
+    margin: spacing.md,
+  },
+  profileContent: {
+    alignItems: 'center',
+    paddingVertical: spacing.lg,
+  },
+  avatar: {
+    backgroundColor: colors.primary,
+  },
+  editBadge: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    backgroundColor: colors.primary,
+    borderRadius: 10,
+    width: 24,
+    height: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  photoHint: {
+    color: colors.onSurfaceVariant,
+    marginTop: spacing.xs,
+  },
+  name: {
+    marginTop: spacing.md,
+    color: colors.onSurface,
+  },
+  email: {
+    color: colors.onSurfaceVariant,
+  },
+  role: {
+    marginTop: spacing.xs,
+    color: colors.primary,
+  },
+  menuCard: {
+    margin: spacing.md,
+    marginTop: 0,
+  },
+  infoCard: {
+    margin: spacing.md,
+    marginTop: 0,
+    backgroundColor: colors.primaryContainer,
+  },
+  infoContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  infoText: {
+    flex: 1,
+    marginLeft: spacing.sm,
+  },
+  infoDescription: {
+    color: colors.onSurfaceVariant,
+  },
+  logoutButton: {
+    margin: spacing.md,
+    borderColor: colors.error,
+  },
+  version: {
+    textAlign: 'center',
+    color: colors.onSurfaceVariant,
+    marginBottom: spacing.xl,
+  },
+});

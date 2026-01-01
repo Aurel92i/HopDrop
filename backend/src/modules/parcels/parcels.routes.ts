@@ -1,0 +1,50 @@
+import { FastifyInstance } from 'fastify';
+import { ParcelsController } from './parcels.controller.js';
+import { ParcelsService } from './parcels.service.js';
+
+export async function parcelsRoutes(app: FastifyInstance) {
+  const parcelsService = new ParcelsService();
+  const parcelsController = new ParcelsController(parcelsService);
+
+  // Toutes les routes sont protégées
+  app.post('/parcels', {
+    preHandler: [app.authenticate],
+  }, parcelsController.createParcel.bind(parcelsController));
+
+  app.get('/parcels', {
+    preHandler: [app.authenticate],
+  }, parcelsController.getParcels.bind(parcelsController));
+
+  app.get('/parcels/:id', {
+    preHandler: [app.authenticate],
+  }, parcelsController.getParcel.bind(parcelsController));
+
+  app.put('/parcels/:id', {
+    preHandler: [app.authenticate],
+  }, parcelsController.updateParcel.bind(parcelsController));
+
+  app.delete('/parcels/:id', {
+    preHandler: [app.authenticate],
+  }, parcelsController.cancelParcel.bind(parcelsController));
+
+  app.post('/parcels/:id/confirm-pickup', {
+    preHandler: [app.authenticate],
+  }, parcelsController.confirmPickup.bind(parcelsController));
+
+  // Historique des colis (livrés/annulés)
+  app.get('/parcels/history', {
+    preHandler: [app.authenticate],
+  }, async (request, reply) => {
+    const userId = (request.user as any).userId;
+    const { page = '1', limit = '10' } = request.query as { page?: string; limit?: string };
+    
+    const result = await parcelsController['parcelsService'].getParcelHistory(
+      userId,
+      parseInt(page),
+      parseInt(limit)
+    );
+    
+    return reply.send(result);
+  });
+
+}

@@ -1,0 +1,46 @@
+{
+  "project_info": {
+    "project_number": "992927964172",
+    "project_id": "hopd-4f87f",
+    "storage_bucket": "hopd-4f87f.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:992927964172:android:aab298468ed0314f32e229",
+        "android_client_info": {
+          "package_name": "com.hopdrop.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "992927964172-p5af7q7ogiauk16mcdrrph37ssl3vdj5.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBTy91M7jD7AYWWZFh1pDIXDJyhF0NtdnY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "992927964172-p5af7q7ogiauk16mcdrrph37ssl3vdj5.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "992927964172-lqh6pe0ic1ekl4pmbeb3bfel5ck6tj83.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.hopdrop.app"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

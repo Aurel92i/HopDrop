@@ -1,0 +1,33 @@
+-- Migration: Réduction du délai de confirmation vendeur de 24H à 12H
+-- Date: 2025-12-26
+--
+-- CHANGEMENT IMPORTANT:
+-- Le vendeur dispose désormais de 12 heures (au lieu de 24H) pour confirmer
+-- que le colis a bien été déposé au point relais après que le livreur ait
+-- effectué le dépôt.
+--
+-- MODIFICATIONS:
+-- 1. Délai de confirmation: 24H -> 12H (CONFIRMATION_DELAY_HOURS = 12)
+-- 2. Statut de mission: Reste "PICKED_UP" jusqu'à validation vendeur
+--    - Avant: La mission passait à "DELIVERED" dès le dépôt du livreur
+--    - Après: La mission reste "PICKED_UP" jusqu'à la confirmation du vendeur
+--    - Le statut passe à "DELIVERED" seulement après:
+--      a) Confirmation manuelle du vendeur, OU
+--      b) Auto-confirmation après 12H sans action
+-- 3. UX améliorée: Affichage "Validation en cours" pour les deux parties
+--
+-- Ce changement nécessite uniquement une mise à jour du code:
+-- - backend/src/modules/delivery/delivery.service.ts
+-- - mobile/src/components/common/DeliveryDeadlineBadge.tsx
+-- - mobile/src/screens/vendor/ParcelDetailScreen.tsx
+-- - mobile/src/screens/carrier/ActiveMissionsScreen.tsx
+--
+-- Aucune modification de schéma de base de données n'est requise.
+
+-- Cette migration est une documentation uniquement
+-- Les champs de base de données existants sont réutilisés:
+-- - deliveryConfirmationDeadline: DateTime? (12H après deliveredAt)
+-- - deliveredAt: DateTime? (quand le livreur dépose)
+-- - clientConfirmedDeliveryAt: DateTime? (quand le vendeur confirme)
+-- - autoConfirmed: Boolean (si auto-confirmé après 12H)
+-- - status: MissionStatus (reste PICKED_UP jusqu'à validation)

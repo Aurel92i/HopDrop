@@ -1,0 +1,5 @@
+-- AlterEnum: Ajouter DRIVING_LICENSE au type DocumentType
+ALTER TYPE "DocumentType" ADD VALUE IF NOT EXISTS 'DRIVING_LICENSE';
+
+-- AlterEnum: Ajouter PACKAGING_CONFIRMED au type ParcelStatus
+ALTER TYPE "ParcelStatus" ADD VALUE IF NOT EXISTS 'PACKAGING_CONFIRMED';

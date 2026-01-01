@@ -1,0 +1,87 @@
+{
+  "expo": {
+    "name": "HopDrop",
+    "slug": "hopdrop",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.hopdrop.app",
+      "buildNumber": "2",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "HopDrop utilise votre position pour vous proposer des missions à proximité.",
+        "NSLocationAlwaysUsageDescription": "HopDrop utilise votre position en arrière-plan pour le suivi des livraisons.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "HopDrop utilise votre position pour vous proposer des missions à proximité et permettre aux clients de suivre leur livraison.",
+        "UIBackgroundModes": [
+          "location",
+          "fetch",
+          "remote-notification",
+          "location",
+          "fetch",
+          "remote-notification"
+        ],
+        "ITSAppUsesNonExemptEncryption": false
+      },
+      "entitlements": {
+        "aps-environment": "production"
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "edgeToEdgeEnabled": true,
+      "package": "com.hopdrop.app",
+      "googleServicesFile": "./google-services.json",
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_BACKGROUND_LOCATION",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_LOCATION"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-secure-store",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#4CAF50",
+          "sounds": []
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "HopDrop utilise votre position pour vous proposer des missions à proximité et permettre aux clients de suivre leur livraison.",
+          "locationAlwaysPermission": "HopDrop utilise votre position en arrière-plan pour vous proposer des missions à proximité.",
+          "locationWhenInUsePermission": "HopDrop utilise votre position pour vous proposer des missions à proximité.",
+          "isIosBackgroundLocationEnabled": true,
+          "isAndroidBackgroundLocationEnabled": true
+        }
+      ]
+    ],
+    "owner": "aurelien.herbin",
+    "extra": {
+      "eas": {
+        "projectId": "a3d82f02-4c36-488f-ae9a-6eda4e05cfdf"
+      }
+    }
+  }
+}
