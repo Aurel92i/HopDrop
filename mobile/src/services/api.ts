@@ -5,8 +5,8 @@ import * as SecureStore from 'expo-secure-store';
 import { DocumentType, DocumentStatus } from '../types';
 
 const API_URL = __DEV__
-  ? 'http://192.168.1.78:3000'  // Ton IP locale - À MODIFIER selon ton réseau
-  : 'https://api.hopdrop.fr';
+  ? 'https://hopdrop-production.up.railway.app'  // Railway même en dev
+  : 'https://hopdrop-production.up.railway.app';
 
 // === Types pour l'analyse IA ===
 
@@ -20,25 +20,18 @@ export interface Dimensions {
 }
 
 export interface ArticleCategory {
-  main: string;      // Ex: "Technologie", "Mode", "Maison"
-  sub: string;       // Ex: "Souris PC", "Veste"
-  icon: string;      // Icône MaterialCommunityIcons
+  main: string;
+  sub: string;
+  icon: string;
 }
 
 export interface AnalysisResult {
-  // Pour le VENDEUR
   articleCategory: ArticleCategory;
   articleName: string;
-  
-  // Pour le LIVREUR
   articleDimensions: Dimensions;
-  
-  // Pour les DEUX
   packageSize: PackageSize;
   lockerSize: LockerSize;
   packageDimensions: Dimensions;
-  
-  // Métadonnées
   compatibleCarrier: string;
   justification: string;
   confidence: 'HIGH' | 'MEDIUM' | 'LOW';
@@ -102,6 +95,16 @@ export interface CarrierEarnings {
   available: number;
 }
 
+// === Types pour le solde livreur ===
+
+export interface CarrierBalance {
+  total: number;
+  today: number;
+  week: number;
+  pending: number;
+  available: number;
+}
+
 // Tarification fixe
 export const PRICING = {
   FIXED_PRICE: 10,
@@ -140,7 +143,7 @@ class ApiService {
   constructor() {
     this.api = axios.create({
       baseURL: API_URL,
-      timeout: 15000, // Augmenté pour l'analyse IA
+      timeout: 15000,
       headers: {
         'Content-Type': 'application/json',
       },
@@ -402,10 +405,7 @@ class ApiService {
   }
 
   async uploadCarrierDocument(type: DocumentType, fileUri: string): Promise<{ document: CarrierDocumentResponse }> {
-    // Upload l'image d'abord
     const imageUrl = await this.uploadImage(fileUri);
-    
-    // Puis enregistrer le document
     const response = await this.api.post('/carrier/documents', { 
       type, 
       fileUrl: imageUrl 
@@ -455,7 +455,6 @@ class ApiService {
     return response.data;
   }
 
-  // Créer un PaymentIntent en mode pré-autorisation pour un nouveau colis (avant création)
   async createPaymentIntentForNewParcel(data: { size: string; carrier: string }): Promise<{ clientSecret: string; paymentIntentId: string }> {
     const response = await this.api.post('/payments/create-preauth-intent', data);
     return response.data;
@@ -464,6 +463,46 @@ class ApiService {
   async confirmPayment(paymentIntentId: string): Promise<{ success: boolean; transaction: Transaction }> {
     const response = await this.api.post('/payments/confirm', { paymentIntentId });
     return response.data;
+  }
+
+  /**
+   * Simuler un paiement (mode test)
+   * Marque le colis comme payé sans vrai paiement Stripe
+   */
+  async simulatePayment(parcelId: string): Promise<{ success: boolean; message: string }> {
+    try {
+      const response = await this.api.post(`/payments/simulate/${parcelId}`);
+      return response.data;
+    } catch (error) {
+      // En mode test, on continue même si l'API échoue
+      console.log('Simulate payment API call failed, continuing in test mode');
+      return { success: true, message: 'Payment simulated (test mode - offline)' };
+    }
+  }
+
+  /**
+   * Obtenir le solde de la cagnotte livreur
+   */
+  async getCarrierBalance(): Promise<CarrierBalance> {
+    try {
+      const response = await this.api.get('/payments/carrier/balance');
+      return response.data;
+    } catch (error) {
+      // Fallback avec des valeurs par défaut
+      return { total: 0, today: 0, week: 0, pending: 0, available: 0 };
+    }
+  }
+
+  /**
+   * Obtenir l'historique des transactions livreur
+   */
+  async getCarrierTransactions(): Promise<any[]> {
+    try {
+      const response = await this.api.get('/payments/carrier/transactions');
+      return response.data;
+    } catch (error) {
+      return [];
+    }
   }
 
   async getTransactions(page: number = 1, limit: number = 20): Promise<{ transactions: Transaction[]; total: number; page: number; totalPages: number }> {
@@ -510,10 +549,7 @@ class ApiService {
 
   // === AI Analysis ===
   async analyzeArticleImage(imageUri: string): Promise<AnalysisResult> {
-    // 1. Upload l'image d'abord
     const imageUrl = await this.uploadImage(imageUri);
-    
-    // 2. Analyser avec l'IA
     const response = await this.api.post('/ai/analyze', { imageUrl });
     return response.data.analysis;
   }

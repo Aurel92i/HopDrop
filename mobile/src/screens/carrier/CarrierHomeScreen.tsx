@@ -9,7 +9,7 @@ import * as Location from 'expo-location';
 
 import { LoadingScreen } from '../../components/common/LoadingScreen';
 import { useMissionStore } from '../../stores/missionStore';
-import { api, CarrierEarnings } from '../../services/api';
+import { api } from '../../services/api';
 import { CarrierStackParamList } from '../../navigation/types';
 import { colors, spacing } from '../../theme';
 import { Parcel } from '../../types';
@@ -55,16 +55,9 @@ export function CarrierHomeScreen({ navigation }: CarrierHomeScreenProps) {
   const [isAccepting, setIsAccepting] = useState(false);
   const mapRef = useRef<MapView>(null);
 
-  // Cagnotte (simulation - à connecter avec l'API)
-  // Cagnotte (connecté à l'API)
-const [earnings, setEarnings] = useState<CarrierEarnings>({ 
-  today: 0, 
-  week: 0, 
-  month: 0, 
-  total: 0, 
-  pending: 0, 
-  available: 0 
-});
+  // Cagnotte (connectée à l'API)
+  const [earnings, setEarnings] = useState({ today: 0, week: 0, total: 0 });
+
   // Points visibles (toujours MR + Vinted lockers)
   const visibleTypes = useMemo(() => new Set(DEFAULT_VISIBLE_TYPES), []);
 
@@ -186,7 +179,18 @@ const [earnings, setEarnings] = useState<CarrierEarnings>({
     try {
       const profile = await api.getCarrierProfile();
       setIsAvailable(profile.isAvailable ?? false);
-      // TODO: Charger les gains réels depuis l'API
+      
+      // Charger les gains depuis l'API
+      try {
+        const balance = await api.getCarrierBalance();
+        setEarnings({
+          today: balance.today || 0,
+          week: balance.week || 0,
+          total: balance.total || 0,
+        });
+      } catch (balanceError) {
+        console.log('Erreur chargement balance:', balanceError);
+      }
     } catch (e) {
       console.log('Pas de profil carrier');
     }
@@ -435,8 +439,17 @@ const [earnings, setEarnings] = useState<CarrierEarnings>({
         <TouchableOpacity 
           style={styles.earningsCard} 
           activeOpacity={0.9}
-          onPress={() => navigation.navigate('TransactionHistory')}
->
+          onPress={() => {
+            Alert.alert(
+              '💰 Ma Cagnotte',
+              `Total: ${earnings.total.toFixed(2)} €\nAujourd'hui: ${earnings.today.toFixed(2)} €\nCette semaine: ${earnings.week.toFixed(2)} €\n\nLes gains sont crédités après confirmation de livraison.`,
+              [
+                { text: 'Voir historique', onPress: () => navigation.navigate('CarrierHistory') },
+                { text: 'OK' }
+              ]
+            );
+          }}
+        >
           <View style={styles.earningsGradient}>
             <View style={styles.earningsLeft}>
               <View style={styles.earningsIconContainer}>

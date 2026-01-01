@@ -15,7 +15,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.hopdrop.app",
-      "buildNumber": "2",
+      "buildNumber": "3",
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "HopDrop utilise votre position pour vous proposer des missions à proximité.",
         "NSLocationAlwaysUsageDescription": "HopDrop utilise votre position en arrière-plan pour le suivi des livraisons.",
