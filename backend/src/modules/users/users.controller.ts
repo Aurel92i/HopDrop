@@ -15,7 +15,7 @@ export class UsersController {
     }
   }
 
-  async updateMe(request: FastifyRequest<{ Body: UpdateUserInput }>, reply: FastifyReply) {
+  async updateMe(request: FastifyRequest, reply: FastifyReply) {
     try {
       const userId = (request.user as any).userId;
       const input = updateUserSchema.parse(request.body);
@@ -70,10 +70,10 @@ export class UsersController {
     }
   }
 
-async updateFcmToken(request: FastifyRequest<{ Body: { fcmToken: string } }>, reply: FastifyReply) {
+  async updateFcmToken(request: FastifyRequest, reply: FastifyReply) {
     try {
       const userId = (request.user as any).userId;
-      const { fcmToken } = request.body;
+      const { fcmToken } = request.body as { fcmToken: string };
       
       await this.usersService.updateFcmToken(userId, fcmToken);
       return reply.send({ success: true });
@@ -81,14 +81,14 @@ async updateFcmToken(request: FastifyRequest<{ Body: { fcmToken: string } }>, re
       return reply.status(400).send({ error: error.message });
     }
   }
-  async getPublicProfile(request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) {
+
+  async getPublicProfile(request: FastifyRequest, reply: FastifyReply) {
     try {
-      const profile = await this.usersService.getPublicProfile(request.params.id);
+      const { id } = request.params as { id: string };
+      const profile = await this.usersService.getPublicProfile(id);
       return reply.send({ profile });
     } catch (error: any) {
       return reply.status(404).send({ error: error.message });
     }
   }
 }
-
-  

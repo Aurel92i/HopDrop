@@ -41,7 +41,7 @@ class GeocodingService {
         return null;
       }
 
-      const data: NominatimResponse[] = await response.json();
+      const data = await response.json() as NominatimResponse[];
       console.log('🌍 Géocodage - Résultats:', JSON.stringify(data));
 
       if (data.length === 0) {
@@ -84,7 +84,7 @@ class GeocodingService {
         return [];
       }
 
-      const data: NominatimResponse[] = await response.json();
+      const data = await response.json() as NominatimResponse[];
 
       return data.map((item) => ({
         latitude: parseFloat(item.lat),
@@ -116,7 +116,7 @@ class GeocodingService {
         return null;
       }
 
-      const data = await response.json();
+      const data = await response.json() as { display_name?: string };
       return data.display_name || null;
     } catch (error) {
       console.error('Erreur géocodage inverse:', error);

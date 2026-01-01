@@ -1,4 +1,4 @@
-import { FastifyInstance } from 'fastify';
+import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { UsersController } from './users.controller.js';
 import { UsersService } from './users.service.js';
 
@@ -9,20 +9,20 @@ export async function usersRoutes(app: FastifyInstance) {
   // Routes protégées
   app.get('/users/me', {
     preHandler: [app.authenticate],
-  }, usersController.getMe.bind(usersController));
+  }, (request: FastifyRequest, reply: FastifyReply) => usersController.getMe(request, reply));
 
   app.put('/users/me', {
     preHandler: [app.authenticate],
-  }, usersController.updateMe.bind(usersController));
+  }, (request: FastifyRequest, reply: FastifyReply) => usersController.updateMe(request, reply));
 
   app.put('/users/me/avatar', {
     preHandler: [app.authenticate],
-  }, usersController.updateAvatar.bind(usersController));
+  }, (request: FastifyRequest, reply: FastifyReply) => usersController.updateAvatar(request, reply));
 
   app.put('/users/fcm-token', {
     preHandler: [app.authenticate],
-  }, usersController.updateFcmToken.bind(usersController));
+  }, (request: FastifyRequest, reply: FastifyReply) => usersController.updateFcmToken(request, reply));
 
   // Route publique
-  app.get('/users/:id/profile', usersController.getPublicProfile.bind(usersController));
+  app.get('/users/:id/profile', (request: FastifyRequest, reply: FastifyReply) => usersController.getPublicProfile(request, reply));
 }
