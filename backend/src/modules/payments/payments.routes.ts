@@ -5,6 +5,20 @@ import { PaymentsController } from './payments.controller.js';
 import { PaymentsService } from './payments.service.js';
 import { prisma } from '../../shared/prisma.js';
 
+// Types pour les requêtes
+interface CreatePreauthBody {
+  size: string;
+  carrier: string;
+}
+
+interface SimulatePaymentParams {
+  parcelId: string;
+}
+
+interface TransactionRoleParams {
+  role: 'payer' | 'payee';
+}
+
 export async function paymentsRoutes(app: FastifyInstance) {
   const paymentsService = new PaymentsService();
   const paymentsController = new PaymentsController(paymentsService);
@@ -21,17 +35,17 @@ export async function paymentsRoutes(app: FastifyInstance) {
     preHandler: [app.authenticate],
   }, paymentsController.confirmPayment.bind(paymentsController));
 
-  // ===== Route CORRIGÉE: /payments/create-preauth-intent =====
+  // ===== Route: /payments/create-preauth-intent =====
   
   /**
    * POST /payments/create-preauth-intent
    * Crée un PaymentIntent en mode pré-autorisation pour un nouveau colis
    */
-  app.post('/payments/create-preauth-intent', {
+  app.post<{ Body: CreatePreauthBody }>('/payments/create-preauth-intent', {
     preHandler: [app.authenticate],
-  }, async (request: FastifyRequest, reply: FastifyReply) => {
-    const { size, carrier } = request.body as { size: string; carrier: string };
-    const userId = (request.user as any).id;
+  }, async (request, reply) => {
+    const { size, carrier } = request.body;
+    const userId = (request.user as { id: string }).id;
     
     // Calculer le prix selon la taille (prix fixe pour MVP)
     const PRICING: Record<string, number> = { 
@@ -56,12 +70,12 @@ export async function paymentsRoutes(app: FastifyInstance) {
    * POST /payments/simulate/:parcelId
    * Simule un paiement sans passer par Stripe
    */
-  app.post('/payments/simulate/:parcelId', {
+  app.post<{ Params: SimulatePaymentParams }>('/payments/simulate/:parcelId', {
     preHandler: [app.authenticate],
-  }, async (request: FastifyRequest, reply: FastifyReply) => {
+  }, async (request, reply) => {
     try {
-      const { parcelId } = request.params as { parcelId: string };
-      const userId = (request.user as any).id;
+      const { parcelId } = request.params;
+      const userId = (request.user as { id: string }).id;
 
       // Vérifier que le colis existe et appartient à l'utilisateur
       const parcel = await prisma.parcel.findFirst({
@@ -88,11 +102,10 @@ export async function paymentsRoutes(app: FastifyInstance) {
         message: 'Paiement simulé avec succès',
         parcel: updatedParcel,
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Erreur lors de la simulation du paiement';
       console.error('Erreur simulation paiement:', error);
-      return reply.status(500).send({ 
-        error: error.message || 'Erreur lors de la simulation du paiement' 
-      });
+      return reply.status(500).send({ error: errorMessage });
     }
   });
 
@@ -104,9 +117,9 @@ export async function paymentsRoutes(app: FastifyInstance) {
    */
   app.get('/payments/carrier/balance', {
     preHandler: [app.authenticate],
-  }, async (request: FastifyRequest, reply: FastifyReply) => {
+  }, async (request, reply) => {
     try {
-      const userId = (request.user as any).id;
+      const userId = (request.user as { id: string }).id;
 
       // Calculer les gains depuis les missions complétées
       const completedMissions = await prisma.mission.findMany({
@@ -151,9 +164,10 @@ export async function paymentsRoutes(app: FastifyInstance) {
         pending: 0,
         available: Math.round(total * 100) / 100,
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Erreur serveur';
       console.error('Erreur récupération solde:', error);
-      return reply.status(500).send({ error: 'Erreur serveur' });
+      return reply.status(500).send({ error: errorMessage });
     }
   });
 
@@ -163,9 +177,9 @@ export async function paymentsRoutes(app: FastifyInstance) {
    */
   app.get('/payments/carrier/transactions', {
     preHandler: [app.authenticate],
-  }, async (request: FastifyRequest, reply: FastifyReply) => {
+  }, async (request, reply) => {
     try {
-      const userId = (request.user as any).id;
+      const userId = (request.user as { id: string }).id;
 
       // Récupérer les missions complétées comme transactions
       const missions = await prisma.mission.findMany({
@@ -201,9 +215,10 @@ export async function paymentsRoutes(app: FastifyInstance) {
       }));
 
       return reply.send(transactions);
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Erreur serveur';
       console.error('Erreur récupération transactions:', error);
-      return reply.status(500).send({ error: 'Erreur serveur' });
+      return reply.status(500).send({ error: errorMessage });
     }
   });
 
@@ -227,9 +242,19 @@ export async function paymentsRoutes(app: FastifyInstance) {
   }, paymentsController.getTransactionHistory.bind(paymentsController));
 
   // Historique des transactions par rôle (payer ou payee)
-  app.get('/payments/transactions/:role', {
+  app.get<{ Params: TransactionRoleParams }>('/payments/transactions/:role', {
     preHandler: [app.authenticate],
-  }, paymentsController.getTransactionsByRole.bind(paymentsController));
+  }, async (request, reply) => {
+    const { role } = request.params;
+    
+    // Valider le rôle
+    if (role !== 'payer' && role !== 'payee') {
+      return reply.status(400).send({ error: 'Role must be "payer" or "payee"' });
+    }
+    
+    // Déléguer au controller avec le rôle validé
+    return paymentsController.getTransactionsByRole.call(paymentsController, request, reply);
+  });
 
   // ===== Gains livreur =====
   
