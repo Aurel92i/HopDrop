@@ -2,10 +2,11 @@
 
 import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig } from 'axios';
 import * as SecureStore from 'expo-secure-store';
+import { Platform } from 'react-native';
 import { DocumentType, DocumentStatus } from '../types';
 
 const API_URL = __DEV__
-  ? 'https://hopdrop-production.up.railway.app'  // Railway même en dev
+  ? 'https://hopdrop-production.up.railway.app'
   : 'https://hopdrop-production.up.railway.app';
 
 // === Types pour l'analyse IA ===
@@ -121,7 +122,7 @@ export const PACKAGE_SIZES = {
   },
   S: {
     name: 'Small',
-    description: 'Vêtements légers, livres, petite électronique',
+    description: 'Vetements legers, livres, petite electronique',
     maxDimensions: { height: 8, width: 38, depth: 64 },
   },
   M: {
@@ -161,7 +162,7 @@ class ApiService {
       (error) => Promise.reject(error)
     );
 
-    // Intercepteur pour gérer le refresh token
+    // Intercepteur pour gerer le refresh token
     this.api.interceptors.response.use(
       (response) => response,
       async (error: AxiosError) => {
@@ -337,8 +338,8 @@ class ApiService {
     return response.data;
   }
 
-  async getMissionHistory() {
-    const response = await this.api.get('/missions/history');
+  async getMissionHistory(page: number = 1, limit: number = 10) {
+    const response = await this.api.get('/missions/history', { params: { page, limit } });
     return response.data;
   }
 
@@ -406,9 +407,9 @@ class ApiService {
 
   async uploadCarrierDocument(type: DocumentType, fileUri: string): Promise<{ document: CarrierDocumentResponse }> {
     const imageUrl = await this.uploadImage(fileUri);
-    const response = await this.api.post('/carrier/documents', { 
-      type, 
-      fileUrl: imageUrl 
+    const response = await this.api.post('/carrier/documents', {
+      type,
+      fileUrl: imageUrl
     });
     return response.data;
   }
@@ -465,37 +466,25 @@ class ApiService {
     return response.data;
   }
 
-  /**
-   * Simuler un paiement (mode test)
-   * Marque le colis comme payé sans vrai paiement Stripe
-   */
   async simulatePayment(parcelId: string): Promise<{ success: boolean; message: string }> {
     try {
       const response = await this.api.post(`/payments/simulate/${parcelId}`);
       return response.data;
     } catch (error) {
-      // En mode test, on continue même si l'API échoue
       console.log('Simulate payment API call failed, continuing in test mode');
       return { success: true, message: 'Payment simulated (test mode - offline)' };
     }
   }
 
-  /**
-   * Obtenir le solde de la cagnotte livreur
-   */
   async getCarrierBalance(): Promise<CarrierBalance> {
     try {
       const response = await this.api.get('/payments/carrier/balance');
       return response.data;
     } catch (error) {
-      // Fallback avec des valeurs par défaut
       return { total: 0, today: 0, week: 0, pending: 0, available: 0 };
     }
   }
 
-  /**
-   * Obtenir l'historique des transactions livreur
-   */
   async getCarrierTransactions(): Promise<any[]> {
     try {
       const response = await this.api.get('/payments/carrier/transactions');
@@ -569,59 +558,57 @@ class ApiService {
     return response.data;
   }
 
-  // === Uploads ===
+  // === Uploads === (CORRIGE POUR iOS)
   async uploadImage(uri: string): Promise<string> {
     const token = await SecureStore.getItemAsync('accessToken');
-    
+
+    // Preparer l'URI pour iOS/Android
+    let fileUri = uri;
+    if (Platform.OS === 'ios' && !uri.startsWith('file://')) {
+      fileUri = `file://${uri}`;
+    }
+
     const formData = new FormData();
     const filename = uri.split('/').pop() || 'photo.jpg';
     const match = /\.(\w+)$/.exec(filename);
-    const type = match ? `image/${match[1]}` : 'image/jpeg';
+    const ext = match ? match[1].toLowerCase() : 'jpg';
+    
+    // Determiner le type MIME correct
+    let mimeType = 'image/jpeg';
+    if (ext === 'png') mimeType = 'image/png';
+    else if (ext === 'gif') mimeType = 'image/gif';
+    else if (ext === 'webp') mimeType = 'image/webp';
+    else if (ext === 'heic' || ext === 'heif') mimeType = 'image/heic';
 
+    // Ajouter le fichier au FormData (format React Native)
     formData.append('file', {
-      uri,
+      uri: fileUri,
       name: filename,
-      type,
+      type: mimeType,
     } as any);
+
+    console.log('Uploading image:', { uri: fileUri, name: filename, type: mimeType });
 
     const response = await fetch(`${API_URL}/uploads`, {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${token}`,
+        'Authorization': `Bearer ${token}`,
+        // NE PAS mettre Content-Type ici, fetch le gere automatiquement pour FormData
       },
       body: formData,
     });
 
+    console.log('Upload response status:', response.status);
+
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ message: 'Erreur upload' }));
-      throw new Error(error.message || 'Erreur lors de l\'upload');
+      const errorText = await response.text();
+      console.error('Upload error:', errorText);
+      throw new Error(`Erreur upload: ${response.status}`);
     }
 
     const data = await response.json();
+    console.log('Upload success:', data.url);
     return data.url;
-  }
-
-  async uploadFile(fileUri: string, folder: string): Promise<{ url: string; publicId: string }> {
-    const response = await fetch(fileUri);
-    const blob = await response.blob();
-
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onloadend = async () => {
-        try {
-          const base64 = reader.result as string;
-          const uploadResponse = await this.api.post('/uploads', {
-            file: base64,
-            folder,
-          });
-          resolve(uploadResponse.data);
-        } catch (error) {
-          reject(error);
-        }
-      };
-      reader.onerror = () => reject(new Error('Erreur lecture fichier'));
-      reader.readAsDataURL(blob);
-    });
   }
 
   // === Packaging ===
