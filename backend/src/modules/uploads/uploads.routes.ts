@@ -87,7 +87,8 @@ async function handleMultipartUpload(request: FastifyRequest, reply: FastifyRepl
   const data = await (request as any).file();
 
   if (!data) {
-    return reply.status(400).send({ error: 'Aucun fichier fourni' });
+    app.log.warn('[UPLOAD] Multipart reçu SANS fichier - ignoré');
+    return reply.status(200).send({ success: false, error: 'Aucun fichier fourni', url: null });
   }
 
   const allowedMimes = [
