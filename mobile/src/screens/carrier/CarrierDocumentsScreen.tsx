@@ -4,6 +4,7 @@ import { Text, Button, Card, Chip, Switch, ActivityIndicator } from 'react-nativ
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
+import * as FileSystem from 'expo-file-system';
 
 import { api } from '../../services/api';
 import { colors, spacing } from '../../theme';
@@ -29,18 +30,18 @@ interface CarrierProfileInfo {
 
 const documentLabels: Record<DocumentType, { label: string; description: string; icon: string }> = {
   ID_CARD_FRONT: {
-    label: "Pièce d'identité (Recto)",
-    description: "Carte d'identité ou passeport - face avant",
+    label: "Piece d'identite (Recto)",
+    description: "Carte d'identite ou passeport - face avant",
     icon: 'card-account-details',
   },
   ID_CARD_BACK: {
-    label: "Pièce d'identité (Verso)",
-    description: "Carte d'identité ou passeport - face arrière",
+    label: "Piece d'identite (Verso)",
+    description: "Carte d'identite ou passeport - face arriere",
     icon: 'card-account-details-outline',
   },
   DRIVING_LICENSE: {
     label: 'Permis de conduire',
-    description: 'Permis de conduire en cours de validité',
+    description: 'Permis de conduire en cours de validite',
     icon: 'card-account-details',
   },
   KBIS: {
@@ -50,14 +51,14 @@ const documentLabels: Record<DocumentType, { label: string; description: string;
   },
   VEHICLE_REGISTRATION: {
     label: 'Carte grise',
-    description: "Certificat d'immatriculation du véhicule",
+    description: "Certificat d'immatriculation du vehicule",
     icon: 'car',
   },
 };
 
 const vehicleOptions = [
   { value: 'NONE', label: 'Aucun' },
-  { value: 'BIKE', label: 'Vélo' },
+  { value: 'BIKE', label: 'Velo' },
   { value: 'SCOOTER', label: 'Scooter' },
   { value: 'CAR', label: 'Voiture' },
 ];
@@ -103,7 +104,7 @@ export function CarrierDocumentsScreen() {
   const pickFromCamera = async (type: DocumentType) => {
     const permission = await ImagePicker.requestCameraPermissionsAsync();
     if (!permission.granted) {
-      Alert.alert('Permission refusée', "Vous devez autoriser l'accès à la caméra");
+      Alert.alert('Permission refusee', "Vous devez autoriser l'acces a la camera");
       return;
     }
 
@@ -114,7 +115,7 @@ export function CarrierDocumentsScreen() {
     });
 
     if (!result.canceled && result.assets[0]) {
-      await uploadDocument(type, result.assets[0].uri);
+      await uploadDocument(type, result.assets[0].uri, 'image');
     }
   };
 
@@ -126,34 +127,57 @@ export function CarrierDocumentsScreen() {
       });
 
       if (!result.canceled && result.assets[0]) {
-        await uploadDocument(type, result.assets[0].uri);
+        const asset = result.assets[0];
+        const isPdf = asset.mimeType === 'application/pdf';
+        await uploadDocument(type, asset.uri, isPdf ? 'pdf' : 'image');
       }
     } catch (error) {
-      console.error('Erreur sélection fichier:', error);
+      console.error('Erreur selection fichier:', error);
+      Alert.alert('Erreur', 'Impossible de selectionner le fichier');
     }
   };
 
- const uploadDocument = async (type: DocumentType, fileUri: string) => {
-  setIsUploading(type);
-  try {
-    // 1. Upload le fichier sur Cloudinary
-    const { url } = await api.uploadFile(fileUri, 'carrier-documents');
-    
-    // 2. Enregistrer l'URL dans la base de données
-    await api.uploadCarrierDocument(type, url);
-    
-    Alert.alert('Succès', 'Document envoyé ! Il sera vérifié sous 24-48h.');
-    loadDocuments();
-  } catch (error: any) {
-    console.error('Erreur upload:', error);
-    Alert.alert('Erreur', error.message || "Impossible d'envoyer le document");
-  } finally {
-    setIsUploading(null);
-  }
-};
+  const uploadDocument = async (type: DocumentType, fileUri: string, fileType: 'image' | 'pdf') => {
+    setIsUploading(type);
+    try {
+      let imageUrl: string;
+
+      // Lire le fichier en base64
+      const base64 = await FileSystem.readAsStringAsync(fileUri, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+
+      // Determiner le type MIME
+      let mimeType = 'image/jpeg';
+      if (fileType === 'pdf') {
+        mimeType = 'application/pdf';
+      } else if (fileUri.toLowerCase().includes('.png')) {
+        mimeType = 'image/png';
+      } else if (fileUri.toLowerCase().includes('.heic')) {
+        mimeType = 'image/heic';
+      }
+
+      // Creer le data URI
+      const dataUri = `data:${mimeType};base64,${base64}`;
+
+      // Upload via base64
+      imageUrl = await api.uploadBase64(dataUri);
+
+      // Enregistrer le document
+      await api.saveCarrierDocument(type, imageUrl);
+
+      Alert.alert('Succes', 'Document envoye ! Il sera verifie sous 24-48h.');
+      loadDocuments();
+    } catch (error: any) {
+      console.error('Erreur upload:', error);
+      Alert.alert('Erreur', error.message || "Impossible d'envoyer le document");
+    } finally {
+      setIsUploading(null);
+    }
+  };
 
   const handleDeleteDocument = (type: DocumentType) => {
-    Alert.alert('Supprimer le document', 'Êtes-vous sûr ?', [
+    Alert.alert('Supprimer le document', 'Etes-vous sur ?', [
       { text: 'Annuler', style: 'cancel' },
       {
         text: 'Supprimer',
@@ -200,8 +224,8 @@ export function CarrierDocumentsScreen() {
 
   const getStatusLabel = (status: string | null) => {
     switch (status) {
-      case 'APPROVED': return 'Approuvé';
-      case 'REJECTED': return 'Rejeté';
+      case 'APPROVED': return 'Approuve';
+      case 'REJECTED': return 'Rejete';
       case 'PENDING': return 'En attente';
       default: return 'Non fourni';
     }
@@ -243,21 +267,21 @@ export function CarrierDocumentsScreen() {
           />
           <View style={styles.statusInfo}>
             <Text variant="titleMedium">
-              {allRequiredApproved ? 'Profil vérifié ✓' : 'Vérification en cours'}
+              {allRequiredApproved ? 'Profil verifie' : 'Verification en cours'}
             </Text>
             <Text variant="bodySmall" style={styles.statusSubtext}>
               {allRequiredApproved
                 ? 'Vous pouvez accepter des missions'
-                : 'Complétez vos documents pour commencer'}
+                : 'Completez vos documents pour commencer'}
             </Text>
           </View>
         </Card.Content>
       </Card>
 
-      {/* Type de véhicule */}
+      {/* Type de vehicule */}
       <Card style={styles.card}>
         <Card.Content>
-          <Text variant="titleSmall" style={styles.sectionTitle}>🚗 Type de véhicule</Text>
+          <Text variant="titleSmall" style={styles.sectionTitle}>Type de vehicule</Text>
           <Text variant="bodySmall" style={styles.sectionSubtitle}>
             Comment effectuez-vous vos livraisons ?
           </Text>
@@ -290,7 +314,7 @@ export function CarrierDocumentsScreen() {
         <Card.Content>
           <View style={styles.printerRow}>
             <View style={styles.printerInfo}>
-              <Text variant="titleSmall">🖨️ Possédez-vous une imprimante ?</Text>
+              <Text variant="titleSmall">Possedez-vous une imprimante ?</Text>
               <Text variant="bodySmall" style={styles.printerSubtext}>
                 Pour imprimer les bordereaux des clients
               </Text>
@@ -305,7 +329,7 @@ export function CarrierDocumentsScreen() {
       </Card>
 
       {/* Documents */}
-      <Text variant="titleMedium" style={styles.documentsTitle}>📄 Documents requis</Text>
+      <Text variant="titleMedium" style={styles.documentsTitle}>Documents requis</Text>
 
       {documents.map((doc) => {
         const docInfo = documentLabels[doc.type];
@@ -400,7 +424,7 @@ export function CarrierDocumentsScreen() {
       <View style={styles.infoBox}>
         <MaterialCommunityIcons name="information" size={20} color={colors.primary} />
         <Text variant="bodySmall" style={styles.infoText}>
-          Vos documents seront vérifiés sous 24 à 48 heures.
+          Vos documents seront verifies sous 24 a 48 heures.
         </Text>
       </View>
     </ScrollView>

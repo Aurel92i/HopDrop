@@ -144,7 +144,7 @@ class ApiService {
   constructor() {
     this.api = axios.create({
       baseURL: API_URL,
-      timeout: 15000,
+      timeout: 30000,
       headers: {
         'Content-Type': 'application/json',
       },
@@ -395,7 +395,7 @@ class ApiService {
   }
 
   // === Carrier Documents ===
-  async getCarrierDocuments(): Promise<{ documents: RequiredDocument[] }> {
+  async getCarrierDocuments(): Promise<{ documents: RequiredDocument[]; profile: any }> {
     const response = await this.api.get('/carrier/documents');
     return response.data;
   }
@@ -405,11 +405,21 @@ class ApiService {
     return response.data;
   }
 
+  // Upload document via URI (camera)
   async uploadCarrierDocument(type: DocumentType, fileUri: string): Promise<{ document: CarrierDocumentResponse }> {
     const imageUrl = await this.uploadImage(fileUri);
     const response = await this.api.post('/carrier/documents', {
       type,
       fileUrl: imageUrl
+    });
+    return response.data;
+  }
+
+  // Enregistrer un document avec une URL deja uploadee
+  async saveCarrierDocument(type: DocumentType, fileUrl: string): Promise<{ document: CarrierDocumentResponse }> {
+    const response = await this.api.post('/carrier/documents', {
+      type,
+      fileUrl
     });
     return response.data;
   }
@@ -558,11 +568,12 @@ class ApiService {
     return response.data;
   }
 
-  // === Uploads === (CORRIGE POUR iOS)
+  // === Uploads ===
+  
+  // Upload image via URI (FormData) - pour camera
   async uploadImage(uri: string): Promise<string> {
     const token = await SecureStore.getItemAsync('accessToken');
 
-    // Preparer l'URI pour iOS/Android
     let fileUri = uri;
     if (Platform.OS === 'ios' && !uri.startsWith('file://')) {
       fileUri = `file://${uri}`;
@@ -573,32 +584,25 @@ class ApiService {
     const match = /\.(\w+)$/.exec(filename);
     const ext = match ? match[1].toLowerCase() : 'jpg';
     
-    // Determiner le type MIME correct
     let mimeType = 'image/jpeg';
     if (ext === 'png') mimeType = 'image/png';
     else if (ext === 'gif') mimeType = 'image/gif';
     else if (ext === 'webp') mimeType = 'image/webp';
     else if (ext === 'heic' || ext === 'heif') mimeType = 'image/heic';
 
-    // Ajouter le fichier au FormData (format React Native)
     formData.append('file', {
       uri: fileUri,
       name: filename,
       type: mimeType,
     } as any);
 
-    console.log('Uploading image:', { uri: fileUri, name: filename, type: mimeType });
-
     const response = await fetch(`${API_URL}/uploads`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
-        // NE PAS mettre Content-Type ici, fetch le gere automatiquement pour FormData
       },
       body: formData,
     });
-
-    console.log('Upload response status:', response.status);
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -607,8 +611,23 @@ class ApiService {
     }
 
     const data = await response.json();
-    console.log('Upload success:', data.url);
     return data.url;
+  }
+
+  // Upload via base64 (JSON) - pour fichiers
+  async uploadBase64(dataUri: string): Promise<string> {
+    const response = await this.api.post('/uploads/base64', {
+      file: dataUri,
+      folder: 'carrier-documents',
+    });
+    return response.data.url;
+  }
+
+  // Legacy uploadFile - utilise maintenant uploadBase64
+  async uploadFile(fileUri: string, folder: string): Promise<{ url: string; publicId: string }> {
+    // Cette methode n'est plus utilisee, gardee pour compatibilite
+    const url = await this.uploadImage(fileUri);
+    return { url, publicId: '' };
   }
 
   // === Packaging ===
