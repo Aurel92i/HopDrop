@@ -11,197 +11,152 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-// Interface pour le body JSON avec base64
 interface Base64UploadBody {
-  file?: string;      // base64 string
-  base64?: string;    // alternative key
+  file?: string;
+  base64?: string;
   folder?: string;
 }
 
 export async function uploadsRoutes(app: FastifyInstance) {
-  
-  // ===== Route principale: POST /uploads =====
+
+  // ============================================================
+  // Route principale: POST /uploads
   // Accepte multipart (FormData) OU JSON (base64)
+  // Body limit augmenté à 50 MB pour les gros PDF en base64
+  // ============================================================
   app.post('/', {
     preHandler: [app.authenticate],
+    config: {
+      // Augmenter la limite pour les fichiers base64 volumineux
+      rawBody: true,
+    },
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const contentType = request.headers['content-type'] || '';
-      
-      // === CAS 1: Multipart (FormData) ===
+
+      app.log.info(`[UPLOAD] POST /uploads - Content-Type: ${contentType}`);
+
       if (contentType.includes('multipart/form-data')) {
+        app.log.info('[UPLOAD] Mode: multipart/form-data');
         return await handleMultipartUpload(request, reply, app);
       }
-      
-      // === CAS 2: JSON avec base64 ===
+
       if (contentType.includes('application/json')) {
+        app.log.info('[UPLOAD] Mode: application/json (base64)');
         return await handleBase64Upload(request, reply, app);
       }
-      
-      // === CAS 3: Essayer multipart par défaut ===
+
+      // Fallback: essayer multipart puis base64
       try {
         return await handleMultipartUpload(request, reply, app);
       } catch (multipartError) {
-        // Si multipart échoue, essayer base64
         try {
           return await handleBase64Upload(request, reply, app);
         } catch (base64Error) {
-          app.log.error('Upload failed for both multipart and base64');
-          return reply.status(400).send({ 
-            error: 'Format non supporté. Utilisez multipart/form-data ou JSON avec base64.' 
+          app.log.error('[UPLOAD] Aucun format reconnu');
+          return reply.status(400).send({
+            error: 'Format non supporté. Utilisez multipart/form-data ou application/json.',
           });
         }
       }
     } catch (error: any) {
-      app.log.error('Upload error:', error);
-      return reply.status(500).send({ error: error.message || 'Erreur lors de l\'upload' });
+      app.log.error('[UPLOAD] Erreur générale:', error.message);
+      return reply.status(500).send({ error: error.message });
     }
   });
 
-  // ===== Route legacy: POST /uploads/single =====
-  app.post('/single', {
-    preHandler: [app.authenticate],
-  }, async (request: FastifyRequest, reply: FastifyReply) => {
-    try {
-      return await handleMultipartUpload(request, reply, app);
-    } catch (error: any) {
-      app.log.error('Upload single error:', error);
-      return reply.status(500).send({ error: error.message || 'Erreur lors de l\'upload' });
-    }
-  });
-
-  // ===== Route base64 explicite: POST /uploads/base64 =====
+  // ============================================================
+  // Route base64 explicite: POST /uploads/base64
+  // (Gardée pour compatibilité, mais /uploads accepte aussi le JSON)
+  // ============================================================
   app.post('/base64', {
     preHandler: [app.authenticate],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
+      app.log.info('[UPLOAD] POST /uploads/base64');
       return await handleBase64Upload(request, reply, app);
     } catch (error: any) {
-      app.log.error('Upload base64 error:', error);
-      return reply.status(500).send({ error: error.message || 'Erreur lors de l\'upload' });
-    }
-  });
-
-  // ===== Supprimer un fichier de Cloudinary =====
-  app.delete('/:publicId', {
-    preHandler: [app.authenticate],
-  }, async (request: FastifyRequest<{ Params: { publicId: string } }>, reply: FastifyReply) => {
-    try {
-      const { publicId } = request.params;
-      
-      const result = await cloudinary.uploader.destroy(publicId);
-      
-      if (result.result === 'ok') {
-        return reply.send({ success: true, message: 'Fichier supprime' });
-      } else {
-        return reply.status(404).send({ error: 'Fichier non trouve' });
-      }
-    } catch (error: any) {
-      app.log.error('Delete error:', error);
-      return reply.status(500).send({ error: 'Erreur lors de la suppression' });
+      app.log.error('[UPLOAD] Erreur /uploads/base64:', error.message);
+      return reply.status(500).send({ error: error.message });
     }
   });
 }
 
-// ===== Handler pour upload multipart (FormData) =====
-async function handleMultipartUpload(
-  request: FastifyRequest, 
-  reply: FastifyReply,
-  app: FastifyInstance
-): Promise<any> {
-  const data = await request.file();
-  
+// Handler pour upload multipart (FormData)
+async function handleMultipartUpload(request: FastifyRequest, reply: FastifyReply, app: FastifyInstance) {
+  const data = await (request as any).file();
+
   if (!data) {
     return reply.status(400).send({ error: 'Aucun fichier fourni' });
   }
 
-  // Verifier le type MIME
   const allowedMimes = [
-    'image/jpeg',
-    'image/jpg',
-    'image/png',
-    'image/gif',
-    'image/webp',
-    'image/heic',
-    'image/heif',
-    'application/pdf',
+    'image/jpeg', 'image/jpg', 'image/png', 'image/gif',
+    'image/webp', 'image/heic', 'image/heif', 'application/pdf',
   ];
 
   if (!allowedMimes.includes(data.mimetype)) {
-    return reply.status(400).send({ 
-      error: `Type de fichier non autorise: ${data.mimetype}` 
+    return reply.status(400).send({
+      error: `Type non autorisé: ${data.mimetype}`,
     });
   }
 
-  // Lire le fichier en buffer
   const chunks: Buffer[] = [];
   for await (const chunk of data.file) {
     chunks.push(chunk);
   }
   const buffer = Buffer.concat(chunks);
-  
-  // Convertir en base64 pour Cloudinary
   const base64 = buffer.toString('base64');
   const dataUri = `data:${data.mimetype};base64,${base64}`;
 
-  // Upload vers Cloudinary
   const publicId = `hopdrop/${Date.now()}-${randomUUID()}`;
-  
+
   const result = await cloudinary.uploader.upload(dataUri, {
     public_id: publicId,
     folder: 'hopdrop',
     resource_type: 'auto',
   });
 
-  app.log.info(`Uploaded to Cloudinary: ${result.secure_url}`);
+  app.log.info(`[UPLOAD] Multipart -> Cloudinary OK: ${result.secure_url}`);
 
   return reply.send({
     success: true,
     url: result.secure_url,
     publicId: result.public_id,
-    file: {
-      filename: data.filename,
-      mimetype: data.mimetype,
-      url: result.secure_url,
-      publicId: result.public_id,
-    },
   });
 }
 
-// ===== Handler pour upload base64 (JSON) =====
-async function handleBase64Upload(
-  request: FastifyRequest,
-  reply: FastifyReply,
-  app: FastifyInstance
-): Promise<any> {
+// Handler pour upload base64 (JSON)
+async function handleBase64Upload(request: FastifyRequest, reply: FastifyReply, app: FastifyInstance) {
   const body = request.body as Base64UploadBody;
   const base64Data = body.file || body.base64;
   const folder = body.folder || 'hopdrop';
 
   if (!base64Data) {
-    return reply.status(400).send({ 
-      error: 'Aucune donnee base64 fournie. Utilisez "file" ou "base64" dans le body.' 
+    app.log.error('[UPLOAD] Base64: aucune donnée reçue. Body keys:', Object.keys(body || {}));
+    return reply.status(400).send({
+      error: 'Aucune donnée base64 fournie. Envoyez { "file": "data:...;base64,..." }',
     });
   }
 
-  // Verifier si c'est un data URI ou juste du base64 brut
+  app.log.info(`[UPLOAD] Base64 reçu - taille: ${Math.round(base64Data.length / 1024)} KB - folder: ${folder}`);
+
   let dataUri = base64Data;
   if (!base64Data.startsWith('data:')) {
-    // Essayer de detecter le type d'image depuis le base64
     const mimeType = detectMimeType(base64Data);
     dataUri = `data:${mimeType};base64,${base64Data}`;
+    app.log.info(`[UPLOAD] MIME détecté automatiquement: ${mimeType}`);
   }
 
-  // Upload vers Cloudinary
   const publicId = `${folder}/${Date.now()}-${randomUUID()}`;
-  
+
   const result = await cloudinary.uploader.upload(dataUri, {
     public_id: publicId,
     folder: folder,
     resource_type: 'auto',
   });
 
-  app.log.info(`Uploaded base64 to Cloudinary: ${result.secure_url}`);
+  app.log.info(`[UPLOAD] Base64 -> Cloudinary OK: ${result.secure_url}`);
 
   return reply.send({
     success: true,
@@ -210,7 +165,6 @@ async function handleBase64Upload(
   });
 }
 
-// ===== Detecter le type MIME depuis les premiers bytes du base64 =====
 function detectMimeType(base64: string): string {
   const signatures: { [key: string]: string } = {
     '/9j/': 'image/jpeg',
@@ -226,5 +180,5 @@ function detectMimeType(base64: string): string {
     }
   }
 
-  return 'image/jpeg'; // Defaut
+  return 'image/jpeg';
 }

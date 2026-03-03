@@ -38,6 +38,7 @@ const app = Fastify({
       },
     },
   },
+  bodyLimit: 50 * 1024 * 1024, // 50 MB pour les uploads base64
 });
 
 // Plugins
@@ -52,7 +53,7 @@ await app.register(jwt, {
 
 await app.register(multipart, {
   limits: {
-    fileSize: 5 * 1024 * 1024,
+    fileSize: 50 * 1024 * 1024, // 50 MB
   },
 });
 
