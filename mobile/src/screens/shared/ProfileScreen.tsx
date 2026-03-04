@@ -41,12 +41,12 @@ export function ProfileScreen() {
   const uploadAvatar = async (uri: string) => {
     setIsUploading(true);
     try {
-      const uploadResult = await api.uploadFile(uri, 'avatars');
-      await api.updateProfile({ avatarUrl: uploadResult.url });
+            const avatarUrl = await api.uploadImage(uri);
+      await api.updateProfile({ avatarUrl });
       
       // Mettre à jour le store local
       if (user) {
-        updateUser({ ...user, avatarUrl: uploadResult.url });
+        updateUser({ ...user, avatarUrl });
       }
       
       Alert.alert('Succès', 'Photo de profil mise à jour !');

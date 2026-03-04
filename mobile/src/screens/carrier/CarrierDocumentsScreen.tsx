@@ -4,7 +4,7 @@ import { Text, Button, Card, Chip, Switch, ActivityIndicator } from 'react-nativ
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 
 import { api } from '../../services/api';
 import { colors, spacing } from '../../theme';
@@ -62,6 +62,9 @@ const vehicleOptions = [
   { value: 'SCOOTER', label: 'Scooter' },
   { value: 'CAR', label: 'Voiture' },
 ];
+
+// Taille max fichier : 10 MB
+const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
 export function CarrierDocumentsScreen() {
   const [documents, setDocuments] = useState<CarrierDocument[]>([]);
@@ -122,13 +125,25 @@ export function CarrierDocumentsScreen() {
   const pickFromFiles = async (type: DocumentType) => {
     try {
       const result = await DocumentPicker.getDocumentAsync({
-        type: ['application/pdf', 'image/*'],
+        type: ['application/pdf', 'image/jpeg', 'image/png', 'image/heic'],
         copyToCacheDirectory: true,
       });
 
       if (!result.canceled && result.assets[0]) {
         const asset = result.assets[0];
-        const isPdf = asset.mimeType === 'application/pdf';
+
+        // Vérifier la taille du fichier
+        const fileInfo = await FileSystem.getInfoAsync(asset.uri);
+        if (fileInfo.exists && 'size' in fileInfo && fileInfo.size && fileInfo.size > MAX_FILE_SIZE) {
+          Alert.alert(
+            'Fichier trop volumineux',
+            `Le fichier fait ${Math.round(fileInfo.size / 1024 / 1024)} Mo. La taille maximale est de 10 Mo.`
+          );
+          return;
+        }
+
+        const isPdf = asset.mimeType === 'application/pdf' || asset.name?.toLowerCase().endsWith('.pdf');
+        console.log('[SCREEN] Fichier sélectionné:', asset.name, '- MIME:', asset.mimeType, '- PDF:', isPdf);
         await uploadDocument(type, asset.uri, isPdf ? 'pdf' : 'image');
       }
     } catch (error) {
@@ -140,14 +155,19 @@ export function CarrierDocumentsScreen() {
   const uploadDocument = async (type: DocumentType, fileUri: string, fileType: 'image' | 'pdf') => {
     setIsUploading(type);
     try {
-      let imageUrl: string;
+      console.log('[SCREEN] === DEBUT UPLOAD ===');
+      console.log('[SCREEN] Type document:', type);
+      console.log('[SCREEN] Type fichier:', fileType);
+      console.log('[SCREEN] URI:', fileUri.substring(0, 80) + '...');
 
-      // Lire le fichier en base64
+      // Etape 1 : Lire le fichier en base64
+      console.log('[SCREEN] Etape 1: Lecture base64...');
       const base64 = await FileSystem.readAsStringAsync(fileUri, {
         encoding: FileSystem.EncodingType.Base64,
       });
+      console.log('[SCREEN] Base64 lu - taille:', Math.round(base64.length / 1024), 'KB');
 
-      // Determiner le type MIME
+      // Etape 2 : Determiner le type MIME
       let mimeType = 'image/jpeg';
       if (fileType === 'pdf') {
         mimeType = 'application/pdf';
@@ -156,21 +176,39 @@ export function CarrierDocumentsScreen() {
       } else if (fileUri.toLowerCase().includes('.heic')) {
         mimeType = 'image/heic';
       }
+      console.log('[SCREEN] MIME type:', mimeType);
 
-      // Creer le data URI
+      // Etape 3 : Creer le data URI
       const dataUri = `data:${mimeType};base64,${base64}`;
 
-      // Upload via base64
-      imageUrl = await api.uploadBase64(dataUri);
+      // Etape 4 : Upload via base64 (UN SEUL appel a /uploads)
+      console.log('[SCREEN] Etape 4: Appel api.uploadBase64...');
+      const imageUrl = await api.uploadBase64(dataUri);
+      console.log('[SCREEN] Upload OK - URL:', imageUrl);
 
-      // Enregistrer le document
+      // Etape 5 : Enregistrer le document (appel a /carrier/documents)
+      console.log('[SCREEN] Etape 5: Appel api.saveCarrierDocument...');
       await api.saveCarrierDocument(type, imageUrl);
+      console.log('[SCREEN] === UPLOAD TERMINE AVEC SUCCES ===');
 
       Alert.alert('Succes', 'Document envoye ! Il sera verifie sous 24-48h.');
       loadDocuments();
     } catch (error: any) {
-      console.error('Erreur upload:', error);
-      Alert.alert('Erreur', error.message || "Impossible d'envoyer le document");
+      console.error('[SCREEN] === ERREUR UPLOAD ===');
+      console.error('[SCREEN] Message:', error.message);
+      console.error('[SCREEN] Response status:', error.response?.status);
+      console.error('[SCREEN] Response data:', JSON.stringify(error.response?.data));
+
+      let errorMessage = "Impossible d'envoyer le document";
+      if (error.response?.status === 413) {
+        errorMessage = 'Le fichier est trop volumineux. Essayez avec un fichier plus petit.';
+      } else if (error.response?.data?.error) {
+        errorMessage = error.response.data.error;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+
+      Alert.alert('Erreur', errorMessage);
     } finally {
       setIsUploading(null);
     }
@@ -225,9 +263,9 @@ export function CarrierDocumentsScreen() {
   const getStatusLabel = (status: string | null) => {
     switch (status) {
       case 'APPROVED': return 'Approuve';
-      case 'REJECTED': return 'Rejete';
-      case 'PENDING': return 'En attente';
-      default: return 'Non fourni';
+      case 'REJECTED': return 'Refuse';
+      case 'PENDING': return 'En attente de verification';
+      default: return 'Non envoye';
     }
   };
 
@@ -236,20 +274,18 @@ export function CarrierDocumentsScreen() {
       case 'APPROVED': return 'check-circle';
       case 'REJECTED': return 'close-circle';
       case 'PENDING': return 'clock-outline';
-      default: return 'upload';
+      default: return 'upload-outline';
     }
   };
 
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={colors.primary} />
+        <ActivityIndicator size="large" />
         <Text style={styles.loadingText}>Chargement...</Text>
       </View>
     );
   }
-
-  const allRequiredApproved = documents.filter((d) => d.required).every((d) => d.status === 'APPROVED');
 
   return (
     <ScrollView
@@ -257,22 +293,22 @@ export function CarrierDocumentsScreen() {
       contentContainerStyle={styles.content}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
     >
-      {/* Statut global */}
-      <Card style={[styles.statusCard, allRequiredApproved && styles.statusCardApproved]}>
+      {/* Statut general */}
+      <Card style={[styles.statusCard, profile?.documentsVerified && styles.statusCardApproved]}>
         <Card.Content style={styles.statusContent}>
           <MaterialCommunityIcons
-            name={allRequiredApproved ? 'shield-check' : 'shield-alert'}
-            size={40}
-            color={allRequiredApproved ? colors.primary : colors.secondary}
+            name={profile?.documentsVerified ? 'check-circle' : 'information'}
+            size={32}
+            color={profile?.documentsVerified ? colors.primary : colors.secondary}
           />
           <View style={styles.statusInfo}>
-            <Text variant="titleMedium">
-              {allRequiredApproved ? 'Profil verifie' : 'Verification en cours'}
+            <Text variant="titleSmall">
+              {profile?.documentsVerified ? 'Documents verifies' : 'Verification en cours'}
             </Text>
             <Text variant="bodySmall" style={styles.statusSubtext}>
-              {allRequiredApproved
-                ? 'Vous pouvez accepter des missions'
-                : 'Completez vos documents pour commencer'}
+              {profile?.documentsVerified
+                ? 'Vous pouvez commencer les livraisons'
+                : 'Envoyez tous les documents requis'}
             </Text>
           </View>
         </Card.Content>

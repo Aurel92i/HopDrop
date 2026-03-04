@@ -3,7 +3,7 @@
 import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig } from 'axios';
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
-import { DocumentType, DocumentStatus } from '../types';
+import * as FileSystem from 'expo-file-system/legacy';
 
 const API_URL = __DEV__
   ? 'https://hopdrop-production.up.railway.app'
@@ -144,10 +144,12 @@ class ApiService {
   constructor() {
     this.api = axios.create({
       baseURL: API_URL,
-      timeout: 30000,
+      timeout: 60000, // 60s pour les gros fichiers
       headers: {
         'Content-Type': 'application/json',
       },
+      maxContentLength: 50 * 1024 * 1024, // 50 MB
+      maxBodyLength: 50 * 1024 * 1024,     // 50 MB
     });
 
     // Intercepteur pour ajouter le token
@@ -405,21 +407,61 @@ class ApiService {
     return response.data;
   }
 
-  // Upload document via URI (camera)
+  // ============================================================
+  // UPLOAD UNIFIE : tout passe par base64 via /uploads (JSON)
+  // ============================================================
+
+  // Upload via base64 (JSON) - methode PRINCIPALE pour tous les uploads
+  async uploadBase64(dataUri: string, folder: string = 'carrier-documents'): Promise<string> {
+    console.log('[API] uploadBase64 appelé - route: /uploads - folder:', folder);
+    const response = await this.api.post('/uploads', {
+      file: dataUri,
+      folder: folder,
+    });
+    console.log('[API] uploadBase64 réussi - URL:', response.data.url);
+    return response.data.url;
+  }
+
+  // Upload image via URI (camera/galerie) - convertit en base64 puis upload
+  async uploadImage(uri: string): Promise<string> {
+    console.log('[API] uploadImage appelé avec URI:', uri.substring(0, 50) + '...');
+    
+    // Lire le fichier en base64
+    const base64 = await FileSystem.readAsStringAsync(uri, {
+      encoding: FileSystem.EncodingType.Base64,
+    });
+
+    // Detecter le type MIME depuis l'extension
+    const ext = uri.split('.').pop()?.toLowerCase() || 'jpg';
+    let mimeType = 'image/jpeg';
+    if (ext === 'png') mimeType = 'image/png';
+    else if (ext === 'gif') mimeType = 'image/gif';
+    else if (ext === 'webp') mimeType = 'image/webp';
+    else if (ext === 'heic' || ext === 'heif') mimeType = 'image/heic';
+    else if (ext === 'pdf') mimeType = 'application/pdf';
+
+    const dataUri = `data:${mimeType};base64,${base64}`;
+    return this.uploadBase64(dataUri, 'hopdrop');
+  }
+
+  // Upload document livreur : upload + enregistrement en une seule methode
   async uploadCarrierDocument(type: DocumentType, fileUri: string): Promise<{ document: CarrierDocumentResponse }> {
+    console.log('[API] uploadCarrierDocument appelé - type:', type);
+    // Utilise uploadImage qui passe par base64
     const imageUrl = await this.uploadImage(fileUri);
     const response = await this.api.post('/carrier/documents', {
       type,
-      fileUrl: imageUrl
+      fileUrl: imageUrl,
     });
     return response.data;
   }
 
   // Enregistrer un document avec une URL deja uploadee
   async saveCarrierDocument(type: DocumentType, fileUrl: string): Promise<{ document: CarrierDocumentResponse }> {
+    console.log('[API] saveCarrierDocument appelé - type:', type, '- URL:', fileUrl.substring(0, 50) + '...');
     const response = await this.api.post('/carrier/documents', {
       type,
-      fileUrl
+      fileUrl,
     });
     return response.data;
   }
@@ -566,68 +608,6 @@ class ApiService {
   async getPricing() {
     const response = await this.api.get('/ai/pricing');
     return response.data;
-  }
-
-  // === Uploads ===
-  
-  // Upload image via URI (FormData) - pour camera
-  async uploadImage(uri: string): Promise<string> {
-    const token = await SecureStore.getItemAsync('accessToken');
-
-    let fileUri = uri;
-    if (Platform.OS === 'ios' && !uri.startsWith('file://')) {
-      fileUri = `file://${uri}`;
-    }
-
-    const formData = new FormData();
-    const filename = uri.split('/').pop() || 'photo.jpg';
-    const match = /\.(\w+)$/.exec(filename);
-    const ext = match ? match[1].toLowerCase() : 'jpg';
-    
-    let mimeType = 'image/jpeg';
-    if (ext === 'png') mimeType = 'image/png';
-    else if (ext === 'gif') mimeType = 'image/gif';
-    else if (ext === 'webp') mimeType = 'image/webp';
-    else if (ext === 'heic' || ext === 'heif') mimeType = 'image/heic';
-
-    formData.append('file', {
-      uri: fileUri,
-      name: filename,
-      type: mimeType,
-    } as any);
-
-    const response = await fetch(`${API_URL}/uploads`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
-      body: formData,
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Upload error:', errorText);
-      throw new Error(`Erreur upload: ${response.status}`);
-    }
-
-    const data = await response.json();
-    return data.url;
-  }
-
-  // Upload via base64 (JSON) - pour fichiers
-  async uploadBase64(dataUri: string): Promise<string> {
-    const response = await this.api.post('/uploads/base64', {
-      file: dataUri,
-      folder: 'carrier-documents',
-    });
-    return response.data.url;
-  }
-
-  // Legacy uploadFile - utilise maintenant uploadBase64
-  async uploadFile(fileUri: string, folder: string): Promise<{ url: string; publicId: string }> {
-    // Cette methode n'est plus utilisee, gardee pour compatibilite
-    const url = await this.uploadImage(fileUri);
-    return { url, publicId: '' };
   }
 
   // === Packaging ===
