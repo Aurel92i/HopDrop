@@ -188,6 +188,28 @@ export class AuthService {
     };
   }
 
+  async changePassword(userId: string, currentPassword: string, newPassword: string): Promise<void> {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new Error('Utilisateur non trouvé');
+    }
+
+    const isPasswordValid = await bcrypt.compare(currentPassword, user.passwordHash);
+    if (!isPasswordValid) {
+      throw new Error('Mot de passe actuel incorrect');
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
+
+    await prisma.user.update({
+      where: { id: userId },
+      data: { passwordHash },
+    });
+  }
+
   private async generateTokens(userId: string, email: string, role: string): Promise<AuthTokens> {
     // Générer l'access token JWT
     const accessToken = this.app.jwt.sign(

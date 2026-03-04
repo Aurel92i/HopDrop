@@ -103,6 +103,26 @@ export class AuthController {
     }
   }
 
+  async changePassword(request: FastifyRequest<{ Body: { currentPassword: string; newPassword: string } }>, reply: FastifyReply) {
+    try {
+      const userId = (request.user as any).userId;
+      const { currentPassword, newPassword } = request.body;
+
+      if (!currentPassword || !newPassword) {
+        return reply.status(400).send({ error: 'Mot de passe actuel et nouveau requis' });
+      }
+
+      if (newPassword.length < 6) {
+        return reply.status(400).send({ error: 'Le nouveau mot de passe doit faire au moins 6 caractères' });
+      }
+
+      await this.authService.changePassword(userId, currentPassword, newPassword);
+      return reply.send({ message: 'Mot de passe modifié avec succès' });
+    } catch (error: any) {
+      return reply.status(400).send({ error: error.message });
+    }
+  }
+
   async getMe(request: FastifyRequest, reply: FastifyReply) {
     try {
       const userId = (request.user as any).userId;
