@@ -263,6 +263,11 @@ class ApiService {
     return response.data;
   }
 
+  async changePassword(currentPassword: string, newPassword: string) {
+    const response = await this.api.post('/auth/change-password', { currentPassword, newPassword });
+    return response.data;
+  }
+
   // === Users ===
   async updateProfile(data: { firstName?: string; lastName?: string; phone?: string; avatarUrl?: string }) {
     const response = await this.api.put('/users/me', data);

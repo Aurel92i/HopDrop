@@ -5,11 +5,47 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { useAuthStore } from '../../stores/authStore';
 import { colors, spacing } from '../../theme';
+import { api } from '../../services/api';
+import { TextInput } from 'react-native-paper';
 
 export function SettingsScreen() {
   const { user } = useAuthStore();
   const [notifications, setNotifications] = useState(true);
   const [locationSharing, setLocationSharing] = useState(true);
+  const [showPasswordForm, setShowPasswordForm] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+
+  const handleChangePassword = async () => {
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      Alert.alert('Erreur', 'Tous les champs sont requis');
+      return;
+    }
+    if (newPassword.length < 6) {
+      Alert.alert('Erreur', 'Le nouveau mot de passe doit faire au moins 6 caractères');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      Alert.alert('Erreur', 'Les nouveaux mots de passe ne correspondent pas');
+      return;
+    }
+    setIsChangingPassword(true);
+    try {
+      await api.changePassword(currentPassword, newPassword);
+      Alert.alert('Succès', 'Mot de passe modifié avec succès');
+      setShowPasswordForm(false);
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (error: any) {
+      const message = error.response?.data?.error || 'Impossible de modifier le mot de passe';
+      Alert.alert('Erreur', message);
+    } finally {
+      setIsChangingPassword(false);
+    }
+  };
 
   const handleContactSupport = () => {
     Linking.openURL('mailto:support@hopdrop.fr?subject=Support HopDrop');
@@ -127,9 +163,48 @@ export function SettingsScreen() {
         <List.Item
           title="Changer le mot de passe"
           left={(props) => <List.Icon {...props} icon="lock" />}
-          right={(props) => <List.Icon {...props} icon="chevron-right" />}
-          onPress={() => Alert.alert('Info', 'Fonctionnalité à venir')}
+          right={(props) => <List.Icon {...props} icon={showPasswordForm ? 'chevron-up' : 'chevron-right'} />}
+          onPress={() => setShowPasswordForm(!showPasswordForm)}
         />
+        {showPasswordForm && (
+          <View style={styles.passwordForm}>
+            <TextInput
+              label="Mot de passe actuel"
+              value={currentPassword}
+              onChangeText={setCurrentPassword}
+              secureTextEntry
+              mode="outlined"
+              style={styles.passwordInput}
+            />
+            <TextInput
+              label="Nouveau mot de passe"
+              value={newPassword}
+              onChangeText={setNewPassword}
+              secureTextEntry
+              mode="outlined"
+              style={styles.passwordInput}
+            />
+            <TextInput
+              label="Confirmer le nouveau mot de passe"
+              value={confirmPassword}
+              onChangeText={setConfirmPassword}
+              secureTextEntry
+              mode="outlined"
+              style={styles.passwordInput}
+            />
+            <Button
+              mode="contained"
+              onPress={handleChangePassword}
+              loading={isChangingPassword}
+              disabled={isChangingPassword}
+              style={styles.passwordButton}
+            >
+              Modifier le mot de passe
+            </Button>
+          </View>
+        )}
+
+
         <Divider />
         <List.Item
           title="Supprimer mon compte"
@@ -168,6 +243,15 @@ const styles = StyleSheet.create({
     marginHorizontal: spacing.md,
     borderRadius: 12,
     overflow: 'hidden',
+  },
+  passwordForm: {
+    padding: spacing.md,
+  },
+  passwordInput: {
+    marginBottom: spacing.sm,
+  },
+  passwordButton: {
+    marginTop: spacing.sm,
   },
   appInfo: {
     alignItems: 'center',
