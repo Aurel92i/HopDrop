@@ -29,7 +29,7 @@ export const createParcelSchema = z.object({
   // Photo article (IA)
   itemPhotoUrl: z.string().optional(),
   itemCategory: z.string().max(100).optional(),
-}).refine((data) => {
+}).passthrough().refine((data) => {
   // Si mode SCHEDULED, les créneaux sont obligatoires
   if (data.pickupMode === 'SCHEDULED') {
     return data.pickupSlotStart && data.pickupSlotEnd;
