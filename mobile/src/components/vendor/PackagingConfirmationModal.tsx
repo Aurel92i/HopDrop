@@ -3,6 +3,7 @@ import { View, StyleSheet, Image, Dimensions } from 'react-native';
 import { Modal, Portal, Text, Button, TextInput, IconButton } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { colors, spacing } from '../../theme';
+import { useTranslation } from '../../i18n/i18nContext';
 
 interface PackagingConfirmationModalProps {
   visible: boolean;
@@ -23,6 +24,7 @@ export function PackagingConfirmationModal({
   onDismiss,
   isLoading = false,
 }: PackagingConfirmationModalProps) {
+  const { t } = useTranslation();
   const [showRejectForm, setShowRejectForm] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
 
@@ -54,10 +56,10 @@ export function PackagingConfirmationModal({
             <MaterialCommunityIcons name="package-variant-closed" size={32} color={colors.primary} />
           </View>
           <Text variant="headlineSmall" style={styles.title}>
-            Confirmation d'emballage
+            {t('vendor.packagingConfirmation.title')}
           </Text>
           <Text variant="bodyMedium" style={styles.subtitle}>
-            Le livreur a terminé l'emballage de votre colis. Veuillez vérifier et confirmer.
+            {t('vendor.packagingConfirmation.subtitle')}
           </Text>
         </View>
 
@@ -71,7 +73,7 @@ export function PackagingConfirmationModal({
             />
             <View style={styles.photoLabel}>
               <MaterialCommunityIcons name="camera" size={16} color={colors.onPrimary} />
-              <Text style={styles.photoLabelText}>Photo prise par le livreur</Text>
+              <Text style={styles.photoLabelText}>{t('vendor.packagingConfirmation.carrierPhoto')}</Text>
             </View>
           </View>
         )}
@@ -80,7 +82,7 @@ export function PackagingConfirmationModal({
         <View style={styles.instructionsBox}>
           <MaterialCommunityIcons name="information-outline" size={20} color={colors.primary} />
           <Text variant="bodySmall" style={styles.instructionsText}>
-            Vérifiez que votre article est bien emballé et protégé. Une fois confirmé, le livreur pourra récupérer le colis.
+            {t('vendor.packagingConfirmation.verifyInstructions')}
           </Text>
         </View>
 
@@ -88,11 +90,11 @@ export function PackagingConfirmationModal({
         {showRejectForm ? (
           <View style={styles.rejectForm}>
             <Text variant="titleSmall" style={styles.rejectTitle}>
-              Pourquoi refusez-vous l'emballage ?
+              {t('vendor.packagingConfirmation.rejectReasonTitle')}
             </Text>
             <TextInput
               mode="outlined"
-              placeholder="Ex: L'article n'est pas assez protégé..."
+              placeholder={t('vendor.packagingConfirmation.rejectReasonPlaceholder')}
               value={rejectReason}
               onChangeText={setRejectReason}
               multiline
@@ -109,7 +111,7 @@ export function PackagingConfirmationModal({
                 style={styles.rejectButton}
                 disabled={isLoading}
               >
-                Annuler
+                {t('common.cancel')}
               </Button>
               <Button
                 mode="contained"
@@ -119,7 +121,7 @@ export function PackagingConfirmationModal({
                 disabled={!rejectReason.trim() || isLoading}
                 loading={isLoading}
               >
-                Refuser
+                {t('vendor.packagingConfirmation.rejectBtn')}
               </Button>
             </View>
           </View>
@@ -134,9 +136,9 @@ export function PackagingConfirmationModal({
               loading={isLoading}
               disabled={isLoading}
             >
-              Confirmer l'emballage
+              {t('vendor.packagingConfirmation.approve')}
             </Button>
-            
+
             <Button
               mode="outlined"
               onPress={() => setShowRejectForm(true)}
@@ -145,7 +147,7 @@ export function PackagingConfirmationModal({
               textColor={colors.error}
               disabled={isLoading}
             >
-              Refuser l'emballage
+              {t('vendor.packagingConfirmation.reject')}
             </Button>
           </View>
         )}
@@ -154,7 +156,7 @@ export function PackagingConfirmationModal({
         <View style={styles.securityNote}>
           <MaterialCommunityIcons name="shield-check" size={16} color={colors.secondary} />
           <Text variant="bodySmall" style={styles.securityNoteText}>
-            Cette confirmation protège les deux parties en cas de litige.
+            {t('vendor.packagingConfirmation.disclaimer')}
           </Text>
         </View>
       </Modal>

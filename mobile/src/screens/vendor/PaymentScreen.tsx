@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  View, 
-  StyleSheet, 
-  ScrollView, 
-  Alert, 
-  KeyboardAvoidingView, 
+import {
+  View,
+  StyleSheet,
+  ScrollView,
+  Alert,
+  KeyboardAvoidingView,
   Platform,
   TextInput,
   TouchableOpacity,
@@ -18,6 +18,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { VendorStackParamList } from '../../navigation/types';
 import { colors, spacing } from '../../theme';
 import { api } from '../../services/api';
+import { useTranslation } from '../../i18n/i18nContext';
 
 type PaymentScreenProps = {
   navigation: NativeStackNavigationProp<VendorStackParamList, 'Payment'>;
@@ -33,11 +34,12 @@ const TEST_CARDS = {
 
 export function PaymentScreen({ navigation, route }: PaymentScreenProps) {
   const { parcelId, amount } = route.params;
-  
+  const { t } = useTranslation();
+
   const [isLoading, setIsLoading] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [parcel, setParcel] = useState<any>(null);
-  
+
   // État du formulaire de carte
   const [cardNumber, setCardNumber] = useState('');
   const [cardExpiry, setCardExpiry] = useState('');
@@ -99,7 +101,7 @@ export function PaymentScreen({ navigation, route }: PaymentScreenProps) {
   // Simulation de paiement
   const processPayment = async () => {
     if (!isFormValid()) {
-      Alert.alert('Erreur', 'Veuillez remplir tous les champs de la carte');
+      Alert.alert(t('common.error'), t('vendor.payment.fillCardFields'));
       return;
     }
 
@@ -110,14 +112,14 @@ export function PaymentScreen({ navigation, route }: PaymentScreenProps) {
       await new Promise(resolve => setTimeout(resolve, 2000));
 
       const cleanedCard = cardNumber.replace(/\s/g, '');
-      
+
       // Simulation des différents scénarios de carte de test
       if (cleanedCard === TEST_CARDS.decline) {
-        throw new Error('Carte refusée. Veuillez utiliser une autre carte.');
+        throw new Error(t('vendor.payment.cardDeclined'));
       }
-      
+
       if (cleanedCard === TEST_CARDS.insufficient) {
-        throw new Error('Fonds insuffisants. Veuillez utiliser une autre carte.');
+        throw new Error(t('vendor.payment.insufficientFunds'));
       }
 
       // Appeler l'API pour marquer le colis comme payé
@@ -129,11 +131,11 @@ export function PaymentScreen({ navigation, route }: PaymentScreenProps) {
 
       // Succès !
       Alert.alert(
-        '✅ Paiement réussi !',
-        `Votre paiement de ${amount.toFixed(2)}€ a été accepté.\n\nVotre colis est maintenant visible par les livreurs.`,
+        t('vendor.payment.successTitle'),
+        t('vendor.payment.successDesc').replace('{amount}', amount.toFixed(2)),
         [
           {
-            text: 'Voir mon colis',
+            text: t('vendor.payment.viewParcel'),
             onPress: () => {
               navigation.reset({
                 index: 1,
@@ -145,14 +147,14 @@ export function PaymentScreen({ navigation, route }: PaymentScreenProps) {
             },
           },
           {
-            text: 'Retour à l\'accueil',
+            text: t('vendor.payment.backToHome'),
             onPress: () => navigation.navigate('VendorHome'),
           },
         ]
       );
 
     } catch (error: any) {
-      Alert.alert('Paiement échoué', error.message || 'Une erreur est survenue');
+      Alert.alert(t('vendor.payment.paymentFailed'), error.message || t('common.genericError'));
     } finally {
       setIsProcessing(false);
     }
@@ -170,7 +172,7 @@ export function PaymentScreen({ navigation, route }: PaymentScreenProps) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={styles.loadingText}>Chargement...</Text>
+        <Text style={styles.loadingText}>{t('common.loading')}</Text>
       </View>
     );
   }
@@ -178,35 +180,35 @@ export function PaymentScreen({ navigation, route }: PaymentScreenProps) {
   const cardType = getCardType(cardNumber);
 
   return (
-    <KeyboardAvoidingView 
-      style={styles.container} 
+    <KeyboardAvoidingView
+      style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         {/* Résumé de la commande */}
         <Card style={styles.summaryCard}>
           <Card.Content>
-            <Text style={styles.summaryTitle}>Récapitulatif</Text>
-            
+            <Text style={styles.summaryTitle}>{t('vendor.payment.summary')}</Text>
+
             <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Colis</Text>
-              <Text style={styles.summaryValue}>{parcel?.description || 'Colis'}</Text>
+              <Text style={styles.summaryLabel}>{t('vendor.payment.parcel')}</Text>
+              <Text style={styles.summaryValue}>{parcel?.description || t('vendor.payment.parcel')}</Text>
             </View>
-            
+
             <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Taille</Text>
+              <Text style={styles.summaryLabel}>{t('vendor.payment.size')}</Text>
               <Text style={styles.summaryValue}>{parcel?.size || 'M'}</Text>
             </View>
-            
+
             <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Livraison vers</Text>
+              <Text style={styles.summaryLabel}>{t('vendor.payment.deliverTo')}</Text>
               <Text style={styles.summaryValue}>{parcel?.dropoffName || 'Point relais'}</Text>
             </View>
-            
+
             <Divider style={styles.divider} />
-            
+
             <View style={styles.totalRow}>
-              <Text style={styles.totalLabel}>Total à payer</Text>
+              <Text style={styles.totalLabel}>{t('vendor.payment.total')}</Text>
               <Text style={styles.totalAmount}>{amount.toFixed(2)} €</Text>
             </View>
           </Card.Content>
@@ -217,23 +219,23 @@ export function PaymentScreen({ navigation, route }: PaymentScreenProps) {
           <Card.Content>
             <View style={styles.testHeader}>
               <MaterialCommunityIcons name="test-tube" size={20} color="#F59E0B" />
-              <Text style={styles.testTitle}>Mode Test</Text>
+              <Text style={styles.testTitle}>{t('vendor.payment.testMode')}</Text>
             </View>
             <Text style={styles.testDescription}>
-              Utilisez une carte de test pour simuler le paiement :
+              {t('vendor.payment.testDescription')}
             </Text>
             <View style={styles.testButtons}>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={[styles.testButton, styles.testButtonSuccess]}
                 onPress={() => fillTestCard('success')}
               >
-                <Text style={styles.testButtonText}>✓ Succès</Text>
+                <Text style={styles.testButtonText}>{t('vendor.payment.testSuccess')}</Text>
               </TouchableOpacity>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={[styles.testButton, styles.testButtonDanger]}
                 onPress={() => fillTestCard('decline')}
               >
-                <Text style={styles.testButtonText}>✗ Refusée</Text>
+                <Text style={styles.testButtonText}>{t('vendor.payment.testDeclined')}</Text>
               </TouchableOpacity>
             </View>
           </Card.Content>
@@ -242,11 +244,11 @@ export function PaymentScreen({ navigation, route }: PaymentScreenProps) {
         {/* Formulaire carte */}
         <Card style={styles.cardForm}>
           <Card.Content>
-            <Text style={styles.sectionTitle}>Informations de carte</Text>
-            
+            <Text style={styles.sectionTitle}>{t('vendor.payment.cardInfo')}</Text>
+
             {/* Numéro de carte */}
             <View style={styles.inputContainer}>
-              <Text style={styles.inputLabel}>Numéro de carte</Text>
+              <Text style={styles.inputLabel}>{t('vendor.payment.cardNumber')}</Text>
               <View style={styles.inputWrapper}>
                 <MaterialCommunityIcons name="credit-card" size={20} color="#9CA3AF" style={styles.inputIcon} />
                 <TextInput
@@ -255,24 +257,24 @@ export function PaymentScreen({ navigation, route }: PaymentScreenProps) {
                   onChangeText={(text) => setCardNumber(formatCardNumber(text))}
                   keyboardType="numeric"
                   maxLength={19}
-                  placeholder="1234 5678 9012 3456"
+                  placeholder={t('vendor.payment.cardPlaceholder')}
                   placeholderTextColor="#9CA3AF"
                 />
                 {cardType && (
-                  <MaterialCommunityIcons 
-                    name="check-circle" 
-                    size={20} 
-                    color="#10B981" 
+                  <MaterialCommunityIcons
+                    name="check-circle"
+                    size={20}
+                    color="#10B981"
                     style={styles.inputIconRight}
                   />
                 )}
               </View>
             </View>
-            
+
             {/* Expiration + CVC */}
             <View style={styles.row}>
               <View style={[styles.inputContainer, { flex: 1, marginRight: 8 }]}>
-                <Text style={styles.inputLabel}>Expiration</Text>
+                <Text style={styles.inputLabel}>{t('vendor.payment.expiryLabel')}</Text>
                 <View style={styles.inputWrapper}>
                   <TextInput
                     style={styles.input}
@@ -280,14 +282,14 @@ export function PaymentScreen({ navigation, route }: PaymentScreenProps) {
                     onChangeText={(text) => setCardExpiry(formatExpiry(text))}
                     keyboardType="numeric"
                     maxLength={5}
-                    placeholder="MM/AA"
+                    placeholder={t('vendor.payment.expiryPlaceholder')}
                     placeholderTextColor="#9CA3AF"
                   />
                 </View>
               </View>
-              
+
               <View style={[styles.inputContainer, { flex: 1, marginLeft: 8 }]}>
-                <Text style={styles.inputLabel}>CVC</Text>
+                <Text style={styles.inputLabel}>{t('vendor.payment.cardCvc')}</Text>
                 <View style={styles.inputWrapper}>
                   <TextInput
                     style={styles.input}
@@ -296,16 +298,16 @@ export function PaymentScreen({ navigation, route }: PaymentScreenProps) {
                     keyboardType="numeric"
                     maxLength={4}
                     secureTextEntry
-                    placeholder="123"
+                    placeholder={t('vendor.payment.cvcPlaceholder')}
                     placeholderTextColor="#9CA3AF"
                   />
                 </View>
               </View>
             </View>
-            
+
             {/* Nom sur la carte */}
             <View style={styles.inputContainer}>
-              <Text style={styles.inputLabel}>Nom sur la carte</Text>
+              <Text style={styles.inputLabel}>{t('vendor.payment.cardName')}</Text>
               <View style={styles.inputWrapper}>
                 <MaterialCommunityIcons name="account" size={20} color="#9CA3AF" style={styles.inputIcon} />
                 <TextInput
@@ -313,7 +315,7 @@ export function PaymentScreen({ navigation, route }: PaymentScreenProps) {
                   value={cardName}
                   onChangeText={setCardName}
                   autoCapitalize="characters"
-                  placeholder="JEAN DUPONT"
+                  placeholder={t('vendor.payment.namePlaceholder')}
                   placeholderTextColor="#9CA3AF"
                 />
               </View>
@@ -325,7 +327,7 @@ export function PaymentScreen({ navigation, route }: PaymentScreenProps) {
         <View style={styles.securityInfo}>
           <MaterialCommunityIcons name="shield-check" size={20} color="#10B981" />
           <Text style={styles.securityText}>
-            Paiement sécurisé. Vos données sont chiffrées.
+            {t('vendor.payment.securedPayment')}
           </Text>
         </View>
 
@@ -343,14 +345,13 @@ export function PaymentScreen({ navigation, route }: PaymentScreenProps) {
           ) : (
             <>
               <MaterialCommunityIcons name="lock" size={20} color="white" />
-              <Text style={styles.payButtonText}>Payer {amount.toFixed(2)} €</Text>
+              <Text style={styles.payButtonText}>{t('vendor.payment.pay')} {amount.toFixed(2)} €</Text>
             </>
           )}
         </TouchableOpacity>
 
         <Text style={styles.legalText}>
-          En cliquant sur "Payer", vous acceptez nos conditions générales de vente 
-          et notre politique de confidentialité.
+          {t('vendor.payment.legalPaymentText')}
         </Text>
 
         <View style={{ height: 40 }} />
@@ -377,7 +378,7 @@ const styles = StyleSheet.create({
     marginTop: 16,
     color: '#6B7280',
   },
-  
+
   // Summary Card
   summaryCard: {
     marginBottom: 16,
@@ -481,7 +482,7 @@ const styles = StyleSheet.create({
     color: '#1F2937',
     marginBottom: 16,
   },
-  
+
   // Inputs
   inputContainer: {
     marginBottom: 16,

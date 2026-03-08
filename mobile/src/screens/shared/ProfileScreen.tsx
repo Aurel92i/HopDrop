@@ -10,8 +10,10 @@ import { useAuthStore } from '../../stores/authStore';
 import { api } from '../../services/api';
 import { ProfileStackParamList } from '../../navigation/types';
 import { colors, spacing } from '../../theme';
+import { useTranslation } from '../../i18n/i18nContext';
 
 export function ProfileScreen() {
+  const { t } = useTranslation();
   const navigation = useNavigation<NativeStackNavigationProp<ProfileStackParamList>>();
   const { user, logout, updateUser } = useAuthStore();
   const [isUploading, setIsUploading] = useState(false);
@@ -20,9 +22,9 @@ export function ProfileScreen() {
 
   const takePhoto = async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
-    
+
     if (status !== 'granted') {
-      Alert.alert('Permission refusée', 'Nous avons besoin de la permission pour accéder à la caméra');
+      Alert.alert(t('common.permissionDenied'), t('common.cameraPermission'));
       return;
     }
 
@@ -43,15 +45,14 @@ export function ProfileScreen() {
     try {
             const avatarUrl = await api.uploadImage(uri);
       await api.updateProfile({ avatarUrl });
-      
-      // Mettre à jour le store local
+
       if (user) {
         updateUser({ ...user, avatarUrl });
       }
-      
-      Alert.alert('Succès', 'Photo de profil mise à jour !');
+
+      Alert.alert(t('common.success'), t('shared.profile.photoUpdated'));
     } catch (e: any) {
-      Alert.alert('Erreur', 'Impossible de mettre à jour la photo');
+      Alert.alert(t('common.error'), t('shared.profile.photoError'));
     } finally {
       setIsUploading(false);
     }
@@ -59,17 +60,23 @@ export function ProfileScreen() {
 
   const handleLogout = () => {
     Alert.alert(
-      'Déconnexion',
-      'Êtes-vous sûr de vouloir vous déconnecter ?',
+      t('shared.profile.logoutTitle'),
+      t('shared.profile.logoutConfirm'),
       [
-        { text: 'Annuler', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Déconnexion',
+          text: t('shared.profile.logoutTitle'),
           style: 'destructive',
           onPress: () => logout(),
         },
       ]
     );
+  };
+
+  const getRoleLabel = () => {
+    if (user?.role === 'VENDOR') return `📦 ${t('shared.profile.roleVendor')}`;
+    if (user?.role === 'CARRIER') return `🚴 ${t('shared.profile.roleCarrier')}`;
+    return `📦🚴 ${t('shared.profile.roleBoth')}`;
   };
 
   return (
@@ -91,15 +98,15 @@ export function ProfileScreen() {
               />
             )}
             <View style={styles.editBadge}>
-              <MaterialCommunityIcons 
-                name={isUploading ? 'loading' : 'camera'} 
-                size={14} 
-                color="white" 
+              <MaterialCommunityIcons
+                name={isUploading ? 'loading' : 'camera'}
+                size={14}
+                color="white"
               />
             </View>
           </TouchableOpacity>
           <Text variant="bodySmall" style={styles.photoHint}>
-            Appuyez pour prendre une photo
+            {t('shared.profile.tapToPhoto')}
           </Text>
           <Text variant="headlineSmall" style={styles.name}>
             {user?.firstName} {user?.lastName}
@@ -108,27 +115,26 @@ export function ProfileScreen() {
             {user?.email}
           </Text>
           <Text variant="labelMedium" style={styles.role}>
-            {user?.role === 'VENDOR' ? '📦 Vendeur' : user?.role === 'CARRIER' ? '🚴 Livreur' : '📦🚴 Vendeur & Livreur'}
+            {getRoleLabel()}
           </Text>
         </Card.Content>
       </Card>
 
       <Card style={styles.menuCard}>
         <List.Item
-          title="Mes adresses"
-          description="Gérer mes adresses de récupération"
+          title={t('shared.profile.addresses')}
+          description={t('shared.profile.addressesDesc')}
           left={(props) => <List.Icon {...props} icon="map-marker" />}
           right={(props) => <List.Icon {...props} icon="chevron-right" />}
           onPress={() => navigation.navigate('Addresses')}
         />
         <Divider />
 
-        {/* Section Livreur - visible uniquement pour les carriers */}
         {isCarrier && (
           <>
             <List.Item
-              title="Mes documents"
-              description="Pièces d'identité, Kbis, carte grise"
+              title={t('shared.profile.documents')}
+              description={t('shared.profile.documentsDesc')}
               left={(props) => <List.Icon {...props} icon="file-document-multiple" />}
               right={(props) => <List.Icon {...props} icon="chevron-right" />}
               onPress={() => navigation.navigate('CarrierDocuments')}
@@ -138,23 +144,22 @@ export function ProfileScreen() {
         )}
 
         <List.Item
-          title="Paramètres"
-          description="Notifications, confidentialité"
+          title={t('shared.profile.settings')}
+          description={t('shared.profile.settingsDesc')}
           left={(props) => <List.Icon {...props} icon="cog" />}
           right={(props) => <List.Icon {...props} icon="chevron-right" />}
           onPress={() => navigation.navigate('Settings')}
         />
       </Card>
 
-      {/* Info vérification pour les livreurs */}
       {isCarrier && (
         <Card style={styles.infoCard}>
           <Card.Content style={styles.infoContent}>
             <List.Icon icon="shield-check" color={colors.primary} />
             <View style={styles.infoText}>
-              <Text variant="titleSmall">Vérification livreur</Text>
+              <Text variant="titleSmall">{t('shared.profile.verificationTitle')}</Text>
               <Text variant="bodySmall" style={styles.infoDescription}>
-                Complétez vos documents pour pouvoir accepter des missions
+                {t('shared.profile.verificationDesc')}
               </Text>
             </View>
           </Card.Content>
@@ -168,11 +173,11 @@ export function ProfileScreen() {
         textColor={colors.error}
         icon="logout"
       >
-        Se déconnecter
+        {t('shared.profile.logout')}
       </Button>
 
       <Text variant="bodySmall" style={styles.version}>
-        HopDrop v1.0.0
+        {t('common.version')}
       </Text>
     </ScrollView>
   );

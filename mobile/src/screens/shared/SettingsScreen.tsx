@@ -1,15 +1,19 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, ScrollView, Alert, Linking } from 'react-native';
-import { Text, List, Switch, Divider, Button } from 'react-native-paper';
+import { View, StyleSheet, ScrollView, Alert, Linking, Modal, TouchableOpacity } from 'react-native';
+import { Text, List, Switch, Divider, Button, TextInput } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-
+import { useTranslation, languageLabels, Language } from '../../i18n/i18nContext';
 import { useAuthStore } from '../../stores/authStore';
 import { colors, spacing } from '../../theme';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { ProfileStackParamList } from '../../navigation/types';
 import { api } from '../../services/api';
-import { TextInput } from 'react-native-paper';
 
 export function SettingsScreen() {
   const { user } = useAuthStore();
+  const navigation = useNavigation<NativeStackNavigationProp<ProfileStackParamList>>();
+  const { t, language, setLanguage } = useTranslation();
   const [notifications, setNotifications] = useState(true);
   const [locationSharing, setLocationSharing] = useState(true);
   const [showPasswordForm, setShowPasswordForm] = useState(false);
@@ -17,31 +21,32 @@ export function SettingsScreen() {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [showLanguageModal, setShowLanguageModal] = useState(false);
 
   const handleChangePassword = async () => {
     if (!currentPassword || !newPassword || !confirmPassword) {
-      Alert.alert('Erreur', 'Tous les champs sont requis');
+      Alert.alert(t('common.error'), t('shared.settings.passwordFieldsRequired'));
       return;
     }
     if (newPassword.length < 6) {
-      Alert.alert('Erreur', 'Le nouveau mot de passe doit faire au moins 6 caractères');
+      Alert.alert(t('common.error'), t('shared.settings.passwordTooShort'));
       return;
     }
     if (newPassword !== confirmPassword) {
-      Alert.alert('Erreur', 'Les nouveaux mots de passe ne correspondent pas');
+      Alert.alert(t('common.error'), t('shared.settings.passwordMismatch'));
       return;
     }
     setIsChangingPassword(true);
     try {
       await api.changePassword(currentPassword, newPassword);
-      Alert.alert('Succès', 'Mot de passe modifié avec succès');
+      Alert.alert(t('common.success'), t('shared.settings.passwordChanged'));
       setShowPasswordForm(false);
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
     } catch (error: any) {
-      const message = error.response?.data?.error || 'Impossible de modifier le mot de passe';
-      Alert.alert('Erreur', message);
+      const message = error.response?.data?.error || t('shared.settings.passwordError');
+      Alert.alert(t('common.error'), message);
     } finally {
       setIsChangingPassword(false);
     }
@@ -52,28 +57,24 @@ export function SettingsScreen() {
   };
 
   const handleRateApp = () => {
-    Alert.alert('Merci !', 'La fonctionnalité sera disponible lors du lancement sur les stores.');
+    Alert.alert(t('common.thanks'), t('shared.settings.rateAppMessage'));
   };
 
-  const handlePrivacyPolicy = () => {
-    Alert.alert('Politique de confidentialité', 'Sera disponible prochainement sur notre site web.');
-  };
-
-  const handleTerms = () => {
-    Alert.alert('Conditions d\'utilisation', 'Seront disponibles prochainement sur notre site web.');
+  const showLanguagePicker = () => {
+    setShowLanguageModal(true);
   };
 
   const handleDeleteAccount = () => {
     Alert.alert(
-      'Supprimer mon compte',
-      'Cette action est irréversible. Toutes vos données seront supprimées.',
+      t('shared.settings.deleteAccount'),
+      t('shared.settings.deleteAccountConfirm'),
       [
-        { text: 'Annuler', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Supprimer',
+          text: t('common.delete'),
           style: 'destructive',
           onPress: () => {
-            Alert.alert('Info', 'Contactez support@hopdrop.fr pour supprimer votre compte.');
+            Alert.alert(t('common.info'), t('shared.settings.deleteAccountInfo'));
           },
         },
       ]
@@ -82,14 +83,28 @@ export function SettingsScreen() {
 
   return (
     <ScrollView style={styles.container}>
-      {/* Notifications Section */}
+      {/* Language Section */}
       <Text variant="titleSmall" style={styles.sectionTitle}>
-        NOTIFICATIONS
+        {t('shared.settings.language')}
       </Text>
       <View style={styles.section}>
         <List.Item
-          title="Notifications push"
-          description="Recevoir des alertes sur les missions et colis"
+          title={t('shared.settings.selectLanguage')}
+          description={languageLabels[language]}
+          left={(props) => <List.Icon {...props} icon="translate" />}
+          right={(props) => <List.Icon {...props} icon="chevron-right" />}
+          onPress={showLanguagePicker}
+        />
+      </View>
+
+      {/* Notifications Section */}
+      <Text variant="titleSmall" style={styles.sectionTitle}>
+        {t('shared.settings.notifications')}
+      </Text>
+      <View style={styles.section}>
+        <List.Item
+          title={t('shared.settings.pushNotifs')}
+          description={t('shared.settings.pushNotifsDesc')}
           left={(props) => <List.Icon {...props} icon="bell" />}
           right={() => (
             <Switch value={notifications} onValueChange={setNotifications} />
@@ -97,8 +112,8 @@ export function SettingsScreen() {
         />
         <Divider />
         <List.Item
-          title="Emails"
-          description="Recevoir des récapitulatifs par email"
+          title={t('shared.settings.emails')}
+          description={t('shared.settings.emailsDesc')}
           left={(props) => <List.Icon {...props} icon="email" />}
           right={() => <Switch value={true} disabled />}
         />
@@ -106,12 +121,12 @@ export function SettingsScreen() {
 
       {/* Privacy Section */}
       <Text variant="titleSmall" style={styles.sectionTitle}>
-        CONFIDENTIALITÉ
+        {t('shared.settings.privacy')}
       </Text>
       <View style={styles.section}>
         <List.Item
-          title="Partage de localisation"
-          description="Permettre le suivi en temps réel pour les missions"
+          title={t('shared.settings.locationSharing')}
+          description={t('shared.settings.locationSharingDesc')}
           left={(props) => <List.Icon {...props} icon="map-marker" />}
           right={() => (
             <Switch value={locationSharing} onValueChange={setLocationSharing} />
@@ -119,27 +134,41 @@ export function SettingsScreen() {
         />
         <Divider />
         <List.Item
-          title="Politique de confidentialité"
-          left={(props) => <List.Icon {...props} icon="shield-lock" />}
+          title={t('shared.settings.cgu')}
+          left={(props) => <List.Icon {...props} icon="file-document" />}
           right={(props) => <List.Icon {...props} icon="chevron-right" />}
-          onPress={handlePrivacyPolicy}
+          onPress={() => navigation.navigate('Legal', { docType: 'cgu' })}
         />
         <Divider />
         <List.Item
-          title="Conditions d'utilisation"
-          left={(props) => <List.Icon {...props} icon="file-document" />}
+          title={t('shared.settings.cgv')}
+          left={(props) => <List.Icon {...props} icon="file-document-outline" />}
           right={(props) => <List.Icon {...props} icon="chevron-right" />}
-          onPress={handleTerms}
+          onPress={() => navigation.navigate('Legal', { docType: 'cgv' })}
+        />
+        <Divider />
+        <List.Item
+          title={t('shared.settings.privacyPolicy')}
+          left={(props) => <List.Icon {...props} icon="shield-lock" />}
+          right={(props) => <List.Icon {...props} icon="chevron-right" />}
+          onPress={() => navigation.navigate('Legal', { docType: 'confidentialite' })}
+        />
+        <Divider />
+        <List.Item
+          title={t('shared.settings.legalNotices')}
+          left={(props) => <List.Icon {...props} icon="information" />}
+          right={(props) => <List.Icon {...props} icon="chevron-right" />}
+          onPress={() => navigation.navigate('Legal', { docType: 'mentions' })}
         />
       </View>
 
       {/* Support Section */}
       <Text variant="titleSmall" style={styles.sectionTitle}>
-        SUPPORT
+        {t('shared.settings.support')}
       </Text>
       <View style={styles.section}>
         <List.Item
-          title="Contacter le support"
+          title={t('shared.settings.contactSupport')}
           description="support@hopdrop.fr"
           left={(props) => <List.Icon {...props} icon="help-circle" />}
           right={(props) => <List.Icon {...props} icon="chevron-right" />}
@@ -147,8 +176,8 @@ export function SettingsScreen() {
         />
         <Divider />
         <List.Item
-          title="Noter l'application"
-          description="Donnez-nous 5 étoiles !"
+          title={t('shared.settings.rateApp')}
+          description={t('shared.settings.rateAppDesc')}
           left={(props) => <List.Icon {...props} icon="star" />}
           right={(props) => <List.Icon {...props} icon="chevron-right" />}
           onPress={handleRateApp}
@@ -157,11 +186,11 @@ export function SettingsScreen() {
 
       {/* Account Section */}
       <Text variant="titleSmall" style={styles.sectionTitle}>
-        COMPTE
+        {t('shared.settings.account')}
       </Text>
       <View style={styles.section}>
         <List.Item
-          title="Changer le mot de passe"
+          title={t('shared.settings.changePassword')}
           left={(props) => <List.Icon {...props} icon="lock" />}
           right={(props) => <List.Icon {...props} icon={showPasswordForm ? 'chevron-up' : 'chevron-right'} />}
           onPress={() => setShowPasswordForm(!showPasswordForm)}
@@ -169,7 +198,7 @@ export function SettingsScreen() {
         {showPasswordForm && (
           <View style={styles.passwordForm}>
             <TextInput
-              label="Mot de passe actuel"
+              label={t('shared.settings.currentPassword')}
               value={currentPassword}
               onChangeText={setCurrentPassword}
               secureTextEntry
@@ -177,7 +206,7 @@ export function SettingsScreen() {
               style={styles.passwordInput}
             />
             <TextInput
-              label="Nouveau mot de passe"
+              label={t('shared.settings.newPassword')}
               value={newPassword}
               onChangeText={setNewPassword}
               secureTextEntry
@@ -185,7 +214,7 @@ export function SettingsScreen() {
               style={styles.passwordInput}
             />
             <TextInput
-              label="Confirmer le nouveau mot de passe"
+              label={t('shared.settings.confirmNewPassword')}
               value={confirmPassword}
               onChangeText={setConfirmPassword}
               secureTextEntry
@@ -199,15 +228,13 @@ export function SettingsScreen() {
               disabled={isChangingPassword}
               style={styles.passwordButton}
             >
-              Modifier le mot de passe
+              {t('shared.settings.changePasswordBtn')}
             </Button>
           </View>
         )}
-
-
         <Divider />
         <List.Item
-          title="Supprimer mon compte"
+          title={t('shared.settings.deleteAccount')}
           titleStyle={{ color: colors.error }}
           left={(props) => <List.Icon {...props} icon="delete" color={colors.error} />}
           onPress={handleDeleteAccount}
@@ -217,12 +244,32 @@ export function SettingsScreen() {
       {/* App Info */}
       <View style={styles.appInfo}>
         <Text variant="bodySmall" style={styles.appInfoText}>
-          HopDrop v1.0.0
+          {t('common.version')}
         </Text>
         <Text variant="bodySmall" style={styles.appInfoText}>
-          © 2025 HopDrop. Tous droits réservés.
+          {t('common.copyright')}
         </Text>
       </View>
+
+      {/* Modal sélection de langue */}
+      <Modal visible={showLanguageModal} transparent animationType="fade" onRequestClose={() => setShowLanguageModal(false)}>
+        <TouchableOpacity style={styles.langModalOverlay} activeOpacity={1} onPress={() => setShowLanguageModal(false)}>
+          <View style={styles.langModalContent}>
+            <Text style={styles.langModalTitle}>{t('shared.settings.selectLanguage')}</Text>
+            {(Object.keys(languageLabels) as Language[]).map((lang) => (
+              <TouchableOpacity
+                key={lang}
+                style={styles.langModalOption}
+                onPress={() => { setLanguage(lang); setShowLanguageModal(false); }}
+              >
+                <Text style={[styles.langModalOptionText, lang === language && { color: colors.primary, fontWeight: '700' }]}>
+                  {languageLabels[lang]}{lang === language ? ' ✓' : ''}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </ScrollView>
   );
 }
@@ -259,5 +306,35 @@ const styles = StyleSheet.create({
   },
   appInfoText: {
     color: colors.onSurfaceVariant,
+  },
+  langModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  langModalContent: {
+    backgroundColor: 'white',
+    borderRadius: 16,
+    padding: 20,
+    width: '80%',
+    maxWidth: 320,
+  },
+  langModalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1F2937',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  langModalOption: {
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+  },
+  langModalOptionText: {
+    fontSize: 16,
+    color: '#374151',
+    textAlign: 'center',
   },
 });

@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { View, StyleSheet, FlatList, RefreshControl, Alert } from 'react-native';
 import { Text, Card, Chip, Portal, Modal, TextInput, Button } from 'react-native-paper';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -11,19 +11,10 @@ import { api } from '../../services/api';
 import { VendorStackParamList } from '../../navigation/types';
 import { colors, spacing } from '../../theme';
 import { Parcel, ParcelStatus } from '../../types';
+import { useTranslation } from '../../i18n/i18nContext';
 
 type VendorHistoryScreenProps = {
   navigation: NativeStackNavigationProp<VendorStackParamList, 'VendorHistory'>;
-};
-
-const statusConfig: Record<ParcelStatus, { label: string; color: string; icon: string }> = {
-  PENDING: { label: 'En attente', color: colors.tertiary, icon: 'clock-outline' },
-  ACCEPTED: { label: 'Accepté', color: colors.primary, icon: 'check' },
-  PACKAGING_CONFIRMED: { label: 'Emballage validé', color: '#3B82F6', icon: 'package-check' },
-  PICKED_UP: { label: 'Récupéré', color: colors.secondary, icon: 'package-variant' },
-  DELIVERED: { label: 'Livré', color: '#10B981', icon: 'check-all' },
-  CANCELLED: { label: 'Annulé', color: colors.error, icon: 'close-circle' },
-  EXPIRED: { label: 'Expiré', color: colors.onSurfaceVariant, icon: 'clock-alert' },
 };
 
 interface HistoryParcel extends Parcel {
@@ -32,18 +23,29 @@ interface HistoryParcel extends Parcel {
 }
 
 export function VendorHistoryScreen({ navigation }: VendorHistoryScreenProps) {
+  const { t } = useTranslation();
   const [parcels, setParcels] = useState<HistoryParcel[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
 
-  // États pour le modal de pourboire
+  // Tip modal state
   const [showTipModal, setShowTipModal] = useState(false);
   const [selectedParcelForTip, setSelectedParcelForTip] = useState<HistoryParcel | null>(null);
   const [tipAmount, setTipAmount] = useState('');
   const [tipMessage, setTipMessage] = useState('');
   const [isSendingTip, setIsSendingTip] = useState(false);
+
+  const statusConfig = useMemo((): Record<ParcelStatus, { label: string; color: string; icon: string }> => ({
+    PENDING: { label: t('status.PENDING'), color: colors.tertiary, icon: 'clock-outline' },
+    ACCEPTED: { label: t('status.ACCEPTED'), color: colors.primary, icon: 'check' },
+    PACKAGING_CONFIRMED: { label: t('status.PACKAGING_CONFIRMED'), color: '#3B82F6', icon: 'package-check' },
+    PICKED_UP: { label: t('status.PICKED_UP'), color: colors.secondary, icon: 'package-variant' },
+    DELIVERED: { label: t('status.DELIVERED'), color: '#10B981', icon: 'check-all' },
+    CANCELLED: { label: t('status.CANCELLED'), color: colors.error, icon: 'close-circle' },
+    EXPIRED: { label: t('status.EXPIRED'), color: colors.onSurfaceVariant, icon: 'clock-alert' },
+  }), [t]);
 
   useFocusEffect(
     useCallback(() => {
@@ -55,7 +57,6 @@ export function VendorHistoryScreen({ navigation }: VendorHistoryScreenProps) {
     try {
       const { parcels: newParcels, pagination } = await api.getParcelHistory(pageNum, 10);
 
-      // Vérifier pour chaque colis s'il a un pourboire
       const parcelsWithTipStatus = await Promise.all(
         newParcels.map(async (parcel) => {
           if (parcel.status === 'DELIVERED') {
@@ -109,12 +110,12 @@ export function VendorHistoryScreen({ navigation }: VendorHistoryScreenProps) {
 
     const amount = parseFloat(tipAmount);
     if (isNaN(amount) || amount <= 0) {
-      Alert.alert('Erreur', 'Veuillez entrer un montant valide');
+      Alert.alert(t('common.error'), t('vendor.history.tipInvalidAmount'));
       return;
     }
 
     if (amount > 50) {
-      Alert.alert('Erreur', 'Le pourboire ne peut pas dépasser 50€');
+      Alert.alert(t('common.error'), t('vendor.history.tipMaxExceeded'));
       return;
     }
 
@@ -123,9 +124,9 @@ export function VendorHistoryScreen({ navigation }: VendorHistoryScreenProps) {
       await api.createTip(selectedParcelForTip.id, amount, tipMessage || undefined);
 
       Alert.alert(
-        '✅ Pourboire envoyé !',
-        `Merci d'avoir laissé ${amount.toFixed(2)}€ de pourboire au livreur !`,
-        [{ text: 'OK' }]
+        t('vendor.history.tipSent'),
+        t('vendor.history.tipSentMessage').replace('{amount}', amount.toFixed(2)),
+        [{ text: t('common.ok') }]
       );
 
       setShowTipModal(false);
@@ -133,12 +134,11 @@ export function VendorHistoryScreen({ navigation }: VendorHistoryScreenProps) {
       setTipAmount('');
       setTipMessage('');
 
-      // Marquer le colis comme ayant un pourboire
       setParcels(parcels.map(p =>
         p.id === selectedParcelForTip.id ? { ...p, hasTip: true } : p
       ));
     } catch (error: any) {
-      Alert.alert('Erreur', error.message || 'Impossible d\'envoyer le pourboire');
+      Alert.alert(t('common.error'), error.message || t('vendor.history.tipError'));
     } finally {
       setIsSendingTip(false);
     }
@@ -206,7 +206,7 @@ export function VendorHistoryScreen({ navigation }: VendorHistoryScreenProps) {
                     dropoffName: item.dropoffName,
                   })}
                 >
-                  Laisser un avis
+                  {t('vendor.history.leaveReview')}
                 </Chip>
               )}
 
@@ -231,7 +231,7 @@ export function VendorHistoryScreen({ navigation }: VendorHistoryScreenProps) {
                   textStyle={styles.tipChipText}
                   onPress={() => handleOpenTipModal(item)}
                 >
-                  Pourboire
+                  {t('vendor.history.tip')}
                 </Chip>
               )}
 
@@ -243,7 +243,7 @@ export function VendorHistoryScreen({ navigation }: VendorHistoryScreenProps) {
                   textStyle={styles.tipGivenChipText}
                   disabled
                 >
-                  Pourboire donné
+                  {t('vendor.history.tipGiven')}
                 </Chip>
               )}
             </View>
@@ -263,7 +263,7 @@ export function VendorHistoryScreen({ navigation }: VendorHistoryScreenProps) {
   };
 
   if (isLoading && parcels.length === 0) {
-    return <LoadingScreen message="Chargement de l'historique..." />;
+    return <LoadingScreen message={t('vendor.history.loadingHistory')} />;
   }
 
   return (
@@ -281,8 +281,8 @@ export function VendorHistoryScreen({ navigation }: VendorHistoryScreenProps) {
         ListEmptyComponent={
           <EmptyState
             icon="history"
-            title="Aucun historique"
-            description="Vos colis livrés et annulés apparaîtront ici"
+            title={t('vendor.history.empty')}
+            description={t('vendor.history.emptyDesc')}
           />
         }
       />
@@ -295,14 +295,14 @@ export function VendorHistoryScreen({ navigation }: VendorHistoryScreenProps) {
         >
           <View style={styles.modalContent}>
             <Text variant="headlineSmall" style={styles.modalTitle}>
-              Laisser un pourboire
+              {t('vendor.history.tipTitle')}
             </Text>
 
             {selectedParcelForTip && (
               <View style={styles.modalParcelInfo}>
                 <MaterialCommunityIcons name="package-variant" size={20} color={colors.primary} />
                 <Text variant="bodyMedium">
-                  Livraison vers {selectedParcelForTip.dropoffName}
+                  {selectedParcelForTip.dropoffName}
                 </Text>
               </View>
             )}
@@ -311,35 +311,35 @@ export function VendorHistoryScreen({ navigation }: VendorHistoryScreenProps) {
               <View style={styles.modalCarrierInfo}>
                 <MaterialCommunityIcons name="account" size={20} color={colors.secondary} />
                 <Text variant="bodyMedium">
-                  Livreur: {selectedParcelForTip.assignedCarrier.firstName}
+                  {t('vendor.tracking.carrierLabel')}: {selectedParcelForTip.assignedCarrier.firstName}
                 </Text>
               </View>
             )}
 
             <TextInput
-              label="Montant (€)"
+              label={t('vendor.history.tipAmount')}
               value={tipAmount}
               onChangeText={setTipAmount}
               keyboardType="decimal-pad"
               mode="outlined"
               style={styles.input}
-              placeholder="Ex: 5.00"
+              placeholder={t('vendor.history.tipAmountPlaceholder')}
               left={<TextInput.Icon icon="cash" />}
             />
 
             <Text variant="bodySmall" style={styles.helpText}>
-              Montant maximum: 50€
+              {t('vendor.history.tipMaxAmount')}
             </Text>
 
             <TextInput
-              label="Message (optionnel)"
+              label={t('vendor.history.tipMessage')}
               value={tipMessage}
               onChangeText={setTipMessage}
               mode="outlined"
               multiline
               numberOfLines={3}
               style={styles.input}
-              placeholder="Merci pour la livraison !"
+              placeholder={t('vendor.history.tipMessagePlaceholder')}
               left={<TextInput.Icon icon="message-text" />}
             />
 
@@ -350,7 +350,7 @@ export function VendorHistoryScreen({ navigation }: VendorHistoryScreenProps) {
                 style={styles.modalButton}
                 disabled={isSendingTip}
               >
-                Annuler
+                {t('common.cancel')}
               </Button>
               <Button
                 mode="contained"
@@ -359,7 +359,7 @@ export function VendorHistoryScreen({ navigation }: VendorHistoryScreenProps) {
                 loading={isSendingTip}
                 disabled={isSendingTip || !tipAmount}
               >
-                Envoyer
+                {t('common.send')}
               </Button>
             </View>
           </View>

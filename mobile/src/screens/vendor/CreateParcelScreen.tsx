@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, TouchableOpacity, Image, Alert } from 'react-native';
 import { Text, Button, Card, RadioButton, Snackbar, ActivityIndicator, Chip, Modal, Portal, TextInput, Checkbox } from 'react-native-paper';
 import { useForm, Controller } from 'react-hook-form';
@@ -17,6 +17,7 @@ import { Address, ParcelSize, Carrier, PickupMode } from '../../types';
 import { colors, spacing, sizes, carriers } from '../../theme';
 import { AddressAutocomplete } from '../../components/forms/AddressAutocomplete';
 import ArticleAnalysisModal from '../../components/vendor/ArticleAnalysisModal';
+import { useTranslation } from '../../i18n/i18nContext';
 
 const createParcelSchema = z.object({
   pickupAddressId: z.string().min(1, 'Sélectionnez une adresse'),
@@ -51,18 +52,18 @@ type CreateParcelScreenProps = {
   navigation: NativeStackNavigationProp<VendorStackParamList, 'CreateParcel'>;
 };
 
-// Catégories d'articles détectables par l'IA
-const ITEM_CATEGORIES: Record<string, { label: string; icon: string; suggestedSize: ParcelSize }> = {
-  shoes: { label: 'Chaussures', icon: 'shoe-sneaker', suggestedSize: 'MEDIUM' },
-  clothing: { label: 'Vêtements', icon: 'tshirt-crew', suggestedSize: 'SMALL' },
-  electronics: { label: 'Électronique', icon: 'cellphone', suggestedSize: 'SMALL' },
-  book: { label: 'Livre', icon: 'book-open-variant', suggestedSize: 'SMALL' },
-  bag: { label: 'Sac', icon: 'bag-personal', suggestedSize: 'MEDIUM' },
-  jewelry: { label: 'Bijoux/Accessoires', icon: 'diamond-stone', suggestedSize: 'SMALL' },
-  toy: { label: 'Jouet', icon: 'toy-brick', suggestedSize: 'MEDIUM' },
-  home: { label: 'Décoration', icon: 'home', suggestedSize: 'LARGE' },
-  sport: { label: 'Sport', icon: 'basketball', suggestedSize: 'LARGE' },
-  other: { label: 'Autre', icon: 'package-variant', suggestedSize: 'MEDIUM' },
+// Category icons and suggested sizes (labels are translated inside component)
+const ITEM_CATEGORY_META: Record<string, { icon: string; suggestedSize: ParcelSize }> = {
+  shoes: { icon: 'shoe-sneaker', suggestedSize: 'MEDIUM' },
+  clothing: { icon: 'tshirt-crew', suggestedSize: 'SMALL' },
+  electronics: { icon: 'cellphone', suggestedSize: 'SMALL' },
+  book: { icon: 'book-open-variant', suggestedSize: 'SMALL' },
+  bag: { icon: 'bag-personal', suggestedSize: 'MEDIUM' },
+  jewelry: { icon: 'diamond-stone', suggestedSize: 'SMALL' },
+  toy: { icon: 'toy-brick', suggestedSize: 'MEDIUM' },
+  home: { icon: 'home', suggestedSize: 'LARGE' },
+  sport: { icon: 'basketball', suggestedSize: 'LARGE' },
+  other: { icon: 'package-variant', suggestedSize: 'MEDIUM' },
 };
 
 // Générer les créneaux horaires disponibles
@@ -74,28 +75,10 @@ const generateTimeSlots = () => {
   return slots;
 };
 
-// Générer les dates disponibles (aujourd'hui + 7 jours)
-const generateAvailableDates = () => {
-  const dates = [];
-  const today = new Date();
-  
-  for (let i = 0; i < 7; i++) {
-    const date = new Date(today);
-    date.setDate(today.getDate() + i);
-    
-    const dayNames = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'];
-    const monthNames = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc'];
-    
-    dates.push({
-      value: date.toISOString().split('T')[0],
-      label: i === 0 ? "Aujourd'hui" : i === 1 ? 'Demain' : dayNames[date.getDay()],
-      sublabel: `${date.getDate()} ${monthNames[date.getMonth()]}`,
-    });
-  }
-  return dates;
-};
+// generateAvailableDates is now inside the component (needs t() for translations)
 
 export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
+  const { t } = useTranslation();
   const { createParcel, isLoading, error, clearError } = useParcelStore();
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [step, setStep] = useState(1);
@@ -116,9 +99,68 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
   const [showAnalysisModal, setShowAnalysisModal] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
   const [articleImageUri, setArticleImageUri] = useState<string | null>(null);
-  
+
   const timeSlots = generateTimeSlots();
-  const availableDates = generateAvailableDates();
+
+  // Translated item categories (memoized)
+  const ITEM_CATEGORIES = useMemo(() => {
+    const categoryKeys: Record<string, string> = {
+      shoes: 'vendor.createParcel.categoryShoes',
+      clothing: 'vendor.createParcel.categoryClothing',
+      electronics: 'vendor.createParcel.categoryElectronics',
+      book: 'vendor.createParcel.categoryBook',
+      bag: 'vendor.createParcel.categoryBag',
+      jewelry: 'vendor.createParcel.categoryJewelry',
+      toy: 'vendor.createParcel.categoryToy',
+      home: 'vendor.createParcel.categoryHome',
+      sport: 'vendor.createParcel.categorySport',
+      other: 'vendor.createParcel.categoryOther',
+    };
+    const result: Record<string, { label: string; icon: string; suggestedSize: ParcelSize }> = {};
+    for (const [key, meta] of Object.entries(ITEM_CATEGORY_META)) {
+      result[key] = { label: t(categoryKeys[key]), ...meta };
+    }
+    return result;
+  }, [t]);
+
+  // Translated available dates (memoized)
+  const availableDates = useMemo(() => {
+    const dates = [];
+    const today = new Date();
+    const dayNames = [
+      t('vendor.createParcel.daySun'),
+      t('vendor.createParcel.dayMon'),
+      t('vendor.createParcel.dayTue'),
+      t('vendor.createParcel.dayWed'),
+      t('vendor.createParcel.dayThu'),
+      t('vendor.createParcel.dayFri'),
+      t('vendor.createParcel.daySat'),
+    ];
+    const monthNames = [
+      t('vendor.createParcel.monthJan'),
+      t('vendor.createParcel.monthFeb'),
+      t('vendor.createParcel.monthMar'),
+      t('vendor.createParcel.monthApr'),
+      t('vendor.createParcel.monthMay'),
+      t('vendor.createParcel.monthJun'),
+      t('vendor.createParcel.monthJul'),
+      t('vendor.createParcel.monthAug'),
+      t('vendor.createParcel.monthSep'),
+      t('vendor.createParcel.monthOct'),
+      t('vendor.createParcel.monthNov'),
+      t('vendor.createParcel.monthDec'),
+    ];
+    for (let i = 0; i < 7; i++) {
+      const date = new Date(today);
+      date.setDate(today.getDate() + i);
+      dates.push({
+        value: date.toISOString().split('T')[0],
+        label: i === 0 ? t('vendor.createParcel.today') : i === 1 ? t('vendor.createParcel.tomorrow') : dayNames[date.getDay()],
+        sublabel: `${date.getDate()} ${monthNames[date.getMonth()]}`,
+      });
+    }
+    return dates;
+  }, [t]);
 
   const {
     control,
@@ -195,7 +237,7 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
   const takePhoto = async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Permission refusée', 'Autorisez l\'accès à la caméra pour prendre une photo');
+      Alert.alert(t('common.permissionDenied'), t('common.cameraPermission'));
       return;
     }
 
@@ -218,7 +260,7 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
   const pickPhoto = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Permission refusée', 'Autorisez l\'accès à la galerie');
+      Alert.alert(t('common.permissionDenied'), t('common.galleryPermission'));
       return;
     }
 
@@ -240,7 +282,7 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
   // Créer une adresse temporaire
   const handleCreateTempAddress = async () => {
     if (!tempAddress.street || !tempAddress.city || !tempAddress.postalCode) {
-      Alert.alert('Erreur', 'Veuillez remplir tous les champs');
+      Alert.alert(t('common.error'), t('vendor.createParcel.fillAllFields'));
       return;
     }
 
@@ -255,7 +297,7 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
       setShowTempAddressModal(false);
       setTempAddress({ label: 'Adresse temporaire', street: '', city: '', postalCode: '', latitude: 0, longitude: 0 });
     } catch (e) {
-      Alert.alert('Erreur', 'Impossible de créer l\'adresse');
+      Alert.alert(t('common.error'), t('vendor.createParcel.errorCreateAddress'));
     }
   };
 
@@ -356,12 +398,12 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
 
       // 4. Afficher confirmation et naviguer
       Alert.alert(
-        '✅ Colis créé !',
-        'Votre paiement a été pré-autorisé. Il sera débité uniquement à la confirmation de livraison.',
+        t('vendor.createParcel.successTitle'),
+        t('vendor.createParcel.successMessage'),
         [{ text: 'OK', onPress: () => navigation.replace('ParcelDetail', { parcelId: parcel.id }) }]
       );
     } catch (e: any) {
-      Alert.alert('Erreur', e.message || 'Une erreur est survenue');
+      Alert.alert(t('common.error'), e.message || t('vendor.createParcel.errorGeneric'));
     }
   };
 
@@ -442,7 +484,7 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
           name="pickupInstructions"
           render={({ field: { onChange, value } }) => (
             <TextInput
-              label="Informations complémentaires (optionnel)"
+              label={t('vendor.createParcel.complementaryInfo')}
               value={value}
               onChangeText={onChange}
               mode="outlined"
@@ -968,7 +1010,7 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
         <FormInput
           control={control}
           name="description"
-          label="Note pour le livreur (optionnel)"
+          label={t('vendor.createParcel.noteForDriver')}
           placeholder="Ex: Sonner 2 fois, demander Pierre..."
           multiline
           numberOfLines={2}
@@ -1062,7 +1104,7 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
           <AddressAutocomplete
             value={tempAddress.street}
             onAddressSelect={handleTempAddressSelect}
-            label="Rechercher une adresse"
+            label={t('vendor.createParcel.searchAddress')}
             placeholder="Tapez une adresse..."
           />
         </View>

@@ -4,6 +4,7 @@ import { Modal, Portal, Text, Button, IconButton } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { colors, spacing } from '../../theme';
+import { useTranslation } from '../../i18n/i18nContext';
 
 interface PackagingConfirmationModalProps {
   visible: boolean;
@@ -20,12 +21,13 @@ export function PackagingConfirmationModal({
   onDismiss,
   isLoading = false,
 }: PackagingConfirmationModalProps) {
+  const { t } = useTranslation();
   const [photoUri, setPhotoUri] = useState<string | null>(null);
 
   const takePhoto = async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Permission requise', 'L\'accès à la caméra est nécessaire pour prendre une photo.');
+      Alert.alert(t('common.cameraRequired'), t('common.cameraRequiredDesc'));
       return;
     }
 
@@ -67,10 +69,10 @@ export function PackagingConfirmationModal({
             <MaterialCommunityIcons name="package-variant-closed" size={32} color={colors.primary} />
           </View>
           <Text variant="headlineSmall" style={styles.title}>
-            Confirmation d'emballage
+            {t('carrier.packaging.title')}
           </Text>
           <Text variant="bodyMedium" style={styles.subtitle}>
-            Prenez une photo du colis emballé pour validation par le client
+            {t('carrier.packaging.subtitle')}
           </Text>
         </View>
 
@@ -88,14 +90,14 @@ export function PackagingConfirmationModal({
               />
               <View style={styles.photoLabel}>
                 <MaterialCommunityIcons name="camera-check" size={16} color={colors.onPrimary} />
-                <Text style={styles.photoLabelText}>Photo prête à envoyer</Text>
+                <Text style={styles.photoLabelText}>{t('carrier.packaging.photoReady')}</Text>
               </View>
             </View>
           ) : (
             <TouchableOpacity style={styles.photoPlaceholder} onPress={takePhoto}>
               <MaterialCommunityIcons name="camera-plus" size={48} color={colors.primary} />
               <Text variant="bodyMedium" style={styles.placeholderText}>
-                Appuyez pour prendre une photo
+                {t('carrier.packaging.takePhoto')}
               </Text>
             </TouchableOpacity>
           )}
@@ -105,7 +107,7 @@ export function PackagingConfirmationModal({
         <View style={styles.instructionsBox}>
           <MaterialCommunityIcons name="information-outline" size={20} color={colors.primary} />
           <Text variant="bodySmall" style={styles.instructionsText}>
-            Assurez-vous que l'article est bien visible et correctement emballé. Le client devra confirmer avant que vous puissiez récupérer le colis.
+            {t('carrier.packaging.instructions')}
           </Text>
         </View>
 
@@ -118,7 +120,7 @@ export function PackagingConfirmationModal({
               icon="camera"
               style={styles.cameraButton}
             >
-              Prendre une photo
+              {t('carrier.delivery.takePhoto')}
             </Button>
           ) : (
             <Button
@@ -129,7 +131,7 @@ export function PackagingConfirmationModal({
               icon="check-circle"
               style={styles.confirmButton}
             >
-              Envoyer au client
+              {t('carrier.packaging.sendToClient')}
             </Button>
           )}
 
@@ -139,7 +141,7 @@ export function PackagingConfirmationModal({
             disabled={isLoading}
             style={styles.cancelButton}
           >
-            Annuler
+            {t('common.cancel')}
           </Button>
         </View>
       </Modal>

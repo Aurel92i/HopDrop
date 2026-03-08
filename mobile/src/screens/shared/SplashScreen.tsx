@@ -8,6 +8,7 @@ import {
 } from 'react-native';
 import { Text } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useTranslation } from '../../i18n/i18nContext';
 
 const { width, height } = Dimensions.get('window');
 
@@ -16,6 +17,8 @@ interface SplashScreenProps {
 }
 
 export function SplashScreen({ onFinish }: SplashScreenProps) {
+  const { t } = useTranslation();
+
   // Animations
   const logoScale = useRef(new Animated.Value(0)).current;
   const logoRotate = useRef(new Animated.Value(0)).current;
@@ -26,13 +29,11 @@ export function SplashScreen({ onFinish }: SplashScreenProps) {
   const dotScale3 = useRef(new Animated.Value(0)).current;
   const backgroundOpacity = useRef(new Animated.Value(1)).current;
   const containerTranslateY = useRef(new Animated.Value(0)).current;
-  
-  // Animation du cercle de fond
+
   const circleScale = useRef(new Animated.Value(0.5)).current;
   const circleOpacity = useRef(new Animated.Value(0.3)).current;
 
   useEffect(() => {
-    // Animation du cercle de fond en boucle
     Animated.loop(
       Animated.sequence([
         Animated.parallel([
@@ -62,9 +63,7 @@ export function SplashScreen({ onFinish }: SplashScreenProps) {
       ])
     ).start();
 
-    // Séquence d'animation principale
     const animationSequence = Animated.sequence([
-      // 1. Logo apparaît avec effet de rebond
       Animated.parallel([
         Animated.spring(logoScale, {
           toValue: 1,
@@ -79,14 +78,12 @@ export function SplashScreen({ onFinish }: SplashScreenProps) {
         }),
       ]),
 
-      // 2. Texte "HopDrop" apparaît
       Animated.timing(textOpacity, {
         toValue: 1,
         duration: 400,
         useNativeDriver: true,
       }),
 
-      // 3. Animation des points de chargement
       Animated.stagger(150, [
         Animated.spring(dotScale1, {
           toValue: 1,
@@ -105,17 +102,14 @@ export function SplashScreen({ onFinish }: SplashScreenProps) {
         }),
       ]),
 
-      // 4. Slogan apparaît
       Animated.timing(sloganOpacity, {
         toValue: 1,
         duration: 500,
         useNativeDriver: true,
       }),
 
-      // 5. Pause
       Animated.delay(800),
 
-      // 6. Transition de sortie
       Animated.parallel([
         Animated.timing(containerTranslateY, {
           toValue: -50,
@@ -135,7 +129,6 @@ export function SplashScreen({ onFinish }: SplashScreenProps) {
     });
   }, []);
 
-  // Animation de pulsation continue pour les dots
   useEffect(() => {
     const pulseAnimation = Animated.loop(
       Animated.sequence([
@@ -182,23 +175,21 @@ export function SplashScreen({ onFinish }: SplashScreenProps) {
       ]}
     >
       <StatusBar barStyle="light-content" backgroundColor="#1e40af" />
-      
-      {/* Cercles décoratifs animés en arrière-plan */}
+
       <View style={styles.backgroundCircles}>
         <View style={[styles.circle, styles.circle1]} />
         <View style={[styles.circle, styles.circle2]} />
-        <Animated.View 
+        <Animated.View
           style={[
             styles.pulsingCircle,
             {
               transform: [{ scale: circleScale }],
               opacity: circleOpacity,
             }
-          ]} 
+          ]}
         />
       </View>
 
-      {/* Logo animé */}
       <Animated.View
         style={[
           styles.logoContainer,
@@ -217,7 +208,6 @@ export function SplashScreen({ onFinish }: SplashScreenProps) {
             color="#1e40af"
           />
         </View>
-        {/* Petit badge de livraison */}
         <View style={styles.deliveryBadge}>
           <MaterialCommunityIcons
             name="bike-fast"
@@ -227,12 +217,10 @@ export function SplashScreen({ onFinish }: SplashScreenProps) {
         </View>
       </Animated.View>
 
-      {/* Nom de l'app */}
       <Animated.View style={{ opacity: textOpacity }}>
         <Text style={styles.appName}>HopDrop</Text>
       </Animated.View>
 
-      {/* Points de chargement animés */}
       <View style={styles.dotsContainer}>
         <Animated.View
           style={[
@@ -254,20 +242,18 @@ export function SplashScreen({ onFinish }: SplashScreenProps) {
         />
       </View>
 
-      {/* Slogan */}
       <Animated.View style={[styles.sloganContainer, { opacity: sloganOpacity }]}>
         <Text style={styles.slogan}>
-          Vos colis livrés en un hop ! 🚀
+          {t('shared.splash.slogan')} 🚀
         </Text>
         <Text style={styles.subSlogan}>
-          La livraison collaborative entre voisins
+          {t('shared.splash.subSlogan')}
         </Text>
       </Animated.View>
 
-      {/* Footer */}
       <View style={styles.footer}>
         <Text style={styles.footerText}>
-          Livraison • Confiance • Proximité
+          {t('shared.splash.footer')}
         </Text>
       </View>
     </Animated.View>

@@ -8,6 +8,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { api } from '../../services/api';
 import { VendorStackParamList } from '../../navigation/types';
 import { colors, spacing } from '../../theme';
+import { useTranslation } from '../../i18n/i18nContext';
 
 type Props = NativeStackScreenProps<VendorStackParamList, 'Tracking'>;
 
@@ -23,6 +24,7 @@ interface CarrierLocation {
 
 export function TrackingScreen({ route }: Props) {
   const { parcelId, carrierId } = route.params;
+  const { t } = useTranslation();
   const [location, setLocation] = useState<CarrierLocation | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -34,7 +36,6 @@ export function TrackingScreen({ route }: Props) {
       setLocation(data);
       setError(null);
 
-      // Centrer la carte sur le livreur
       if (data.latitude && data.longitude && mapRef.current) {
         mapRef.current.animateToRegion({
           latitude: data.latitude,
@@ -53,7 +54,6 @@ export function TrackingScreen({ route }: Props) {
   useEffect(() => {
     fetchLocation();
 
-    // Rafraîchir toutes les 15 secondes
     const interval = setInterval(fetchLocation, 15000);
 
     return () => clearInterval(interval);
@@ -63,7 +63,7 @@ export function TrackingScreen({ route }: Props) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={styles.loadingText}>Chargement de la position...</Text>
+        <Text style={styles.loadingText}>{t('vendor.tracking.loadingPosition')}</Text>
       </View>
     );
   }
@@ -91,8 +91,8 @@ export function TrackingScreen({ route }: Props) {
               latitude: location.latitude!,
               longitude: location.longitude!,
             }}
-            title={`Livreur: ${location.carrier.firstName}`}
-            description="Position actuelle"
+            title={`${t('vendor.tracking.carrierLabel')}: ${location.carrier.firstName}`}
+            description={t('vendor.tracking.currentPosition')}
           >
             <View style={styles.markerContainer}>
               <MaterialCommunityIcons name="bike" size={24} color={colors.surface} />
@@ -103,7 +103,7 @@ export function TrackingScreen({ route }: Props) {
         <View style={styles.noLocationContainer}>
           <MaterialCommunityIcons name="map-marker-off" size={64} color={colors.onSurfaceVariant} />
           <Text variant="bodyLarge" style={styles.noLocationText}>
-            Position du livreur indisponible
+            {t('vendor.tracking.positionUnavailable')}
           </Text>
         </View>
       )}
@@ -114,13 +114,13 @@ export function TrackingScreen({ route }: Props) {
           <View style={styles.carrierInfo}>
             <MaterialCommunityIcons name="account-circle" size={40} color={colors.primary} />
             <View style={styles.carrierDetails}>
-              <Text variant="titleMedium">{location?.carrier.firstName || 'Livreur'}</Text>
+              <Text variant="titleMedium">{location?.carrier.firstName || t('vendor.tracking.carrierLabel')}</Text>
               <Text variant="bodySmall" style={styles.statusText}>
-                {hasLocation ? '🟢 Position active' : '🔴 Position indisponible'}
+                {hasLocation ? t('vendor.tracking.positionActive') : t('vendor.tracking.positionInactive')}
               </Text>
               {location?.lastUpdate && (
                 <Text variant="bodySmall" style={styles.lastUpdate}>
-                  Dernière mise à jour: {new Date(location.lastUpdate).toLocaleTimeString('fr-FR')}
+                  {t('vendor.tracking.lastUpdate')}: {new Date(location.lastUpdate).toLocaleTimeString('fr-FR')}
                 </Text>
               )}
             </View>
@@ -132,7 +132,7 @@ export function TrackingScreen({ route }: Props) {
             onPress={fetchLocation}
             style={styles.refreshButton}
           >
-            Rafraîchir
+            {t('vendor.tracking.refresh')}
           </Button>
         </Card.Content>
       </Card>

@@ -6,6 +6,7 @@ import { colors, spacing, sizes, carriers } from '../../theme';
 import { Mission, MissionStatus, Carrier, Parcel } from '../../types';
 import { CarrierPackagingModal } from './CarrierPackagingModal';
 import { DeliveryProofModal } from './DeliveryProofModal';
+import { useTranslation } from '../../i18n/i18nContext';
 
 interface CurrentMissionCardProps {
   mission: Mission;
@@ -21,14 +22,6 @@ interface CurrentMissionCardProps {
   isLoading?: boolean;
 }
 
-const statusConfig: Record<MissionStatus, { label: string; color: string; icon: string }> = {
-  ACCEPTED: { label: 'À récupérer', color: colors.primary, icon: 'package-variant' },
-  IN_PROGRESS: { label: 'En route', color: '#F59E0B', icon: 'bike' },
-  PICKED_UP: { label: 'À livrer', color: colors.secondary, icon: 'package-variant-closed' },
-  DELIVERED: { label: 'Livré', color: '#10B981', icon: 'check-all' },
-  CANCELLED: { label: 'Annulé', color: colors.error, icon: 'close-circle' },
-};
-
 export function CurrentMissionCard({
   mission,
   onPress,
@@ -42,8 +35,17 @@ export function CurrentMissionCard({
   onCancel,
   isLoading,
 }: CurrentMissionCardProps) {
+  const { t } = useTranslation();
   const parcel = mission.parcel;
   if (!parcel) return null;
+
+  const statusConfig: Record<MissionStatus, { label: string; color: string; icon: string }> = {
+    ACCEPTED: { label: t('carrier.currentMission.toPickup'), color: colors.primary, icon: 'package-variant' },
+    IN_PROGRESS: { label: t('carrier.currentMission.enRoute'), color: '#F59E0B', icon: 'bike' },
+    PICKED_UP: { label: t('carrier.currentMission.toDeliver'), color: colors.secondary, icon: 'package-variant-closed' },
+    DELIVERED: { label: t('carrier.currentMission.delivered'), color: '#10B981', icon: 'check-all' },
+    CANCELLED: { label: t('carrier.currentMission.cancelled'), color: colors.error, icon: 'close-circle' },
+  };
 
   const [showPackagingModal, setShowPackagingModal] = useState(false);
   const [showDeliveryModal, setShowDeliveryModal] = useState(false);
@@ -91,9 +93,9 @@ export function CurrentMissionCard({
   const handlePickup = () => {
     if (!packagingFullyConfirmed) {
       Alert.alert(
-        'Emballage non confirmé',
-        'L\'emballage doit être confirmé par vous ET le client avant de récupérer le colis.',
-        [{ text: 'OK' }]
+        t('carrier.currentMission.packagingNotConfirmed'),
+        t('carrier.currentMission.packagingNotConfirmedDesc'),
+        [{ text: t('common.ok') }]
       );
       return;
     }
@@ -113,7 +115,7 @@ export function CurrentMissionCard({
           style={styles.mainActionButton}
           labelStyle={styles.mainActionLabel}
         >
-          Je pars
+          {t('carrier.currentMission.iDepart')}
         </Button>
       );
     }
@@ -129,7 +131,7 @@ export function CurrentMissionCard({
           style={[styles.mainActionButton, { backgroundColor: '#F59E0B' }]}
           labelStyle={styles.mainActionLabel}
         >
-          Je suis arrivé
+          {t('carrier.currentMission.iArrived')}
         </Button>
       );
     }
@@ -145,7 +147,7 @@ export function CurrentMissionCard({
           style={[styles.mainActionButton, { backgroundColor: colors.secondary }]}
           labelStyle={styles.mainActionLabel}
         >
-          Confirmer l'emballage
+          {t('carrier.currentMission.confirmPackaging')}
         </Button>
       );
     }
@@ -161,7 +163,7 @@ export function CurrentMissionCard({
           style={[styles.mainActionButton, { backgroundColor: '#10B981' }]}
           labelStyle={styles.mainActionLabel}
         >
-          Colis récupéré
+          {t('carrier.currentMission.parcelPickedUp')}
         </Button>
       );
     }
@@ -177,7 +179,7 @@ export function CurrentMissionCard({
           style={[styles.mainActionButton, { backgroundColor: colors.secondary }]}
           labelStyle={styles.mainActionLabel}
         >
-          Colis déposé
+          {t('carrier.currentMission.parcelDropped')}
         </Button>
       );
     }
@@ -194,7 +196,7 @@ export function CurrentMissionCard({
       return (
         <View style={styles.packagingSuccess}>
           <MaterialCommunityIcons name="check-circle" size={18} color="#10B981" />
-          <Text style={styles.packagingSuccessText}>Emballage confirmé ✓</Text>
+          <Text style={styles.packagingSuccessText}>{t('carrier.currentMission.packagingConfirmed')}</Text>
         </View>
       );
     }
@@ -203,12 +205,18 @@ export function CurrentMissionCard({
       return (
         <View style={styles.packagingPending}>
           <MaterialCommunityIcons name="clock-outline" size={18} color={colors.tertiary} />
-          <Text style={styles.packagingPendingText}>En attente de confirmation client</Text>
+          <Text style={styles.packagingPendingText}>{t('carrier.currentMission.awaitingClientConfirmation')}</Text>
         </View>
       );
     }
 
     return null;
+  };
+
+  const getDropoffTypeLabel = (dropoffType: string) => {
+    if (dropoffType === 'RELAY_POINT') return t('carrier.currentMission.relayPoint');
+    if (dropoffType === 'POST_OFFICE') return t('carrier.currentMission.postOffice');
+    return t('carrier.currentMission.other');
   };
 
   return (
@@ -224,12 +232,12 @@ export function CurrentMissionCard({
               </View>
               {mission.estimatedArrival && !hasArrived && (
                 <Chip icon="clock-outline" style={styles.etaChip} textStyle={styles.etaText}>
-                  ETA: {new Date(mission.estimatedArrival).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                  {t('carrier.currentMission.eta')}: {new Date(mission.estimatedArrival).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
                 </Chip>
               )}
               {hasArrived && mission.status !== 'PICKED_UP' && (
                 <Chip icon="map-marker-check" style={[styles.etaChip, { backgroundColor: '#D1FAE5' }]} textStyle={[styles.etaText, { color: '#10B981' }]}>
-                  Arrivé
+                  {t('carrier.currentMission.arrived')}
                 </Chip>
               )}
             </View>
@@ -243,7 +251,7 @@ export function CurrentMissionCard({
                   color={colors.primary}
                 />
                 <Text variant="titleMedium" style={styles.carrierName}>
-                  {carrierInfo?.label || 'Point relais'}
+                  {carrierInfo?.label || t('carrier.currentMission.relayPoint')}
                 </Text>
               </View>
               <Chip
@@ -267,7 +275,7 @@ export function CurrentMissionCard({
               <View style={styles.destinationBox}>
                 <MaterialCommunityIcons name="store" size={18} color={colors.secondary} />
                 <View style={styles.destinationContent}>
-                  <Text variant="labelSmall" style={styles.destinationLabel}>Déposer à : {parcel.dropoffType === 'RELAY_POINT' ? 'Point relais' : parcel.dropoffType === 'POST_OFFICE' ? 'Bureau de poste' : 'Autre'}</Text>
+                  <Text variant="labelSmall" style={styles.destinationLabel}>{getDropoffTypeLabel(parcel.dropoffType)}</Text>
                   <Text variant="bodyMedium" style={styles.destinationName}>{parcel.dropoffName}</Text>
                   <Text variant="bodySmall" style={styles.destinationAddress}>{parcel.dropoffAddress}</Text>
                 </View>
@@ -281,7 +289,7 @@ export function CurrentMissionCard({
               <View style={styles.addressSection}>
                 <View style={styles.addressHeader}>
                   <MaterialCommunityIcons name="map-marker" size={18} color={colors.primary} />
-                  <Text variant="labelMedium" style={styles.addressLabel}>Récupération</Text>
+                  <Text variant="labelMedium" style={styles.addressLabel}>{t('carrier.currentMission.pickup')}</Text>
                 </View>
                 {parcel.pickupAddress && (
                   <View style={styles.addressContent}>
@@ -295,7 +303,7 @@ export function CurrentMissionCard({
                     </View>
                     <TouchableOpacity style={styles.navButton} onPress={openNavigation}>
                       <MaterialCommunityIcons name="navigation-variant" size={20} color={colors.primary} />
-                      <Text style={styles.navButtonText}>Y aller</Text>
+                      <Text style={styles.navButtonText}>{t('carrier.currentMission.goThere')}</Text>
                     </TouchableOpacity>
                   </View>
                 )}
@@ -306,7 +314,7 @@ export function CurrentMissionCard({
             <View style={styles.vendorRow}>
               <MaterialCommunityIcons name="account" size={18} color={colors.onSurfaceVariant} />
               <Text variant="bodyMedium" style={styles.vendorName}>
-                {parcel.vendor?.firstName || 'Client'}
+                {parcel.vendor?.firstName || t('carrier.currentMission.client')}
               </Text>
             </View>
 
@@ -316,7 +324,7 @@ export function CurrentMissionCard({
                 <MaterialCommunityIcons name="note-text-outline" size={16} color={colors.secondary} />
                 <View style={styles.noteContent}>
                   <Text variant="labelSmall" style={styles.noteLabel}>
-                    Note du vendeur
+                    {t('carrier.currentMission.vendorNote')}
                   </Text>
                   <Text variant="bodySmall" style={styles.noteText}>
                     {parcel.description}
@@ -334,8 +342,8 @@ export function CurrentMissionCard({
               />
               <Text variant="bodySmall" style={styles.labelInfoText}>
                 {parcel.hasShippingLabel
-                  ? 'Bordereau imprimé par le vendeur'
-                  : 'Bordereau à imprimer'}
+                  ? t('carrier.currentMission.labelPrintedByVendor')
+                  : t('carrier.currentMission.labelToPrint')}
               </Text>
             </View>
 
@@ -368,7 +376,7 @@ export function CurrentMissionCard({
                     textColor={colors.error}
                     compact
                   >
-                    Annuler
+                    {t('common.cancel')}
                   </Button>
                 )}
               </View>

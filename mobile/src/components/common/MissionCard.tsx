@@ -3,6 +3,7 @@ import { View, StyleSheet, TouchableOpacity } from 'react-native';
 import { Card, Text, Chip } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { colors, spacing, sizes } from '../../theme';
+import { useTranslation } from '../../i18n/i18nContext';
 
 interface MissionCardProps {
   mission: {
@@ -14,8 +15,8 @@ interface MissionCardProps {
     pickupSlot: { start: string; end: string };
     price: { total: number; carrierPayout: number };
     distance: number;
-    pickupAddress: { 
-      city: string; 
+    pickupAddress: {
+      city: string;
       postalCode: string;
       street?: string;
       latitude?: number;
@@ -27,6 +28,7 @@ interface MissionCardProps {
 }
 
 export function MissionCard({ mission, onPress }: MissionCardProps) {
+  const { t } = useTranslation();
   const sizeInfo = sizes.parcel[mission.size as keyof typeof sizes.parcel];
 
   const formatDate = (dateString: string) => {
@@ -46,17 +48,17 @@ export function MissionCard({ mission, onPress }: MissionCardProps) {
         <Card.Content>
           <View style={styles.header}>
             <View style={styles.sizeContainer}>
-              <MaterialCommunityIcons 
-                name="package-variant" 
-                size={24} 
-                color={colors.primary} 
+              <MaterialCommunityIcons
+                name="package-variant"
+                size={24}
+                color={colors.primary}
               />
               <Text variant="titleMedium" style={styles.sizeLabel}>
                 {sizeInfo?.label || mission.size}
               </Text>
             </View>
             <Chip mode="flat" style={styles.distanceChip}>
-              📍 {mission.distance.toFixed(1)} km
+              {mission.distance.toFixed(1)} km
             </Chip>
           </View>
 
@@ -77,7 +79,7 @@ export function MissionCard({ mission, onPress }: MissionCardProps) {
             <View style={styles.detailRow}>
               <MaterialCommunityIcons name="store" size={16} color={colors.onSurfaceVariant} />
               <Text variant="bodySmall" style={styles.detailText} numberOfLines={1}>
-                → {mission.dropoffName}
+                {mission.dropoffName}
               </Text>
             </View>
 
@@ -91,7 +93,7 @@ export function MissionCard({ mission, onPress }: MissionCardProps) {
 
           <View style={styles.footer}>
             <View>
-              <Text variant="bodySmall" style={styles.payoutLabel}>Vous gagnez</Text>
+              <Text variant="bodySmall" style={styles.payoutLabel}>{t('carrier.missionCard.youEarn')}</Text>
               <Text variant="titleLarge" style={styles.payout}>
                 {mission.price.carrierPayout.toFixed(2)} €
               </Text>

@@ -1,5 +1,5 @@
 import React, { useEffect, useCallback } from 'react';
-import { View, StyleSheet, FlatList, RefreshControl } from 'react-native';
+import { View, StyleSheet, FlatList, RefreshControl, Alert, Modal, TouchableOpacity } from 'react-native';
 import { FAB, SegmentedButtons, Text, IconButton } from 'react-native-paper';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
@@ -10,6 +10,7 @@ import { LoadingScreen } from '../../components/common/LoadingScreen';
 import { useParcelStore } from '../../stores/parcelStore';
 import { VendorStackParamList } from '../../navigation/types';
 import { colors, spacing } from '../../theme';
+import { useTranslation, languageLabels, Language } from '../../i18n/i18nContext';
 
 type VendorHomeScreenProps = {
   navigation: NativeStackNavigationProp<VendorStackParamList, 'VendorHome'>;
@@ -19,19 +20,32 @@ export function VendorHomeScreen({ navigation }: VendorHomeScreenProps) {
   const { parcels, isLoading, fetchParcels } = useParcelStore();
   const [filter, setFilter] = React.useState('all');
   const [refreshing, setRefreshing] = React.useState(false);
+  const { t, language, setLanguage } = useTranslation();
+  const [showLanguageModal, setShowLanguageModal] = React.useState(false);
 
-  // Ajouter le bouton historique dans le header
+  const showLanguagePicker = () => {
+    setShowLanguageModal(true);
+  };
+
+  // Ajouter le bouton historique et le bouton langue dans le header
   React.useLayoutEffect(() => {
     navigation.setOptions({
       headerRight: () => (
-        <IconButton
-          icon="history"
-          size={24}
-          onPress={() => navigation.navigate('VendorHistory')}
-        />
+        <View style={{ flexDirection: 'row' }}>
+          <IconButton
+            icon="translate"
+            size={24}
+            onPress={showLanguagePicker}
+          />
+          <IconButton
+            icon="history"
+            size={24}
+            onPress={() => navigation.navigate('VendorHistory')}
+          />
+        </View>
       ),
     });
-  }, [navigation]);
+  }, [navigation, language]);
 
   useFocusEffect(
     useCallback(() => {
@@ -60,7 +74,7 @@ export function VendorHomeScreen({ navigation }: VendorHomeScreenProps) {
   }, [parcels, filter]);
 
   if (isLoading && parcels.length === 0) {
-    return <LoadingScreen message="Chargement des colis..." />;
+    return <LoadingScreen message={t('vendor.home.loadingParcels')} />;
   }
 
   return (
@@ -70,9 +84,9 @@ export function VendorHomeScreen({ navigation }: VendorHomeScreenProps) {
           value={filter}
           onValueChange={setFilter}
           buttons={[
-            { value: 'all', label: 'Tous' },
-            { value: 'pending', label: 'En attente' },
-            { value: 'accepted', label: 'En cours' },
+            { value: 'all', label: t('vendor.home.all') },
+            { value: 'pending', label: t('vendor.home.pending') },
+            { value: 'accepted', label: t('vendor.home.inProgress') },
           ]}
           style={styles.segmentedButtons}
         />
@@ -94,9 +108,9 @@ export function VendorHomeScreen({ navigation }: VendorHomeScreenProps) {
         ListEmptyComponent={
           <EmptyState
             icon="package-variant"
-            title="Aucun colis"
-            description="Vous n'avez pas encore de colis. Créez-en un pour commencer !"
-            actionLabel="Créer un colis"
+            title={t('vendor.home.noParcels')}
+            description={t('vendor.home.noParcelsDesc')}
+            actionLabel={t('vendor.home.createButton')}
             onAction={() => navigation.navigate('CreateParcel')}
           />
         }
@@ -108,6 +122,26 @@ export function VendorHomeScreen({ navigation }: VendorHomeScreenProps) {
         onPress={() => navigation.navigate('CreateParcel')}
         color={colors.onPrimary}
       />
+
+      <Modal visible={showLanguageModal} transparent animationType="fade" onRequestClose={() => setShowLanguageModal(false)}>
+        <TouchableOpacity style={styles.langModalOverlay} activeOpacity={1} onPress={() => setShowLanguageModal(false)}>
+          <View style={styles.langModalContent}>
+            <Text style={styles.langModalTitle}>{t('shared.settings.selectLanguage')}</Text>
+            {(Object.keys(languageLabels) as Language[]).map((lang) => (
+              <TouchableOpacity
+                key={lang}
+                style={styles.langModalOption}
+                onPress={() => { setLanguage(lang); setShowLanguageModal(false); }}
+              >
+                <Text style={[styles.langModalOptionText, lang === language && { color: colors.primary, fontWeight: '700' }]}>
+                  {languageLabels[lang]}{lang === language ? ' ✓' : ''}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
     </View>
   );
 }
@@ -137,4 +171,9 @@ const styles = StyleSheet.create({
     bottom: 0,
     backgroundColor: colors.primary,
   },
+  langModalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center' },
+  langModalContent: { backgroundColor: 'white', borderRadius: 16, padding: 20, width: '80%', maxWidth: 320 },
+  langModalTitle: { fontSize: 18, fontWeight: '700', color: '#1F2937', marginBottom: 16, textAlign: 'center' },
+  langModalOption: { paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#F3F4F6' },
+  langModalOptionText: { fontSize: 16, color: '#374151', textAlign: 'center' },
 });
