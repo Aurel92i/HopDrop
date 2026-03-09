@@ -39,8 +39,7 @@ export default function ArticleAnalysisModal({ visible, onClose, onAnalysisCompl
     const pickerResult = await ImagePicker.launchCameraAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       quality: 0.8,
-      allowsEditing: true,
-      aspect: [4, 3],
+      allowsEditing: false,
     });
 
     if (!pickerResult.canceled && pickerResult.assets[0]) {
@@ -59,8 +58,7 @@ export default function ArticleAnalysisModal({ visible, onClose, onAnalysisCompl
     const pickerResult = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       quality: 0.8,
-      allowsEditing: true,
-      aspect: [4, 3],
+      allowsEditing: false,
     });
 
     if (!pickerResult.canceled && pickerResult.assets[0]) {

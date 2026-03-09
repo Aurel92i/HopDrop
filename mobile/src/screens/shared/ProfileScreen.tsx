@@ -11,12 +11,14 @@ import { api } from '../../services/api';
 import { ProfileStackParamList } from '../../navigation/types';
 import { colors, spacing } from '../../theme';
 import { useTranslation } from '../../i18n/i18nContext';
+import { PhotoPreviewModal } from '../../components/common/PhotoPreviewModal';
 
 export function ProfileScreen() {
   const { t } = useTranslation();
   const navigation = useNavigation<NativeStackNavigationProp<ProfileStackParamList>>();
   const { user, logout, updateUser } = useAuthStore();
   const [isUploading, setIsUploading] = useState(false);
+  const [previewUri, setPreviewUri] = useState<string | null>(null);
 
   const isCarrier = user?.role === 'CARRIER' || user?.role === 'BOTH';
 
@@ -29,14 +31,13 @@ export function ProfileScreen() {
     }
 
     const result = await ImagePicker.launchCameraAsync({
-      allowsEditing: true,
-      aspect: [1, 1],
+      allowsEditing: false,
       quality: 0.8,
       cameraType: ImagePicker.CameraType.front,
     });
 
     if (!result.canceled && result.assets[0]) {
-      uploadAvatar(result.assets[0].uri);
+      setPreviewUri(result.assets[0].uri);
     }
   };
 
@@ -179,6 +180,16 @@ export function ProfileScreen() {
       <Text variant="bodySmall" style={styles.version}>
         {t('common.version')}
       </Text>
+
+      <PhotoPreviewModal
+        visible={!!previewUri}
+        photoUri={previewUri}
+        onValidate={(uri) => {
+          setPreviewUri(null);
+          uploadAvatar(uri);
+        }}
+        onRetake={() => setPreviewUri(null)}
+      />
     </ScrollView>
   );
 }

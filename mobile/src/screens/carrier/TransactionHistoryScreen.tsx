@@ -24,9 +24,20 @@ type TransactionHistoryScreenProps = {
 
 type FilterType = 'all' | 'pending' | 'transferred' | 'captured';
 
+interface TipItem {
+  id: string;
+  amount: number;
+  message: string | null;
+  createdAt: string;
+  vendor?: { firstName: string; lastName: string };
+  parcel?: { dropoffName: string };
+  _isTip: true;
+}
+
 export function TransactionHistoryScreen({ navigation }: TransactionHistoryScreenProps) {
   const { t } = useTranslation();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [tips, setTips] = useState<TipItem[]>([]);
   const [earnings, setEarnings] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -53,13 +64,21 @@ export function TransactionHistoryScreen({ navigation }: TransactionHistoryScree
     setIsLoading(true);
     setPage(1);
     try {
-      const [transactionsData, earningsData] = await Promise.all([
+      const [transactionsData, earningsData, tipsData] = await Promise.all([
         api.getTransactionsByRole('payee', 1, 20),
         api.getCarrierBalance().catch(() => null),
+        api.getTipsReceived().catch(() => ({ tips: [] })),
       ]);
 
       setTransactions(transactionsData.transactions || []);
       setHasMore((transactionsData.transactions?.length || 0) >= 20);
+
+      // BUG 6: Store tips as separate items
+      const tipItems: TipItem[] = (tipsData.tips || []).map((tip: any) => ({
+        ...tip,
+        _isTip: true,
+      }));
+      setTips(tipItems);
 
       if (earningsData) {
         setEarnings(earningsData);
@@ -106,6 +125,12 @@ export function TransactionHistoryScreen({ navigation }: TransactionHistoryScree
     if (filter === 'captured') return tx.status === 'CAPTURED';
     return true;
   });
+
+  // BUG 6: Merge tips with transactions and sort by date
+  const allItems = [
+    ...filteredTransactions.map((tx) => ({ ...tx, _isTip: false as const })),
+    ...(filter === 'all' ? tips : []),
+  ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -225,6 +250,42 @@ export function TransactionHistoryScreen({ navigation }: TransactionHistoryScree
     );
   };
 
+  // BUG 6: Render tip item
+  const renderTip = ({ item }: { item: TipItem }) => (
+    <TouchableOpacity style={styles.transactionCard} activeOpacity={0.7}>
+      <View style={styles.transactionLeft}>
+        <View style={[styles.transactionIcon, { backgroundColor: '#F59E0B15' }]}>
+          <MaterialCommunityIcons name="gift" size={24} color="#F59E0B" />
+        </View>
+        <View style={styles.transactionInfo}>
+          <Text style={styles.transactionTitle}>
+            {t('carrier.transactions.tipLabel')}
+          </Text>
+          <Text style={styles.transactionDate}>
+            {formatDate(item.createdAt)} {item.vendor ? `- ${item.vendor.firstName}` : ''}
+          </Text>
+          {item.message ? (
+            <Text style={styles.transactionDate} numberOfLines={1}>
+              "{item.message}"
+            </Text>
+          ) : null}
+        </View>
+      </View>
+      <View style={styles.transactionRight}>
+        <Text style={[styles.transactionAmount, { color: '#F59E0B' }]}>
+          +{Number(item.amount).toFixed(2)} €
+        </Text>
+      </View>
+    </TouchableOpacity>
+  );
+
+  const renderItem = ({ item }: { item: any }) => {
+    if (item._isTip) {
+      return renderTip({ item });
+    }
+    return renderTransaction({ item });
+  };
+
   const renderEmpty = () => (
     <View style={styles.emptyContainer}>
       <MaterialCommunityIcons name="cash-remove" size={64} color={colors.outline} />
@@ -256,16 +317,16 @@ export function TransactionHistoryScreen({ navigation }: TransactionHistoryScree
   return (
     <View style={styles.container}>
       <FlatList
-        data={filteredTransactions}
-        keyExtractor={(item) => item.id}
-        renderItem={renderTransaction}
+        data={allItems}
+        keyExtractor={(item) => `${item._isTip ? 'tip' : 'tx'}-${item.id}`}
+        renderItem={renderItem}
         ListHeaderComponent={() => (
           <>
             {renderEarningsCard()}
             {renderFilters()}
-            {filteredTransactions.length > 0 && (
+            {allItems.length > 0 && (
               <Text style={styles.listTitle}>
-                {t('carrier.transactions.history')} ({filteredTransactions.length})
+                {t('carrier.transactions.history')} ({allItems.length})
               </Text>
             )}
           </>

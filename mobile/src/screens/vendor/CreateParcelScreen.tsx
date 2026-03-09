@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, TouchableOpacity, Image, Alert } from 'react-native';
+import { View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, TouchableOpacity, Image, Alert, BackHandler } from 'react-native';
 import { Text, Button, Card, RadioButton, Snackbar, ActivityIndicator, Chip, Modal, Portal, TextInput, Checkbox } from 'react-native-paper';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -99,8 +99,30 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
   const [showAnalysisModal, setShowAnalysisModal] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
   const [articleImageUri, setArticleImageUri] = useState<string | null>(null);
+  const [timeSlotPreset, setTimeSlotPreset] = useState<'morning' | 'afternoon' | 'evening' | 'custom' | null>(null);
 
   const timeSlots = generateTimeSlots();
+
+  // BUG 3: Intercept back button to navigate to previous step
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('beforeRemove', (e) => {
+      if (step > 1) {
+        e.preventDefault();
+        setStep(step - 1);
+      } else {
+        e.preventDefault();
+        Alert.alert(
+          t('common.confirm'),
+          t('vendor.createParcel.confirmExit'),
+          [
+            { text: t('common.cancel'), style: 'cancel' },
+            { text: t('common.yes'), style: 'destructive', onPress: () => navigation.dispatch(e.data.action) },
+          ]
+        );
+      }
+    });
+    return unsubscribe;
+  }, [navigation, step, t]);
 
   // Translated item categories (memoized)
   const ITEM_CATEGORIES = useMemo(() => {
@@ -243,8 +265,7 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
 
     const result = await ImagePicker.launchCameraAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [4, 3],
+      allowsEditing: false,
       quality: 0.8,
     });
 
@@ -266,8 +287,7 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
 
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [4, 3],
+      allowsEditing: false,
       quality: 0.8,
     });
 
@@ -701,69 +721,73 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
           )}
         />
 
-        {/* Bordereau Upload Box */}
-        <View style={styles.uploadSection}>
-          <Text style={styles.uploadLabel}>Ajouter le bordereau (PDF/Image)</Text>
-          <TouchableOpacity
-            style={[
-              styles.uploadBox,
-              watch('shippingLabelUrl') && styles.uploadBoxFilled
-            ]}
-            onPress={handlePickDocument}
-          >
-            <View style={styles.uploadBoxContent}>
-              <MaterialCommunityIcons
-                name={watch('shippingLabelUrl') ? 'file-check' : 'file-upload-outline'}
-                size={40}
-                color={watch('shippingLabelUrl') ? '#4CAF50' : '#999'}
-              />
-              <Text style={[
-                styles.uploadBoxText,
-                watch('shippingLabelUrl') && styles.uploadBoxTextFilled
-              ]}>
-                {watch('shippingLabelUrl') ? 'Bordereau ajouté' : 'Cliquer pour ajouter'}
-              </Text>
-              {watch('shippingLabelUrl') && (
-                <View style={styles.uploadBadge}>
-                  <Ionicons name="checkmark-circle" size={20} color="#4CAF50" />
-                  <Text style={styles.uploadBadgeText}>Fichier attaché</Text>
+        {/* Bordereau Upload Box - hidden when willPrintLabel is checked */}
+        {!watch('willPrintLabel') && (
+          <>
+            <View style={styles.uploadSection}>
+              <Text style={styles.uploadLabel}>{t('vendor.createParcel.addLabelPdf')}</Text>
+              <TouchableOpacity
+                style={[
+                  styles.uploadBox,
+                  watch('shippingLabelUrl') && styles.uploadBoxFilled
+                ]}
+                onPress={handlePickDocument}
+              >
+                <View style={styles.uploadBoxContent}>
+                  <MaterialCommunityIcons
+                    name={watch('shippingLabelUrl') ? 'file-check' : 'file-upload-outline'}
+                    size={40}
+                    color={watch('shippingLabelUrl') ? '#4CAF50' : '#999'}
+                  />
+                  <Text style={[
+                    styles.uploadBoxText,
+                    watch('shippingLabelUrl') && styles.uploadBoxTextFilled
+                  ]}>
+                    {watch('shippingLabelUrl') ? t('vendor.createParcel.labelAdded') : t('vendor.createParcel.clickToAdd')}
+                  </Text>
+                  {watch('shippingLabelUrl') && (
+                    <View style={styles.uploadBadge}>
+                      <Ionicons name="checkmark-circle" size={20} color="#4CAF50" />
+                      <Text style={styles.uploadBadgeText}>{t('vendor.createParcel.fileAttached')}</Text>
+                    </View>
+                  )}
                 </View>
-              )}
+              </TouchableOpacity>
             </View>
-          </TouchableOpacity>
-        </View>
 
-        {/* QR Code Upload Box */}
-        <View style={styles.uploadSection}>
-          <Text style={styles.uploadLabel}>Ajouter le QR Code (optionnel)</Text>
-          <TouchableOpacity
-            style={[
-              styles.uploadBox,
-              watch('qrCodeUrl') && styles.uploadBoxFilled
-            ]}
-            onPress={handlePickQrCode}
-          >
-            <View style={styles.uploadBoxContent}>
-              <MaterialCommunityIcons
-                name={watch('qrCodeUrl') ? 'qrcode-scan' : 'qrcode'}
-                size={40}
-                color={watch('qrCodeUrl') ? '#4CAF50' : '#999'}
-              />
-              <Text style={[
-                styles.uploadBoxText,
-                watch('qrCodeUrl') && styles.uploadBoxTextFilled
-              ]}>
-                {watch('qrCodeUrl') ? 'QR Code ajouté' : 'Cliquer pour ajouter'}
-              </Text>
-              {watch('qrCodeUrl') && (
-                <View style={styles.uploadBadge}>
-                  <Ionicons name="checkmark-circle" size={20} color="#4CAF50" />
-                  <Text style={styles.uploadBadgeText}>Fichier attaché</Text>
+            {/* QR Code Upload Box */}
+            <View style={styles.uploadSection}>
+              <Text style={styles.uploadLabel}>{t('vendor.createParcel.addQrCode')}</Text>
+              <TouchableOpacity
+                style={[
+                  styles.uploadBox,
+                  watch('qrCodeUrl') && styles.uploadBoxFilled
+                ]}
+                onPress={handlePickQrCode}
+              >
+                <View style={styles.uploadBoxContent}>
+                  <MaterialCommunityIcons
+                    name={watch('qrCodeUrl') ? 'qrcode-scan' : 'qrcode'}
+                    size={40}
+                    color={watch('qrCodeUrl') ? '#4CAF50' : '#999'}
+                  />
+                  <Text style={[
+                    styles.uploadBoxText,
+                    watch('qrCodeUrl') && styles.uploadBoxTextFilled
+                  ]}>
+                    {watch('qrCodeUrl') ? t('vendor.createParcel.qrCodeAdded') : t('vendor.createParcel.clickToAdd')}
+                  </Text>
+                  {watch('qrCodeUrl') && (
+                    <View style={styles.uploadBadge}>
+                      <Ionicons name="checkmark-circle" size={20} color="#4CAF50" />
+                      <Text style={styles.uploadBadgeText}>{t('vendor.createParcel.fileAttached')}</Text>
+                    </View>
+                  )}
                 </View>
-              )}
+              </TouchableOpacity>
             </View>
-          </TouchableOpacity>
-        </View>
+          </>
+        )}
       </View>
 
       <View style={styles.buttonRow}>
@@ -858,9 +882,9 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
       {pickupMode === 'SCHEDULED' && (
         <Card style={styles.slotCard}>
           <Card.Content>
-            <Text variant="titleSmall" style={styles.slotTitle}>Choisissez votre créneau</Text>
+            <Text variant="titleSmall" style={styles.slotTitle}>{t('vendor.createParcel.chooseYourSlot')}</Text>
 
-            <Text variant="bodySmall" style={styles.slotLabel}>Jour</Text>
+            <Text variant="bodySmall" style={styles.slotLabel}>{t('vendor.createParcel.day')}</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.dateScroll}>
               <View style={styles.dateGrid}>
                 {availableDates.map((date) => (
@@ -878,39 +902,101 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
               </View>
             </ScrollView>
 
-            <Text variant="bodySmall" style={styles.slotLabel}>Heure de début</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.timeScroll}>
-              <View style={styles.timeGrid}>
-                {timeSlots.slice(0, -2).map((time) => (
-                  <TouchableOpacity
-                    key={`start-${time}`}
-                    style={[styles.timeCard, pickupTimeStart === time && styles.timeCardSelected]}
-                    onPress={() => setValue('pickupTimeStart', time)}
-                  >
-                    <Text style={[styles.timeLabel, pickupTimeStart === time && styles.timeLabelSelected]}>
-                      {time}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </ScrollView>
+            <Text variant="bodySmall" style={[styles.slotLabel, { marginTop: spacing.md }]}>{t('vendor.createParcel.chooseSlot')}</Text>
+            <View style={styles.presetGrid}>
+              <TouchableOpacity
+                style={[styles.presetCard, timeSlotPreset === 'morning' && styles.presetCardSelected]}
+                onPress={() => {
+                  setTimeSlotPreset('morning');
+                  setValue('pickupTimeStart', '08:00');
+                  setValue('pickupTimeEnd', '12:00');
+                }}
+              >
+                <MaterialCommunityIcons name="weather-sunset-up" size={28} color={timeSlotPreset === 'morning' ? colors.primary : colors.onSurfaceVariant} />
+                <Text style={[styles.presetLabel, timeSlotPreset === 'morning' && styles.presetLabelSelected]}>
+                  {t('vendor.createParcel.slotMorning')}
+                </Text>
+                <Text style={styles.presetTime}>8h - 12h</Text>
+              </TouchableOpacity>
 
-            <Text variant="bodySmall" style={styles.slotLabel}>Heure de fin</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.timeScroll}>
-              <View style={styles.timeGrid}>
-                {timeSlots.slice(2).map((time) => (
-                  <TouchableOpacity
-                    key={`end-${time}`}
-                    style={[styles.timeCard, pickupTimeEnd === time && styles.timeCardSelected]}
-                    onPress={() => setValue('pickupTimeEnd', time)}
-                  >
-                    <Text style={[styles.timeLabel, pickupTimeEnd === time && styles.timeLabelSelected]}>
-                      {time}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </ScrollView>
+              <TouchableOpacity
+                style={[styles.presetCard, timeSlotPreset === 'afternoon' && styles.presetCardSelected]}
+                onPress={() => {
+                  setTimeSlotPreset('afternoon');
+                  setValue('pickupTimeStart', '12:00');
+                  setValue('pickupTimeEnd', '17:00');
+                }}
+              >
+                <MaterialCommunityIcons name="weather-sunny" size={28} color={timeSlotPreset === 'afternoon' ? colors.primary : colors.onSurfaceVariant} />
+                <Text style={[styles.presetLabel, timeSlotPreset === 'afternoon' && styles.presetLabelSelected]}>
+                  {t('vendor.createParcel.slotAfternoon')}
+                </Text>
+                <Text style={styles.presetTime}>12h - 17h</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.presetCard, timeSlotPreset === 'evening' && styles.presetCardSelected]}
+                onPress={() => {
+                  setTimeSlotPreset('evening');
+                  setValue('pickupTimeStart', '17:00');
+                  setValue('pickupTimeEnd', '20:00');
+                }}
+              >
+                <MaterialCommunityIcons name="weather-night" size={28} color={timeSlotPreset === 'evening' ? colors.primary : colors.onSurfaceVariant} />
+                <Text style={[styles.presetLabel, timeSlotPreset === 'evening' && styles.presetLabelSelected]}>
+                  {t('vendor.createParcel.slotEvening')}
+                </Text>
+                <Text style={styles.presetTime}>17h - 20h</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.presetCard, timeSlotPreset === 'custom' && styles.presetCardSelected]}
+                onPress={() => setTimeSlotPreset('custom')}
+              >
+                <MaterialCommunityIcons name="clock-edit-outline" size={28} color={timeSlotPreset === 'custom' ? colors.primary : colors.onSurfaceVariant} />
+                <Text style={[styles.presetLabel, timeSlotPreset === 'custom' && styles.presetLabelSelected]}>
+                  {t('vendor.createParcel.slotCustom')}
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {timeSlotPreset === 'custom' && (
+              <>
+                <Text variant="bodySmall" style={styles.slotLabel}>{t('vendor.createParcel.startTime')}</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.timeScroll}>
+                  <View style={styles.timeGrid}>
+                    {timeSlots.slice(0, -2).map((time) => (
+                      <TouchableOpacity
+                        key={`start-${time}`}
+                        style={[styles.timeCard, pickupTimeStart === time && styles.timeCardSelected]}
+                        onPress={() => setValue('pickupTimeStart', time)}
+                      >
+                        <Text style={[styles.timeLabel, pickupTimeStart === time && styles.timeLabelSelected]}>
+                          {time}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </ScrollView>
+
+                <Text variant="bodySmall" style={styles.slotLabel}>{t('vendor.createParcel.endTime')}</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.timeScroll}>
+                  <View style={styles.timeGrid}>
+                    {timeSlots.slice(2).map((time) => (
+                      <TouchableOpacity
+                        key={`end-${time}`}
+                        style={[styles.timeCard, pickupTimeEnd === time && styles.timeCardSelected]}
+                        onPress={() => setValue('pickupTimeEnd', time)}
+                      >
+                        <Text style={[styles.timeLabel, pickupTimeEnd === time && styles.timeLabelSelected]}>
+                          {time}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </ScrollView>
+              </>
+            )}
           </Card.Content>
         </Card>
       )}
@@ -1592,6 +1678,41 @@ const styles = StyleSheet.create({
   },
   dateLabelSelected: {
     color: colors.primary,
+  },
+  presetGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  presetCard: {
+    width: '48%',
+    flexGrow: 1,
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    padding: spacing.md,
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: colors.outline,
+  },
+  presetCardSelected: {
+    borderColor: colors.primary,
+    backgroundColor: `${colors.primary}10`,
+  },
+  presetLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.onSurface,
+    marginTop: spacing.xs,
+    textAlign: 'center',
+  },
+  presetLabelSelected: {
+    color: colors.primary,
+  },
+  presetTime: {
+    fontSize: 11,
+    color: colors.onSurfaceVariant,
+    marginTop: 2,
   },
   timeScroll: {
     marginBottom: spacing.sm,

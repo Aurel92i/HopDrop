@@ -319,6 +319,19 @@ export function ParcelDetailScreen({ navigation, route }: ParcelDetailScreenProp
 
   // Déterminer le statut affiché
   const getDisplayStatus = () => {
+    // BUG 4: Si le livreur est arrivé (mission.arrivedAt set, mais pas encore PICKED_UP)
+    if ((currentParcel as any).mission?.arrivedAt &&
+        currentParcel.status !== 'PICKED_UP' &&
+        currentParcel.status !== 'DELIVERED' &&
+        currentParcel.status !== 'CANCELLED') {
+      return {
+        label: t('vendor.parcelDetail.driverArrived'),
+        color: '#FF9800',
+        icon: 'map-marker-check',
+        hint: t('vendor.parcelDetail.driverArrivedHint'),
+      };
+    }
+
     // Si on a un statut de livraison
     if (deliveryStatus) {
       if (deliveryStatus.status === 'AWAITING_CONFIRMATION') {

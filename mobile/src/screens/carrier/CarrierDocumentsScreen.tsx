@@ -116,7 +116,7 @@ export function CarrierDocumentsScreen() {
     const result = await ImagePicker.launchCameraAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       quality: 0.8,
-      allowsEditing: true,
+      allowsEditing: false,
     });
 
     if (!result.canceled && result.assets[0]) {
