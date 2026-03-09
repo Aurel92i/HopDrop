@@ -41,6 +41,7 @@ export const en: TranslationKeys = {
     photoPreviewTitle: 'Photo preview',
     validate: 'Validate',
     retakePhoto: 'Retake photo',
+    cropHint: 'Pinch to zoom, drag to adjust',
     genericError: 'An error occurred',
     fillRequired: 'Please fill in all required fields',
   },

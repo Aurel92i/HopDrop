@@ -39,6 +39,7 @@ export const fr = {
     photoPreviewTitle: 'Aperçu de la photo',
     validate: 'Valider',
     retakePhoto: 'Reprendre la photo',
+    cropHint: 'Pincez pour zoomer, glissez pour ajuster',
     genericError: 'Une erreur est survenue',
     fillRequired: 'Veuillez remplir tous les champs obligatoires',
   },

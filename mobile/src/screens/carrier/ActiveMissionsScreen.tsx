@@ -15,6 +15,7 @@ import { CarrierStackParamList } from '../../navigation/types';
 import { colors, spacing, sizes, carriers } from '../../theme';
 import { Mission, MissionStatus, Carrier } from '../../types';
 import { useTranslation } from '../../i18n/i18nContext';
+import { PhotoPreviewModal } from '../../components/common/PhotoPreviewModal';
 
 type ActiveMissionsScreenProps = {
   navigation: NativeStackNavigationProp<CarrierStackParamList, 'ActiveMissions'>;
@@ -42,10 +43,12 @@ export function ActiveMissionsScreen({ navigation }: ActiveMissionsScreenProps) 
   // Modal emballage
   const [showPackagingModal, setShowPackagingModal] = useState(false);
   const [packagingPhoto, setPackagingPhoto] = useState<string | null>(null);
-  
+  const [rawPackagingPhoto, setRawPackagingPhoto] = useState<string | null>(null);
+
   // 🆕 Modal preuve de dépôt
   const [showDeliveryModal, setShowDeliveryModal] = useState(false);
   const [deliveryProofPhoto, setDeliveryProofPhoto] = useState<string | null>(null);
+  const [rawDeliveryPhoto, setRawDeliveryPhoto] = useState<string | null>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -131,7 +134,7 @@ export function ActiveMissionsScreen({ navigation }: ActiveMissionsScreenProps) 
     });
 
     if (!result.canceled && result.assets[0]) {
-      setPackagingPhoto(result.assets[0].uri);
+      setRawPackagingPhoto(result.assets[0].uri);
     }
   };
 
@@ -175,7 +178,7 @@ export function ActiveMissionsScreen({ navigation }: ActiveMissionsScreenProps) 
     });
 
     if (!result.canceled && result.assets[0]) {
-      setDeliveryProofPhoto(result.assets[0].uri);
+      setRawDeliveryPhoto(result.assets[0].uri);
     }
   };
 
@@ -871,6 +874,28 @@ export function ActiveMissionsScreen({ navigation }: ActiveMissionsScreenProps) 
         style={styles.fab}
         onPress={() => navigation.goBack()}
         label={t('carrier.activeMissions.map')}
+      />
+
+      <PhotoPreviewModal
+        visible={!!rawPackagingPhoto}
+        photoUri={rawPackagingPhoto}
+        aspectRatio={[4, 3]}
+        onValidate={(croppedUri) => {
+          setRawPackagingPhoto(null);
+          setPackagingPhoto(croppedUri);
+        }}
+        onRetake={() => setRawPackagingPhoto(null)}
+      />
+
+      <PhotoPreviewModal
+        visible={!!rawDeliveryPhoto}
+        photoUri={rawDeliveryPhoto}
+        aspectRatio={[4, 3]}
+        onValidate={(croppedUri) => {
+          setRawDeliveryPhoto(null);
+          setDeliveryProofPhoto(croppedUri);
+        }}
+        onRetake={() => setRawDeliveryPhoto(null)}
       />
     </View>
   );

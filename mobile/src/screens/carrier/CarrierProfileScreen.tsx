@@ -27,7 +27,7 @@ interface Review {
   createdAt: string;
   reviewer?: {
     firstName: string;
-    lastName: string;
+    lastName?: string;
   };
 }
 
@@ -55,29 +55,21 @@ export function CarrierProfileScreen() {
 
   const loadProfile = async () => {
     try {
-      // Charger le profil carrier
-      const profile = await api.getCarrierProfile();
-
-      // Charger les avis reçus pour les stats
-      const reviewsData = await api.getMyReviews();
-
-      // Charger l'historique pour les gains
-      const history = await api.getMissionHistory(1, 100);
-
-      const deliveredMissions = history.missions?.filter((m: any) => m.status === 'DELIVERED') || [];
-      const totalEarnings = deliveredMissions.reduce((sum: number, m: any) =>
-        sum + (m.parcel ? Number(m.parcel.price) * 0.8 : 0), 0
-      );
+      // Charger le profil carrier + solde + avis en parallèle
+      const [profile, balance, reviewsData] = await Promise.all([
+        api.getCarrierProfile(),
+        api.getCarrierBalance(),
+        api.getMyReviews(),
+      ]);
 
       setStats({
-        totalDeliveries: deliveredMissions.length,
-        totalEarnings,
+        totalDeliveries: profile.totalDeliveries || 0,
+        totalEarnings: balance.total || 0,
         averageRating: profile.averageRating,
         totalReviews: reviewsData.stats?.totalReviews || 0,
-        availableBalance: profile.balance || 0,
+        availableBalance: balance.available || 0,
       });
 
-      // BUG 5: Store reviews for display
       setReviews(reviewsData.reviews || []);
     } catch (e) {
       console.error('Erreur chargement profil:', e);
@@ -191,62 +183,35 @@ export function CarrierProfileScreen() {
         </Text>
       </View>
 
-      {/* Rating Card */}
-      <Card style={styles.card}>
-        <Card.Content style={styles.ratingCard}>
-          <MaterialCommunityIcons name="star-circle" size={40} color="#F59E0B" />
-          <View style={styles.ratingInfo}>
-            <Text variant="titleMedium">{t('carrier.profile.averageRating')}</Text>
-            {renderStars(stats.averageRating)}
-            <Text variant="bodySmall" style={styles.reviewCount}>
-              {stats.totalReviews} {t('carrier.profile.reviews')}
-            </Text>
-          </View>
-        </Card.Content>
-      </Card>
-
-      {/* Reviews Section - BUG 5 */}
+      {/* Stats Card - en premier après l'avatar */}
       <Card style={styles.card}>
         <Card.Content>
           <Text variant="titleMedium" style={styles.sectionTitle}>
-            {t('carrier.profile.reviewsTitle')}
+            {t('carrier.profile.stats')}
           </Text>
-          {reviews.length === 0 ? (
-            <Text variant="bodyMedium" style={styles.noReviewsText}>
-              {t('carrier.profile.noReviews')}
-            </Text>
-          ) : (
-            reviews.map((review) => (
-              <View key={review.id} style={styles.reviewItem}>
-                <View style={styles.reviewHeader}>
-                  <View style={styles.reviewStars}>
-                    {[1, 2, 3, 4, 5].map((star) => (
-                      <MaterialCommunityIcons
-                        key={star}
-                        name={star <= review.rating ? 'star' : 'star-outline'}
-                        size={16}
-                        color="#F59E0B"
-                      />
-                    ))}
-                  </View>
-                  <Text variant="bodySmall" style={styles.reviewDate}>
-                    {new Date(review.createdAt).toLocaleDateString()}
-                  </Text>
-                </View>
-                <Text variant="bodySmall" style={styles.reviewAuthor}>
-                  {review.reviewer
-                    ? `${review.reviewer.firstName} ${review.reviewer.lastName?.charAt(0)}.`
-                    : t('carrier.profile.anonymous')}
-                </Text>
-                {review.comment ? (
-                  <Text variant="bodyMedium" style={styles.reviewComment}>
-                    {review.comment}
-                  </Text>
-                ) : null}
-                <Divider style={styles.reviewDivider} />
-              </View>
-            ))
-          )}
+          <View style={styles.statsGrid}>
+            <View style={styles.statItem}>
+              <MaterialCommunityIcons name="package-variant-closed-check" size={32} color={colors.primary} />
+              <Text variant="headlineSmall" style={styles.statValue}>
+                {stats.totalDeliveries}
+              </Text>
+              <Text variant="bodySmall" style={styles.statLabel}>{t('carrier.profile.deliveries')}</Text>
+            </View>
+            <View style={styles.statItem}>
+              <MaterialCommunityIcons name="cash-multiple" size={32} color="#10B981" />
+              <Text variant="headlineSmall" style={[styles.statValue, { color: '#10B981' }]}>
+                {stats.totalEarnings.toFixed(0)}€
+              </Text>
+              <Text variant="bodySmall" style={styles.statLabel}>{t('carrier.profile.earned')}</Text>
+            </View>
+            <View style={styles.statItem}>
+              <MaterialCommunityIcons name="star" size={32} color="#F59E0B" />
+              <Text variant="headlineSmall" style={[styles.statValue, { color: '#F59E0B' }]}>
+                {stats.averageRating?.toFixed(1) || '-'}
+              </Text>
+              <Text variant="bodySmall" style={styles.statLabel}>{t('carrier.profile.rating')}</Text>
+            </View>
+          </View>
         </Card.Content>
       </Card>
 
@@ -286,35 +251,62 @@ export function CarrierProfileScreen() {
         </Card.Content>
       </Card>
 
-      {/* Stats Card */}
+      {/* Rating Card */}
+      <Card style={styles.card}>
+        <Card.Content style={styles.ratingCard}>
+          <MaterialCommunityIcons name="star-circle" size={40} color="#F59E0B" />
+          <View style={styles.ratingInfo}>
+            <Text variant="titleMedium">{t('carrier.profile.averageRating')}</Text>
+            {renderStars(stats.averageRating)}
+            <Text variant="bodySmall" style={styles.reviewCount}>
+              {stats.totalReviews} {t('carrier.profile.reviews')}
+            </Text>
+          </View>
+        </Card.Content>
+      </Card>
+
+      {/* Reviews Section */}
       <Card style={styles.card}>
         <Card.Content>
           <Text variant="titleMedium" style={styles.sectionTitle}>
-            {t('carrier.profile.stats')}
+            {t('carrier.profile.reviewsTitle')}
           </Text>
-          <View style={styles.statsGrid}>
-            <View style={styles.statItem}>
-              <MaterialCommunityIcons name="package-variant-closed-check" size={32} color={colors.primary} />
-              <Text variant="headlineSmall" style={styles.statValue}>
-                {stats.totalDeliveries}
-              </Text>
-              <Text variant="bodySmall" style={styles.statLabel}>{t('carrier.profile.deliveries')}</Text>
-            </View>
-            <View style={styles.statItem}>
-              <MaterialCommunityIcons name="cash-multiple" size={32} color="#10B981" />
-              <Text variant="headlineSmall" style={[styles.statValue, { color: '#10B981' }]}>
-                {stats.totalEarnings.toFixed(0)}€
-              </Text>
-              <Text variant="bodySmall" style={styles.statLabel}>{t('carrier.profile.earned')}</Text>
-            </View>
-            <View style={styles.statItem}>
-              <MaterialCommunityIcons name="star" size={32} color="#F59E0B" />
-              <Text variant="headlineSmall" style={[styles.statValue, { color: '#F59E0B' }]}>
-                {stats.averageRating?.toFixed(1) || '-'}
-              </Text>
-              <Text variant="bodySmall" style={styles.statLabel}>{t('carrier.profile.rating')}</Text>
-            </View>
-          </View>
+          {reviews.length === 0 ? (
+            <Text variant="bodyMedium" style={styles.noReviewsText}>
+              {t('carrier.profile.noReviews')}
+            </Text>
+          ) : (
+            reviews.map((review) => (
+              <View key={review.id} style={styles.reviewItem}>
+                <View style={styles.reviewHeader}>
+                  <View style={styles.reviewStars}>
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <MaterialCommunityIcons
+                        key={star}
+                        name={star <= review.rating ? 'star' : 'star-outline'}
+                        size={16}
+                        color="#F59E0B"
+                      />
+                    ))}
+                  </View>
+                  <Text variant="bodySmall" style={styles.reviewDate}>
+                    {new Date(review.createdAt).toLocaleDateString()}
+                  </Text>
+                </View>
+                <Text variant="bodySmall" style={styles.reviewAuthor}>
+                  {review.reviewer?.firstName
+                    ? review.reviewer.firstName + (review.reviewer.lastName ? ` ${review.reviewer.lastName.charAt(0)}.` : '')
+                    : t('carrier.profile.anonymous')}
+                </Text>
+                {review.comment ? (
+                  <Text variant="bodyMedium" style={styles.reviewComment}>
+                    {review.comment}
+                  </Text>
+                ) : null}
+                <Divider style={styles.reviewDivider} />
+              </View>
+            ))
+          )}
         </Card.Content>
       </Card>
 
@@ -323,6 +315,7 @@ export function CarrierProfileScreen() {
       <PhotoPreviewModal
         visible={!!previewUri}
         photoUri={previewUri}
+        aspectRatio={[1, 1]}
         onValidate={(uri) => {
           setPreviewUri(null);
           uploadAvatar(uri);

@@ -9,6 +9,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { api } from '../../services/api';
 import { colors, spacing } from '../../theme';
 import { useTranslation } from '../../i18n/i18nContext';
+import { PhotoPreviewModal } from '../../components/common/PhotoPreviewModal';
 
 type DocumentType = 'ID_CARD_FRONT' | 'ID_CARD_BACK' | 'KBIS' | 'VEHICLE_REGISTRATION' | 'DRIVING_LICENSE';
 type VehicleType = 'NONE' | 'BIKE' | 'SCOOTER' | 'CAR';
@@ -39,6 +40,7 @@ export function CarrierDocumentsScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [isUploading, setIsUploading] = useState<DocumentType | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [rawDocPhoto, setRawDocPhoto] = useState<{ uri: string; type: DocumentType } | null>(null);
 
   const documentLabels: Record<DocumentType, { label: string; description: string; icon: string }> = {
     ID_CARD_FRONT: {
@@ -120,7 +122,7 @@ export function CarrierDocumentsScreen() {
     });
 
     if (!result.canceled && result.assets[0]) {
-      await uploadDocument(type, result.assets[0].uri, 'image');
+      setRawDocPhoto({ uri: result.assets[0].uri, type });
     }
   };
 
@@ -465,6 +467,19 @@ export function CarrierDocumentsScreen() {
           {t('carrier.documents.verificationInfo')}
         </Text>
       </View>
+
+      <PhotoPreviewModal
+        visible={!!rawDocPhoto}
+        photoUri={rawDocPhoto?.uri ?? null}
+        aspectRatio={[4, 3]}
+        onValidate={(croppedUri) => {
+          if (rawDocPhoto) {
+            uploadDocument(rawDocPhoto.type, croppedUri, 'image');
+          }
+          setRawDocPhoto(null);
+        }}
+        onRetake={() => setRawDocPhoto(null)}
+      />
     </ScrollView>
   );
 }
@@ -501,8 +516,8 @@ const styles = StyleSheet.create({
   documentHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.md },
   documentInfo: { flex: 1 },
   documentTitleRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, flexWrap: 'wrap' },
-  requiredChip: { backgroundColor: colors.errorContainer, height: 24 },
-  requiredChipText: { fontSize: 10, color: colors.error },
+  requiredChip: { backgroundColor: colors.errorContainer, height: 28 },
+  requiredChipText: { fontSize: 12, color: colors.error, fontWeight: '600' },
   documentDescription: { color: colors.onSurfaceVariant, marginTop: spacing.xs },
   documentStatus: {
     flexDirection: 'row',

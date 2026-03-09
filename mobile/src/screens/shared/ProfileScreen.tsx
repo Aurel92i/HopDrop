@@ -184,6 +184,7 @@ export function ProfileScreen() {
       <PhotoPreviewModal
         visible={!!previewUri}
         photoUri={previewUri}
+        aspectRatio={[1, 1]}
         onValidate={(uri) => {
           setPreviewUri(null);
           uploadAvatar(uri);

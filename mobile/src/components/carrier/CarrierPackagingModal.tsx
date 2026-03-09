@@ -5,6 +5,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { colors, spacing } from '../../theme';
 import { useTranslation } from '../../i18n/i18nContext';
+import { PhotoPreviewModal } from '../common/PhotoPreviewModal';
 
 interface PackagingConfirmationModalProps {
   visible: boolean;
@@ -23,6 +24,7 @@ export function PackagingConfirmationModal({
 }: PackagingConfirmationModalProps) {
   const { t } = useTranslation();
   const [photoUri, setPhotoUri] = useState<string | null>(null);
+  const [rawPhotoUri, setRawPhotoUri] = useState<string | null>(null);
 
   const takePhoto = async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
@@ -38,7 +40,7 @@ export function PackagingConfirmationModal({
     });
 
     if (!result.canceled && result.assets[0]) {
-      setPhotoUri(result.assets[0].uri);
+      setRawPhotoUri(result.assets[0].uri);
     }
   };
 
@@ -51,6 +53,7 @@ export function PackagingConfirmationModal({
 
   const handleDismiss = () => {
     setPhotoUri(null);
+    setRawPhotoUri(null);
     onDismiss();
   };
 
@@ -144,6 +147,17 @@ export function PackagingConfirmationModal({
           </Button>
         </View>
       </Modal>
+
+      <PhotoPreviewModal
+        visible={!!rawPhotoUri}
+        photoUri={rawPhotoUri}
+        aspectRatio={[4, 3]}
+        onValidate={(croppedUri) => {
+          setRawPhotoUri(null);
+          setPhotoUri(croppedUri);
+        }}
+        onRetake={() => setRawPhotoUri(null)}
+      />
     </Portal>
   );
 }

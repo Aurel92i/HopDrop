@@ -18,6 +18,7 @@ import { colors, spacing, sizes, carriers } from '../../theme';
 import { AddressAutocomplete } from '../../components/forms/AddressAutocomplete';
 import ArticleAnalysisModal from '../../components/vendor/ArticleAnalysisModal';
 import { useTranslation } from '../../i18n/i18nContext';
+import { PhotoPreviewModal } from '../../components/common/PhotoPreviewModal';
 
 const createParcelSchema = z.object({
   pickupAddressId: z.string().min(1, 'Sélectionnez une adresse'),
@@ -83,6 +84,7 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [step, setStep] = useState(1);
   const [itemPhoto, setItemPhoto] = useState<string | null>(null);
+  const [rawItemPhotoUri, setRawItemPhotoUri] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [detectedCategory, setDetectedCategory] = useState<string | null>(null);
   const [showTempAddressModal, setShowTempAddressModal] = useState(false);
@@ -270,10 +272,7 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
     });
 
     if (!result.canceled && result.assets[0]) {
-      setItemPhoto(result.assets[0].uri);
-      setValue('itemPhotoUrl', result.assets[0].uri);
-      // Ouvrir le modal d'analyse IA automatiquement
-      setShowAnalysisModal(true);
+      setRawItemPhotoUri(result.assets[0].uri);
     }
   };
 
@@ -292,10 +291,7 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
     });
 
     if (!result.canceled && result.assets[0]) {
-      setItemPhoto(result.assets[0].uri);
-      setValue('itemPhotoUrl', result.assets[0].uri);
-      // Ouvrir le modal d'analyse IA automatiquement
-      setShowAnalysisModal(true);
+      setRawItemPhotoUri(result.assets[0].uri);
     }
   };
 
@@ -1284,6 +1280,19 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
         visible={showAnalysisModal}
         onClose={() => setShowAnalysisModal(false)}
         onAnalysisComplete={handleAnalysisComplete}
+      />
+
+      <PhotoPreviewModal
+        visible={!!rawItemPhotoUri}
+        photoUri={rawItemPhotoUri}
+        aspectRatio={[4, 3]}
+        onValidate={(croppedUri) => {
+          setRawItemPhotoUri(null);
+          setItemPhoto(croppedUri);
+          setValue('itemPhotoUrl', croppedUri);
+          setShowAnalysisModal(true);
+        }}
+        onRetake={() => setRawItemPhotoUri(null)}
       />
 
       <Snackbar visible={!!error} onDismiss={clearError} duration={3000}>

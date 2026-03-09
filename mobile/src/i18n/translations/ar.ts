@@ -41,6 +41,7 @@ export const ar: TranslationKeys = {
     photoPreviewTitle: 'معاينة الصورة',
     validate: 'تأكيد',
     retakePhoto: 'إعادة التقاط الصورة',
+    cropHint: 'اضغط للتكبير، اسحب للتعديل',
     genericError: 'حدث خطأ',
     fillRequired: 'يرجى ملء جميع الحقول المطلوبة',
   },

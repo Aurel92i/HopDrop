@@ -16,6 +16,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { api, AnalysisResult, PRICING, PACKAGE_SIZES } from '../../services/api';
 import { useTranslation } from '../../i18n/i18nContext';
+import { PhotoPreviewModal } from '../common/PhotoPreviewModal';
 
 interface Props {
   visible: boolean;
@@ -26,6 +27,7 @@ interface Props {
 export default function ArticleAnalysisModal({ visible, onClose, onAnalysisComplete }: Props) {
   const { t } = useTranslation();
   const [imageUri, setImageUri] = useState<string | null>(null);
+  const [rawPhotoUri, setRawPhotoUri] = useState<string | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
   const [result, setResult] = useState<AnalysisResult | null>(null);
 
@@ -43,8 +45,7 @@ export default function ArticleAnalysisModal({ visible, onClose, onAnalysisCompl
     });
 
     if (!pickerResult.canceled && pickerResult.assets[0]) {
-      setImageUri(pickerResult.assets[0].uri);
-      setResult(null);
+      setRawPhotoUri(pickerResult.assets[0].uri);
     }
   };
 
@@ -62,8 +63,7 @@ export default function ArticleAnalysisModal({ visible, onClose, onAnalysisCompl
     });
 
     if (!pickerResult.canceled && pickerResult.assets[0]) {
-      setImageUri(pickerResult.assets[0].uri);
-      setResult(null);
+      setRawPhotoUri(pickerResult.assets[0].uri);
     }
   };
 
@@ -90,6 +90,7 @@ export default function ArticleAnalysisModal({ visible, onClose, onAnalysisCompl
 
   const resetAndClose = () => {
     setImageUri(null);
+    setRawPhotoUri(null);
     setResult(null);
     onClose();
   };
@@ -334,6 +335,18 @@ export default function ArticleAnalysisModal({ visible, onClose, onAnalysisCompl
           )}
         </ScrollView>
       </View>
+
+      <PhotoPreviewModal
+        visible={!!rawPhotoUri}
+        photoUri={rawPhotoUri}
+        aspectRatio={[4, 3]}
+        onValidate={(croppedUri) => {
+          setRawPhotoUri(null);
+          setImageUri(croppedUri);
+          setResult(null);
+        }}
+        onRetake={() => setRawPhotoUri(null)}
+      />
     </Modal>
   );
 }
