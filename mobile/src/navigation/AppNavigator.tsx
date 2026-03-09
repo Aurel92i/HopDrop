@@ -10,6 +10,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { useAuthStore } from '../stores/authStore';
 import { colors } from '../theme';
+import { useTranslation } from '../i18n/i18nContext';
 
 import {
   AuthStackParamList,
@@ -54,6 +55,7 @@ import { SplashScreen } from '../screens/shared/SplashScreen';
 
 // Chat Screens
 import { ChatScreen } from '../screens/chat/ChatScreen';
+import { LegalScreen } from '../screens/shared/LegalScreen';
 
 // Navigators
 const AuthStack = createNativeStackNavigator<AuthStackParamList>();
@@ -76,6 +78,7 @@ function AuthNavigator() {
 
 // Vendor Navigator
 function VendorNavigator() {
+  const { t } = useTranslation();
   return (
     <VendorStack.Navigator
       screenOptions={{
@@ -86,42 +89,42 @@ function VendorNavigator() {
       <VendorStack.Screen
         name="VendorHome"
         component={VendorHomeScreen}
-        options={{ title: 'Mes Colis' }}
+        options={{ title: t('nav.vendorHome') }}
       />
       <VendorStack.Screen
         name="CreateParcel"
         component={CreateParcelScreen}
-        options={{ title: 'Nouveau Colis' }}
+        options={{ title: t('nav.createParcel') }}
       />
       <VendorStack.Screen
         name="ParcelDetail"
         component={ParcelDetailScreen}
-        options={{ title: 'Détail du Colis' }}
+        options={{ title: t('nav.parcelDetail') }}
       />
       <VendorStack.Screen
         name="VendorHistory"
         component={VendorHistoryScreen}
-        options={{ title: 'Historique' }}
+        options={{ title: t('nav.vendorHistory') }}
       />
       <VendorStack.Screen
         name="Tracking"
         component={TrackingScreen}
-        options={{ title: 'Suivi du livreur' }}
+        options={{ title: t('nav.tracking') }}
       />
       <VendorStack.Screen
         name="Chat"
         component={ChatScreen}
-        options={{ title: 'Chat' }}
+        options={{ title: t('nav.chat') }}
       />
       <VendorStack.Screen
         name="Review"
         component={ReviewScreen}
-        options={{ title: 'Laisser un avis' }}
+        options={{ title: t('nav.review') }}
       />
       <VendorStack.Screen
         name="Payment"
         component={PaymentScreen}
-        options={{ title: 'Paiement' }}
+        options={{ title: t('nav.payment') }}
       />
     </VendorStack.Navigator>
   );
@@ -129,6 +132,7 @@ function VendorNavigator() {
 
 // Carrier Navigator
 function CarrierNavigator() {
+  const { t } = useTranslation();
   return (
     <CarrierStack.Navigator
       screenOptions={{
@@ -139,47 +143,47 @@ function CarrierNavigator() {
       <CarrierStack.Screen
         name="CarrierHome"
         component={CarrierHomeScreen}
-        options={{ title: 'Missions' }}
+        options={{ title: t('nav.carrierHome') }}
       />
       <CarrierStack.Screen
         name="AvailableMissions"
         component={AvailableMissionsScreen}
-        options={{ title: 'Missions Disponibles' }}
+        options={{ title: t('nav.availableMissions') }}
       />
       <CarrierStack.Screen
         name="MissionDetail"
         component={MissionDetailScreen}
-        options={{ title: 'Détail Mission' }}
+        options={{ title: t('nav.missionDetail') }}
       />
       <CarrierStack.Screen
         name="CarrierDocuments"
         component={CarrierDocumentsScreen}
-        options={{ title: 'Mes documents' }}
+        options={{ title: t('nav.carrierDocuments') }}
       />
       <CarrierStack.Screen
         name="CarrierHistory"
         component={CarrierHistoryScreen}
-        options={{ title: 'Historique' }}
+        options={{ title: t('nav.carrierHistory') }}
       />
       <CarrierStack.Screen
         name="Chat"
         component={ChatScreen}
-        options={{ title: 'Chat' }}
+        options={{ title: t('nav.chat') }}
       />
       <CarrierStack.Screen
         name="CarrierProfile"
         component={CarrierProfileScreen}
-        options={{ title: 'Mon profil livreur' }}
+        options={{ title: t('nav.carrierProfile') }}
       />
       <CarrierStack.Screen
         name="ActiveMissions"
         component={ActiveMissionsScreen}
-        options={{ title: 'Missions en cours' }}
+        options={{ title: t('nav.activeMissions') }}
       />
       <CarrierStack.Screen
         name="TransactionHistory"
         component={TransactionHistoryScreen}
-        options={{ title: 'Mes gains' }}
+        options={{ title: t('nav.transactionHistory') }}
       />
     </CarrierStack.Navigator>
   );
@@ -187,6 +191,7 @@ function CarrierNavigator() {
 
 // Profile Navigator
 function ProfileNavigator() {
+  const { t } = useTranslation();
   return (
     <ProfileStack.Navigator
       screenOptions={{
@@ -197,27 +202,32 @@ function ProfileNavigator() {
       <ProfileStack.Screen
         name="Profile"
         component={ProfileScreen}
-        options={{ title: 'Mon Profil' }}
+        options={{ title: t('nav.profile') }}
       />
       <ProfileStack.Screen
         name="Addresses"
         component={AddressesScreen}
-        options={{ title: 'Mes Adresses' }}
+        options={{ title: t('nav.addresses') }}
       />
       <ProfileStack.Screen
         name="Settings"
         component={SettingsScreen}
-        options={{ title: 'Paramètres' }}
+        options={{ title: t('nav.settings') }}
       />
       <ProfileStack.Screen
         name="CarrierDocuments"
         component={CarrierDocumentsScreen}
-        options={{ title: 'Mes Documents' }}
+        options={{ title: t('nav.documents') }}
       />
       <ProfileStack.Screen
         name="TransactionHistory"
         component={TransactionHistoryScreen}
-        options={{ title: 'Mes Transactions' }}
+        options={{ title: t('nav.transactions') }}
+      />
+      <ProfileStack.Screen
+        name="Legal"
+        component={LegalScreen}
+        options={{ title: t('nav.legal') }}
       />
     </ProfileStack.Navigator>
   );
@@ -225,6 +235,7 @@ function ProfileNavigator() {
 
 // Admin Navigator
 function AdminNavigator() {
+  const { t } = useTranslation();
   return (
     <AdminStack.Navigator
       screenOptions={{
@@ -235,7 +246,7 @@ function AdminNavigator() {
       <AdminStack.Screen
         name="AdminDashboard"
         component={AdminDashboardScreen}
-        options={{ title: 'Administration' }}
+        options={{ title: t('nav.adminDashboard') }}
       />
     </AdminStack.Navigator>
   );
@@ -245,6 +256,7 @@ function AdminNavigator() {
 function MainNavigator() {
   const theme = useTheme();
   const { user } = useAuthStore();
+  const { t } = useTranslation();
   const isCarrier = user?.role === 'CARRIER' || user?.role === 'BOTH';
   const isVendor = user?.role === 'VENDOR' || user?.role === 'BOTH';
   const isAdmin = user?.role === 'ADMIN';
@@ -266,7 +278,7 @@ function MainNavigator() {
           name="VendorTab"
           component={VendorNavigator}
           options={{
-            title: 'Colis',
+            title: t('nav.tab.vendor'),
             tabBarIcon: ({ color, size }) => (
               <MaterialCommunityIcons name="package-variant" size={size} color={color} />
             ),
@@ -278,7 +290,7 @@ function MainNavigator() {
           name="CarrierTab"
           component={CarrierNavigator}
           options={{
-            title: 'Missions',
+            title: t('nav.tab.carrier'),
             tabBarIcon: ({ color, size }) => (
               <MaterialCommunityIcons name="bike" size={size} color={color} />
             ),
@@ -290,7 +302,7 @@ function MainNavigator() {
           name="AdminTab"
           component={AdminNavigator}
           options={{
-            title: 'Admin',
+            title: t('nav.tab.admin'),
             tabBarIcon: ({ color, size }) => (
               <MaterialCommunityIcons name="shield-crown" size={size} color={color} />
             ),
@@ -301,7 +313,7 @@ function MainNavigator() {
         name="ProfileTab"
         component={ProfileNavigator}
         options={{
-          title: 'Profil',
+          title: t('nav.tab.profile'),
           tabBarIcon: ({ color, size }) => (
             <MaterialCommunityIcons name="account" size={size} color={color} />
           ),

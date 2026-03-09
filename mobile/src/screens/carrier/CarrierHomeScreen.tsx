@@ -6,7 +6,6 @@ import { useFocusEffect } from '@react-navigation/native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import MapView, { Marker, PROVIDER_GOOGLE, Region } from 'react-native-maps';
 import * as Location from 'expo-location';
-
 import { LoadingScreen } from '../../components/common/LoadingScreen';
 import { useMissionStore } from '../../stores/missionStore';
 import { api } from '../../services/api';
@@ -14,6 +13,7 @@ import { CarrierStackParamList } from '../../navigation/types';
 import { colors, spacing } from '../../theme';
 import { Parcel } from '../../types';
 import { PICKUP_POINTS, PICKUP_POINT_CONFIG, PickupPoint, PickupPointType } from '../../data/pickupPoints';
+import { useTranslation, languageLabels, Language } from '../../i18n/i18nContext';
 
 type CarrierHomeScreenProps = {
   navigation: NativeStackNavigationProp<CarrierStackParamList, 'CarrierHome'>;
@@ -26,26 +26,8 @@ const BOTTOM_SHEET_MIN_HEIGHT = 0;
 // Types affichés par défaut (MR + Vinted lockers uniquement)
 const DEFAULT_VISIBLE_TYPES: PickupPointType[] = ['VINTED_LOCKER', 'MONDIAL_RELAY_LOCKER'];
 
-// Filtres recherche
-const SEARCH_FILTERS: { type: PickupPointType | 'ALL' | 'LOCKERS'; label: string; icon: string; color: string }[] = [
-  { type: 'ALL', label: 'Tous', icon: 'map-marker-multiple', color: colors.primary },
-  { type: 'LOCKERS', label: 'Lockers', icon: 'locker', color: '#10B981' },
-  { type: 'VINTED_LOCKER', label: 'Vinted Go', icon: 'locker', color: '#09B1BA' },
-  { type: 'MONDIAL_RELAY_LOCKER', label: 'MR Locker', icon: 'locker-multiple', color: '#A4195C' },
-  { type: 'AMAZON_LOCKER', label: 'Amazon', icon: 'locker', color: '#FF9900' },
-  { type: 'INPOST_LOCKER', label: 'InPost', icon: 'locker', color: '#FFCC00' },
-  { type: 'MONDIAL_RELAY', label: 'Mondial Relay', icon: 'store', color: '#A4195C' },
-  { type: 'LA_POSTE', label: 'La Poste', icon: 'email', color: '#FFD000' },
-  { type: 'CHRONOPOST', label: 'Chronopost', icon: 'package-variant-closed', color: '#0096DB' },
-  { type: 'VINTED', label: 'Point Vinted', icon: 'hanger', color: '#09B1BA' },
-];
-
-const SIZE_LABELS: Record<string, string> = {
-  XS: 'Très petit', S: 'Petit', SMALL: 'Petit', M: 'Moyen', MEDIUM: 'Moyen',
-  L: 'Grand', LARGE: 'Grand', XL: 'Très grand', XLARGE: 'Très grand',
-};
-
 export function CarrierHomeScreen({ navigation }: CarrierHomeScreenProps) {
+  const { t, language, setLanguage } = useTranslation();
   const { currentMissions, fetchCurrentMissions } = useMissionStore();
   const [isAvailable, setIsAvailable] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -63,6 +45,8 @@ export function CarrierHomeScreen({ navigation }: CarrierHomeScreenProps) {
 
   // Recherche
   const [showSearchModal, setShowSearchModal] = useState(false);
+  const [showLanguageModal, setShowLanguageModal] = useState(false);
+  const [showEarnings, setShowEarnings] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchFilter, setSearchFilter] = useState<PickupPointType | 'ALL' | 'LOCKERS'>('ALL');
   const [filteredSearchPoints, setFilteredSearchPoints] = useState<PickupPoint[]>(PICKUP_POINTS);
@@ -85,6 +69,36 @@ export function CarrierHomeScreen({ navigation }: CarrierHomeScreenProps) {
     latitudeDelta: 0.08,
     longitudeDelta: 0.08,
   });
+
+  // Module-level constants moved inside component with useMemo for i18n
+  const SEARCH_FILTERS = useMemo(() => [
+    { type: 'ALL' as const, label: t('carrier.home.all'), icon: 'map-marker-multiple', color: colors.primary },
+    { type: 'LOCKERS' as const, label: t('carrier.home.lockers'), icon: 'locker', color: '#10B981' },
+    { type: 'VINTED_LOCKER' as PickupPointType, label: 'Vinted Go', icon: 'locker', color: '#09B1BA' },
+    { type: 'MONDIAL_RELAY_LOCKER' as PickupPointType, label: 'MR Locker', icon: 'locker-multiple', color: '#A4195C' },
+    { type: 'AMAZON_LOCKER' as PickupPointType, label: 'Amazon', icon: 'locker', color: '#FF9900' },
+    { type: 'INPOST_LOCKER' as PickupPointType, label: 'InPost', icon: 'locker', color: '#FFCC00' },
+    { type: 'MONDIAL_RELAY' as PickupPointType, label: 'Mondial Relay', icon: 'store', color: '#A4195C' },
+    { type: 'LA_POSTE' as PickupPointType, label: 'La Poste', icon: 'email', color: '#FFD000' },
+    { type: 'CHRONOPOST' as PickupPointType, label: 'Chronopost', icon: 'package-variant-closed', color: '#0096DB' },
+    { type: 'VINTED' as PickupPointType, label: 'Point Vinted', icon: 'hanger', color: '#09B1BA' },
+  ], [t]);
+
+  const SIZE_LABELS = useMemo((): Record<string, string> => ({
+    XS: t('carrier.home.sizeXS'), S: t('carrier.home.sizeS'), SMALL: t('carrier.home.sizeS'),
+    M: t('carrier.home.sizeM'), MEDIUM: t('carrier.home.sizeM'),
+    L: t('carrier.home.sizeL'), LARGE: t('carrier.home.sizeL'),
+    XL: t('carrier.home.sizeXL'), XLARGE: t('carrier.home.sizeXL'),
+  }), [t]);
+
+  // Locale mapping for date/time formatting
+  const LOCALE_MAP: Record<string, string> = { fr: 'fr-FR', en: 'en-US', es: 'es-ES', ar: 'ar-SA', pt: 'pt-PT' };
+  const currentLocale = LOCALE_MAP[language] || 'fr-FR';
+
+  // Language picker
+  const showLanguagePicker = () => {
+    setShowLanguageModal(true);
+  };
 
   // Points visibles sur la carte
   const mapPoints = useMemo(() => {
@@ -136,12 +150,13 @@ export function CarrierHomeScreen({ navigation }: CarrierHomeScreenProps) {
     navigation.setOptions({
       headerRight: () => (
         <View style={{ flexDirection: 'row' }}>
+          <IconButton icon="translate" size={24} onPress={showLanguagePicker} />
           <IconButton icon="account-circle" size={24} onPress={() => navigation.navigate('CarrierProfile')} />
           <IconButton icon="history" size={24} onPress={() => navigation.navigate('CarrierHistory')} />
         </View>
       ),
     });
-  }, [navigation]);
+  }, [navigation, language]);
 
   const openBottomSheet = () => {
     Animated.parallel([
@@ -161,7 +176,7 @@ export function CarrierHomeScreen({ navigation }: CarrierHomeScreenProps) {
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Permission refusée', 'Activez la localisation pour voir les missions proches');
+        Alert.alert(t('carrier.home.locationDenied'), t('carrier.home.locationDeniedDesc'));
         return;
       }
       const location = await Location.getCurrentPositionAsync({});
@@ -179,7 +194,7 @@ export function CarrierHomeScreen({ navigation }: CarrierHomeScreenProps) {
     try {
       const profile = await api.getCarrierProfile();
       setIsAvailable(profile.isAvailable ?? false);
-      
+
       // Charger les gains depuis l'API
       try {
         const balance = await api.getCarrierBalance();
@@ -242,17 +257,17 @@ export function CarrierHomeScreen({ navigation }: CarrierHomeScreenProps) {
       await api.acceptMission(selectedParcel.id);
       closeBottomSheet();
       Alert.alert(
-        '✅ Mission acceptée !',
-        `Rendez-vous chez ${selectedParcel.vendor?.firstName || 'le vendeur'} pour récupérer le colis.`,
+        `\u2705 ${t('carrier.home.missionAcceptedTitle')}`,
+        t('carrier.home.missionAcceptedMessage').replace('{vendorName}', selectedParcel.vendor?.firstName || t('carrier.home.vendorLabel')),
         [
-          { text: 'Voir la mission', onPress: () => { fetchCurrentMissions(); navigation.navigate('ActiveMissions'); } },
-          { text: 'OK' }
+          { text: t('carrier.home.viewMission'), onPress: () => { fetchCurrentMissions(); navigation.navigate('ActiveMissions'); } },
+          { text: t('common.ok') }
         ]
       );
       if (userLocation) await loadAvailableParcels(userLocation.latitude, userLocation.longitude);
       await fetchCurrentMissions();
     } catch (error: any) {
-      Alert.alert('Erreur', error.message || 'Impossible d\'accepter la mission');
+      Alert.alert(t('common.error'), error.message || t('carrier.availableMissions.acceptError'));
     } finally {
       setIsAccepting(false);
     }
@@ -263,13 +278,13 @@ export function CarrierHomeScreen({ navigation }: CarrierHomeScreenProps) {
     const today = new Date();
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
-    if (date.toDateString() === today.toDateString()) return "Aujourd'hui";
-    if (date.toDateString() === tomorrow.toDateString()) return 'Demain';
-    return date.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+    if (date.toDateString() === today.toDateString()) return t('carrier.missionDetail.today');
+    if (date.toDateString() === tomorrow.toDateString()) return t('carrier.missionDetail.tomorrow');
+    return date.toLocaleDateString(currentLocale, { weekday: 'long', day: 'numeric', month: 'long' });
   };
 
   const formatTime = (dateString: string) => {
-    return new Date(dateString).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+    return new Date(dateString).toLocaleTimeString(currentLocale, { hour: '2-digit', minute: '2-digit' });
   };
 
   // Recherche
@@ -309,10 +324,10 @@ export function CarrierHomeScreen({ navigation }: CarrierHomeScreenProps) {
     }, 500);
     Alert.alert(
       point.name,
-      `📍 ${point.address}\n🏙️ ${point.city}\n${point.openingHours ? `🕐 ${point.openingHours}` : ''}`,
+      `\ud83d\udccd ${point.address}\n\ud83c\udfd9\ufe0f ${point.city}\n${point.openingHours ? `\ud83d\udd50 ${point.openingHours}` : ''}`,
       [
-        { text: 'OK', style: 'cancel' },
-        { text: 'Y aller', onPress: () => {
+        { text: t('common.ok'), style: 'cancel' },
+        { text: t('carrier.home.goThere'), onPress: () => {
           import('react-native').then(({ Linking }) => {
             Linking.openURL(`https://www.google.com/maps/dir/?api=1&destination=${point.latitude},${point.longitude}`);
           });
@@ -323,7 +338,7 @@ export function CarrierHomeScreen({ navigation }: CarrierHomeScreenProps) {
 
   const clearSearchPoints = () => setSearchSelectedPoints([]);
 
-  if (isLoading) return <LoadingScreen message="Chargement..." />;
+  if (isLoading) return <LoadingScreen message={t('common.loading')} />;
 
   const darkMapStyle = [
     { elementType: 'geometry', stylers: [{ color: '#242f3e' }] },
@@ -384,8 +399,7 @@ export function CarrierHomeScreen({ navigation }: CarrierHomeScreenProps) {
             <Marker
               key={point.id}
               coordinate={{ latitude: point.latitude, longitude: point.longitude }}
-              title={point.name}
-              description={`${point.address}, ${point.city}`}
+              onPress={() => handleSelectSearchPoint(point)}
             >
               <View style={[styles.poiMarker, { backgroundColor: config.color }, isFromSearch && styles.poiMarkerHighlight]}>
                 <MaterialCommunityIcons name={config.icon as any} size={14} color="white" />
@@ -421,9 +435,9 @@ export function CarrierHomeScreen({ navigation }: CarrierHomeScreenProps) {
               isAvailable && { transform: [{ scale: pulseAnim }] }
             ]} />
             <View>
-              <Text style={styles.onlineTitle}>{isAvailable ? 'En ligne' : 'Hors ligne'}</Text>
+              <Text style={styles.onlineTitle}>{isAvailable ? t('carrier.home.online') : t('carrier.home.offline')}</Text>
               <Text style={styles.onlineSubtitle}>
-                {isAvailable ? 'Vous recevez des missions' : 'Activez pour recevoir'}
+                {isAvailable ? t('carrier.home.receivingMissions') : t('carrier.home.activateToReceive')}
               </Text>
             </View>
           </View>
@@ -435,119 +449,122 @@ export function CarrierHomeScreen({ navigation }: CarrierHomeScreenProps) {
           />
         </View>
 
-        {/* Card Cagnotte style Uber */}
-        <TouchableOpacity 
-          style={styles.earningsCard} 
-          activeOpacity={0.9}
-          onPress={() => {
-            Alert.alert(
-              '💰 Ma Cagnotte',
-              `Total: ${earnings.total.toFixed(2)} €\nAujourd'hui: ${earnings.today.toFixed(2)} €\nCette semaine: ${earnings.week.toFixed(2)} €\n\nLes gains sont crédités après confirmation de livraison.`,
-              [
-                { text: 'Voir historique', onPress: () => navigation.navigate('CarrierHistory') },
-                { text: 'OK' }
-              ]
-            );
-          }}
-        >
-          <View style={styles.earningsGradient}>
-            <View style={styles.earningsLeft}>
-              <View style={styles.earningsIconContainer}>
-                <MaterialCommunityIcons name="wallet" size={24} color="white" />
-              </View>
-              <View>
-                <Text style={styles.earningsLabel}>Cagnotte</Text>
-                <Text style={styles.earningsAmount}>{earnings.total.toFixed(2)} €</Text>
-              </View>
-            </View>
-            <View style={styles.earningsRight}>
-              <View style={styles.earningsStat}>
-                <Text style={styles.earningsStatLabel}>Aujourd'hui</Text>
-                <Text style={styles.earningsStatValue}>{earnings.today.toFixed(2)} €</Text>
-              </View>
-              <View style={styles.earningsDivider} />
-              <View style={styles.earningsStat}>
-                <Text style={styles.earningsStatLabel}>Cette semaine</Text>
-                <Text style={styles.earningsStatValue}>{earnings.week.toFixed(2)} €</Text>
-              </View>
-            </View>
-            <MaterialCommunityIcons name="chevron-right" size={24} color="rgba(255,255,255,0.7)" />
-          </View>
-        </TouchableOpacity>
+        {/* Cagnotte style Uber */}
+        <View style={styles.earningsPill}>
+          <TouchableOpacity
+            style={styles.earningsPillLeft}
+            activeOpacity={0.7}
+            onPress={() => navigation.navigate('TransactionHistory')}
+          >
+            <Text style={styles.earningsPillAmount}>
+              {showEarnings ? `${earnings.total.toFixed(2)} €` : '••••'}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => setShowEarnings(!showEarnings)}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            style={styles.earningsPillEye}
+          >
+            <MaterialCommunityIcons
+              name={showEarnings ? 'eye-outline' : 'eye-off-outline'}
+              size={20}
+              color={showEarnings ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.5)'}
+            />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Indicateur points recherchés */}
       {searchSelectedPoints.length > 0 && (
         <TouchableOpacity style={styles.searchIndicator} onPress={clearSearchPoints}>
           <MaterialCommunityIcons name="map-marker-check" size={16} color="#10B981" />
-          <Text style={styles.searchIndicatorText}>{searchSelectedPoints.length} point{searchSelectedPoints.length > 1 ? 's' : ''} affiché{searchSelectedPoints.length > 1 ? 's' : ''}</Text>
+          <Text style={styles.searchIndicatorText}>
+            {searchSelectedPoints.length > 1
+              ? t('carrier.home.pointsDisplayed').replace('{count}', String(searchSelectedPoints.length))
+              : t('carrier.home.pointDisplayed').replace('{count}', String(searchSelectedPoints.length))}
+          </Text>
           <MaterialCommunityIcons name="close-circle" size={16} color="#6B7280" />
         </TouchableOpacity>
       )}
 
-      {/* ===== BARRE DU BAS PREMIUM ===== */}
+{/* Modal sélection de langue */}
+      <Modal visible={showLanguageModal} transparent animationType="fade" onRequestClose={() => setShowLanguageModal(false)}>
+        <TouchableOpacity style={styles.langModalOverlay} activeOpacity={1} onPress={() => setShowLanguageModal(false)}>
+          <View style={styles.langModalContent}>
+            <Text style={styles.langModalTitle}>{t('shared.settings.selectLanguage')}</Text>
+            {(Object.keys(languageLabels) as Language[]).map((lang) => (
+              <TouchableOpacity
+                key={lang}
+                style={styles.langModalOption}
+                onPress={() => { setLanguage(lang); setShowLanguageModal(false); }}
+              >
+                <Text style={[styles.langModalOptionText, lang === language && { color: colors.primary, fontWeight: '700' }]}>
+                  {languageLabels[lang]}{lang === language ? ' ✓' : ''}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* ===== BARRE DU BAS ===== */}
       <View style={styles.bottomBar}>
         <View style={styles.bottomBarInner}>
-          {/* Stats cliquables */}
-          <View style={styles.statsContainer}>
-            {/* Colis disponibles - CLIQUABLE */}
-            <TouchableOpacity 
-              style={styles.statCard} 
-              onPress={() => navigation.navigate('AvailableMissions')}
-              activeOpacity={0.7}
-            >
-              <View style={[styles.statIconWrapper, { backgroundColor: '#EFF6FF' }]}>
-                <MaterialCommunityIcons name="package-variant" size={22} color={colors.primary} />
-              </View>
-              <View style={styles.statTextContainer}>
-                <Text style={styles.statNumber}>{availableParcels.length}</Text>
-                <Text style={styles.statLabel}>Disponible{availableParcels.length !== 1 ? 's' : ''}</Text>
-              </View>
-            </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.barItem}
+            onPress={() => navigation.navigate('AvailableMissions')}
+            activeOpacity={0.7}
+          >
+            <View style={[styles.barIconCircle, { backgroundColor: '#EFF6FF' }]}>
+              <MaterialCommunityIcons name="package-variant" size={20} color={colors.primary} />
+              {availableParcels.length > 0 && (
+                <View style={styles.barBadge}>
+                  <Text style={styles.barBadgeText}>{availableParcels.length}</Text>
+                </View>
+              )}
+            </View>
+            <Text style={styles.barItemLabel} numberOfLines={1}>{t('carrier.home.availableLabel')}</Text>
+          </TouchableOpacity>
 
-            {/* Missions en cours */}
-            <TouchableOpacity 
-              style={styles.statCard} 
-              onPress={() => currentMissions.length > 0 && navigation.navigate('ActiveMissions')}
-              activeOpacity={0.7}
-            >
-              <View style={[styles.statIconWrapper, { backgroundColor: currentMissions.length > 0 ? '#D1FAE5' : '#F3F4F6' }]}>
-                <MaterialCommunityIcons name="bike" size={22} color={currentMissions.length > 0 ? '#10B981' : '#9CA3AF'} />
-              </View>
-              <View style={styles.statTextContainer}>
-                <Text style={[styles.statNumber, currentMissions.length === 0 && { color: '#9CA3AF' }]}>{currentMissions.length}</Text>
-                <Text style={styles.statLabel}>En cours</Text>
-              </View>
-            </TouchableOpacity>
-          </View>
+          <TouchableOpacity
+            style={styles.barItem}
+            onPress={() => currentMissions.length > 0 && navigation.navigate('ActiveMissions')}
+            activeOpacity={0.7}
+          >
+            <View style={[styles.barIconCircle, { backgroundColor: currentMissions.length > 0 ? '#D1FAE5' : '#F3F4F6' }]}>
+              <MaterialCommunityIcons name="bike" size={20} color={currentMissions.length > 0 ? '#10B981' : '#9CA3AF'} />
+              {currentMissions.length > 0 && (
+                <View style={[styles.barBadge, { backgroundColor: '#10B981' }]}>
+                  <Text style={styles.barBadgeText}>{currentMissions.length}</Text>
+                </View>
+              )}
+            </View>
+            <Text style={[styles.barItemLabel, currentMissions.length === 0 && { color: '#9CA3AF' }]} numberOfLines={1}>{t('carrier.home.inProgress')}</Text>
+          </TouchableOpacity>
 
-          {/* Séparateur vertical */}
           <View style={styles.barDivider} />
 
-          {/* Boutons d'action */}
-          <View style={styles.actionButtons}>
-            <TouchableOpacity 
-              style={styles.actionButton} 
-              onPress={() => setShowSearchModal(true)}
-              activeOpacity={0.7}
-            >
-              <View style={styles.actionButtonInner}>
-                <MaterialCommunityIcons name="magnify" size={22} color={colors.primary} />
-              </View>
-              <Text style={styles.actionButtonLabel}>Rechercher</Text>
-            </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.barItem}
+            onPress={() => setShowSearchModal(true)}
+            activeOpacity={0.7}
+          >
+            <View style={[styles.barIconCircle, { backgroundColor: '#EFF6FF' }]}>
+              <MaterialCommunityIcons name="magnify" size={20} color={colors.primary} />
+            </View>
+            <Text style={styles.barItemLabel} numberOfLines={1}>{t('carrier.home.searchLabel')}</Text>
+          </TouchableOpacity>
 
-            <TouchableOpacity 
-              style={styles.actionButton} 
-              onPress={centerOnUser}
-              activeOpacity={0.7}
-            >
-              <View style={styles.actionButtonInner}>
-                <MaterialCommunityIcons name="crosshairs-gps" size={22} color={colors.primary} />
-              </View>
-              <Text style={styles.actionButtonLabel}>Position</Text>
-            </TouchableOpacity>
-          </View>
+          <TouchableOpacity
+            style={styles.barItem}
+            onPress={centerOnUser}
+            activeOpacity={0.7}
+          >
+            <View style={[styles.barIconCircle, { backgroundColor: '#EFF6FF' }]}>
+              <MaterialCommunityIcons name="crosshairs-gps" size={20} color={colors.primary} />
+            </View>
+            <Text style={styles.barItemLabel} numberOfLines={1}>Position</Text>
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -557,9 +574,9 @@ export function CarrierHomeScreen({ navigation }: CarrierHomeScreenProps) {
           <View style={styles.modalContent}>
             {/* Handle */}
             <View style={styles.modalHandle}><View style={styles.modalHandleBar} /></View>
-            
+
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Trouver un point relais</Text>
+              <Text style={styles.modalTitle}>{t('carrier.home.findRelayPoint')}</Text>
               <TouchableOpacity onPress={() => setShowSearchModal(false)} style={styles.modalClose}>
                 <MaterialCommunityIcons name="close" size={24} color="#6B7280" />
               </TouchableOpacity>
@@ -569,7 +586,7 @@ export function CarrierHomeScreen({ navigation }: CarrierHomeScreenProps) {
               <MaterialCommunityIcons name="magnify" size={22} color="#9CA3AF" />
               <TextInput
                 style={styles.searchInput}
-                placeholder="Nom, ville, adresse..."
+                placeholder={t('carrier.home.searchPlaceholder')}
                 placeholderTextColor="#9CA3AF"
                 value={searchQuery}
                 onChangeText={handleSearch}
@@ -595,7 +612,11 @@ export function CarrierHomeScreen({ navigation }: CarrierHomeScreenProps) {
               ))}
             </ScrollView>
 
-            <Text style={styles.resultsCount}>{filteredSearchPoints.length} résultat{filteredSearchPoints.length !== 1 ? 's' : ''}</Text>
+            <Text style={styles.resultsCount}>
+              {filteredSearchPoints.length !== 1
+                ? t('carrier.home.resultCountPlural').replace('{count}', String(filteredSearchPoints.length))
+                : t('carrier.home.resultCount').replace('{count}', String(filteredSearchPoints.length))}
+            </Text>
 
             <ScrollView style={styles.resultsList} showsVerticalScrollIndicator={false}>
               {filteredSearchPoints.map((point) => {
@@ -648,8 +669,8 @@ export function CarrierHomeScreen({ navigation }: CarrierHomeScreenProps) {
                   <MaterialCommunityIcons name="package-variant" size={22} color="white" />
                 </View>
                 <View style={styles.sheetHeaderText}>
-                  <Text style={styles.sheetTitle}>Colis disponible</Text>
-                  <Text style={styles.sheetSubtitle}>{SIZE_LABELS[selectedParcel.size] || selectedParcel.size} • {selectedParcel.description || 'Pas de description'}</Text>
+                  <Text style={styles.sheetTitle}>{t('carrier.home.availableParcel')}</Text>
+                  <Text style={styles.sheetSubtitle}>{SIZE_LABELS[selectedParcel.size] || selectedParcel.size} {'\u2022'} {selectedParcel.description || t('carrier.home.noDescription')}</Text>
                 </View>
                 <TouchableOpacity onPress={closeBottomSheet} style={styles.sheetClose}>
                   <MaterialCommunityIcons name="close" size={24} color="#9CA3AF" />
@@ -660,7 +681,7 @@ export function CarrierHomeScreen({ navigation }: CarrierHomeScreenProps) {
                 <MaterialCommunityIcons name={selectedParcel.pickupMode === 'IMMEDIATE' ? 'lightning-bolt' : 'clock-outline'} size={26} color="white" />
                 <View style={styles.slotContent}>
                   {selectedParcel.pickupMode === 'IMMEDIATE' ? (
-                    <><Text style={styles.slotTitle}>Récupération immédiate</Text><Text style={styles.slotSubtitle}>Le vendeur vous attend</Text></>
+                    <><Text style={styles.slotTitle}>{t('carrier.missionDetail.immediatePickup')}</Text><Text style={styles.slotSubtitle}>{t('carrier.missionDetail.vendorWaiting')}</Text></>
                   ) : (
                     <><Text style={styles.slotTitle}>{formatDate(selectedParcel.pickupSlotStart)}</Text><Text style={styles.slotSubtitle}>{formatTime(selectedParcel.pickupSlotStart)} - {formatTime(selectedParcel.pickupSlotEnd)}</Text></>
                   )}
@@ -671,25 +692,25 @@ export function CarrierHomeScreen({ navigation }: CarrierHomeScreenProps) {
 
               <View style={styles.infoRow}>
                 <View style={[styles.infoIcon, { backgroundColor: '#DBEAFE' }]}><MaterialCommunityIcons name="account" size={22} color={colors.primary} /></View>
-                <View style={styles.infoText}><Text style={styles.infoLabel}>Vendeur</Text><Text style={styles.infoValue}>{selectedParcel.vendor?.firstName || 'Vendeur'} {selectedParcel.vendor?.lastName?.charAt(0) || ''}.</Text></View>
+                <View style={styles.infoText}><Text style={styles.infoLabel}>{t('carrier.home.vendorLabel')}</Text><Text style={styles.infoValue}>{selectedParcel.vendor?.firstName || t('carrier.home.vendorLabel')} {selectedParcel.vendor?.lastName?.charAt(0) || ''}.</Text></View>
               </View>
 
               <View style={styles.infoRow}>
                 <View style={[styles.infoIcon, { backgroundColor: '#D1FAE5' }]}><MaterialCommunityIcons name="map-marker" size={22} color="#10B981" /></View>
-                <View style={styles.infoText}><Text style={styles.infoLabel}>Récupération</Text><Text style={styles.infoValue}>{selectedParcel.pickupAddress?.street}</Text><Text style={styles.infoValueSub}>{selectedParcel.pickupAddress?.postalCode} {selectedParcel.pickupAddress?.city}</Text></View>
+                <View style={styles.infoText}><Text style={styles.infoLabel}>{t('carrier.home.pickupLabel')}</Text><Text style={styles.infoValue}>{selectedParcel.pickupAddress?.street}</Text><Text style={styles.infoValueSub}>{selectedParcel.pickupAddress?.postalCode} {selectedParcel.pickupAddress?.city}</Text></View>
               </View>
 
               <View style={styles.infoRow}>
                 <View style={[styles.infoIcon, { backgroundColor: '#FEF3C7' }]}><MaterialCommunityIcons name="store" size={22} color="#F59E0B" /></View>
-                <View style={styles.infoText}><Text style={styles.infoLabel}>Dépôt</Text><Text style={styles.infoValue}>{selectedParcel.dropoffName}</Text>{selectedParcel.dropoffAddress && <Text style={styles.infoValueSub}>{selectedParcel.dropoffAddress}</Text>}</View>
+                <View style={styles.infoText}><Text style={styles.infoLabel}>{t('carrier.home.dropoffLabel')}</Text><Text style={styles.infoValue}>{selectedParcel.dropoffName}</Text>{selectedParcel.dropoffAddress && <Text style={styles.infoValueSub}>{selectedParcel.dropoffAddress}</Text>}</View>
               </View>
 
               <Divider style={styles.divider} />
 
               <View style={styles.priceBox}>
                 <View>
-                  <Text style={styles.priceLabel}>Votre rémunération</Text>
-                  <Text style={styles.priceHint}>💡 Payé après livraison</Text>
+                  <Text style={styles.priceLabel}>{t('carrier.home.yourEarnings')}</Text>
+                  <Text style={styles.priceHint}>{'\ud83d\udca1'} {t('carrier.home.paidAfterDelivery')}</Text>
                 </View>
                 <Text style={styles.priceValue}>{typeof selectedParcel.price === 'object' ? (selectedParcel.price as any)?.total?.toFixed(2) : Number(selectedParcel.price).toFixed(2)}€</Text>
               </View>
@@ -697,11 +718,11 @@ export function CarrierHomeScreen({ navigation }: CarrierHomeScreenProps) {
               <TouchableOpacity style={styles.acceptBtn} onPress={handleAcceptMission} disabled={isAccepting} activeOpacity={0.8}>
                 <View style={styles.acceptBtnGradient}>
                   {isAccepting ? (
-                    <Text style={styles.acceptBtnText}>Chargement...</Text>
+                    <Text style={styles.acceptBtnText}>{t('common.loading')}</Text>
                   ) : (
                     <>
                       <MaterialCommunityIcons name="check-circle" size={22} color="white" />
-                      <Text style={styles.acceptBtnText}>Accepter la mission</Text>
+                      <Text style={styles.acceptBtnText}>{t('carrier.missions.accept')}</Text>
                     </>
                   )}
                 </View>
@@ -722,7 +743,7 @@ const styles = StyleSheet.create({
 
   // Header
   headerContainer: { position: 'absolute', top: 12, left: 16, right: 16, gap: 12 },
-  
+
   // Card En ligne
   onlineCard: {
     flexDirection: 'row',
@@ -744,44 +765,40 @@ const styles = StyleSheet.create({
   onlineSubtitle: { fontSize: 12, color: '#6B7280', marginTop: 2 },
   onlineSwitch: { transform: [{ scaleX: 1.1 }, { scaleY: 1.1 }] },
 
-  // Card Cagnotte
-  earningsCard: {
-    borderRadius: 20,
-    overflow: 'hidden',
+  // Cagnotte pill style Uber
+  earningsPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: '#1a1a1a',
+    borderRadius: 28,
+    paddingLeft: 20,
+    paddingRight: 6,
+    paddingVertical: 10,
     ...Platform.select({
-      ios: { shadowColor: '#1E40AF', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.3, shadowRadius: 16 },
+      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8 },
       android: { elevation: 8 },
     }),
   },
-  earningsGradient: {
+  earningsPillLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 18,
-    paddingVertical: 16,
-    backgroundColor: '#2563EB',
-    borderRadius: 20,
   },
-  earningsLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  earningsIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
+  earningsPillAmount: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: 'white',
+    letterSpacing: 0.5,
   },
-  earningsLabel: { fontSize: 12, color: 'rgba(255,255,255,0.8)' },
-  earningsAmount: { fontSize: 22, fontWeight: '800', color: 'white', marginTop: 2 },
-  earningsRight: { flex: 1, flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', gap: 16, marginRight: 8 },
-  earningsStat: { alignItems: 'flex-end' },
-  earningsStatLabel: { fontSize: 10, color: 'rgba(255,255,255,0.7)' },
-  earningsStatValue: { fontSize: 14, fontWeight: '700', color: 'white', marginTop: 2 },
-  earningsDivider: { width: 1, height: 30, backgroundColor: 'rgba(255,255,255,0.3)' },
+  earningsPillEye: {
+    padding: 10,
+    marginLeft: 8,
+  },
 
   // Indicateur recherche
   searchIndicator: {
     position: 'absolute',
-    top: 200,
+    top: 170,
     left: 16,
     flexDirection: 'row',
     alignItems: 'center',
@@ -803,49 +820,63 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    paddingHorizontal: 16,
-    paddingBottom: Platform.OS === 'ios' ? 24 : 16,
-    paddingTop: 12,
+    paddingHorizontal: 12,
+    paddingBottom: Platform.OS === 'ios' ? 24 : 12,
+    paddingTop: 8,
   },
   bottomBarInner: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-evenly',
     backgroundColor: 'white',
-    borderRadius: 28,
-    paddingHorizontal: 8,
-    paddingVertical: 8,
+    borderRadius: 24,
+    paddingHorizontal: 6,
+    paddingVertical: 10,
     ...Platform.select({
-      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: -4 }, shadowOpacity: 0.15, shadowRadius: 20 },
-      android: { elevation: 12 },
+      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: -4 }, shadowOpacity: 0.12, shadowRadius: 16 },
+      android: { elevation: 10 },
     }),
   },
-  statsContainer: { flex: 1, flexDirection: 'row', gap: 4 },
-  statCard: {
-    flex: 1,
-    flexDirection: 'row',
+  barItem: {
     alignItems: 'center',
-    backgroundColor: '#F9FAFB',
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 20,
-    gap: 10,
+    justifyContent: 'center',
+    flex: 1,
+    gap: 4,
   },
-  statIconWrapper: { width: 42, height: 42, borderRadius: 21, justifyContent: 'center', alignItems: 'center' },
-  statTextContainer: { flex: 1 },
-  statNumber: { fontSize: 20, fontWeight: '800', color: '#1F2937' },
-  statLabel: { fontSize: 11, color: '#6B7280', marginTop: 1 },
-  barDivider: { width: 1, height: 40, backgroundColor: '#E5E7EB', marginHorizontal: 8 },
-  actionButtons: { flexDirection: 'row', gap: 8 },
-  actionButton: { alignItems: 'center', gap: 4 },
-  actionButtonInner: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: '#EFF6FF',
+  barIconCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     justifyContent: 'center',
     alignItems: 'center',
+    position: 'relative',
   },
-  actionButtonLabel: { fontSize: 10, color: '#6B7280', fontWeight: '500' },
+  barBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    backgroundColor: colors.primary,
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 5,
+    borderWidth: 2,
+    borderColor: 'white',
+  },
+  barBadgeText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: 'white',
+  },
+  barItemLabel: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: '#6B7280',
+    textAlign: 'center',
+  },
+  barDivider: { width: 1, height: 32, backgroundColor: '#E5E7EB' },
 
   // Markers
   parcelMarker: {
@@ -986,6 +1017,11 @@ const styles = StyleSheet.create({
     marginVertical: 12,
     gap: 14,
   },
+  langModalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center' },
+  langModalContent: { backgroundColor: 'white', borderRadius: 16, padding: 20, width: '80%', maxWidth: 320 },
+  langModalTitle: { fontSize: 18, fontWeight: '700', color: '#1F2937', marginBottom: 16, textAlign: 'center' },
+  langModalOption: { paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#F3F4F6' },
+  langModalOptionText: { fontSize: 16, color: '#374151', textAlign: 'center' },
   slotScheduled: { backgroundColor: colors.primary },
   slotImmediate: { backgroundColor: '#F59E0B' },
   slotContent: { flex: 1 },
@@ -1020,5 +1056,5 @@ const styles = StyleSheet.create({
     backgroundColor: '#2563EB',
     borderRadius: 16,
   },
-  acceptBtnText: { fontSize: 17, fontWeight: '700', color: 'white' },
+  acceptBtnText: { fontSize: 17, fontWeight: '700', color: 'white' }
 });

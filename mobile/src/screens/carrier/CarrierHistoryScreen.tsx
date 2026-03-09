@@ -11,26 +11,28 @@ import { api } from '../../services/api';
 import { CarrierStackParamList } from '../../navigation/types';
 import { colors, spacing } from '../../theme';
 import { Mission, MissionStatus } from '../../types';
+import { useTranslation } from '../../i18n/i18nContext';
 
 type CarrierHistoryScreenProps = {
   navigation: NativeStackNavigationProp<CarrierStackParamList, 'CarrierHistory'>;
 };
 
-const statusConfig: Record<MissionStatus, { label: string; color: string; icon: string }> = {
-  ACCEPTED: { label: 'Acceptée', color: colors.primary, icon: 'check' },
-  IN_PROGRESS: { label: 'En cours', color: colors.tertiary, icon: 'bike' },
-  PICKED_UP: { label: 'Récupéré', color: colors.secondary, icon: 'package-variant' },
-  DELIVERED: { label: 'Livrée', color: '#10B981', icon: 'check-all' },
-  CANCELLED: { label: 'Annulée', color: colors.error, icon: 'close-circle' },
-};
-
 export function CarrierHistoryScreen({ navigation }: CarrierHistoryScreenProps) {
+  const { t } = useTranslation();
   const [missions, setMissions] = useState<Mission[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [stats, setStats] = useState({ totalDelivered: 0, totalEarned: 0 });
+
+  const statusConfig: Record<MissionStatus, { label: string; color: string; icon: string }> = {
+    ACCEPTED: { label: t('carrier.history.statusAccepted'), color: colors.primary, icon: 'check' },
+    IN_PROGRESS: { label: t('carrier.history.statusInProgress'), color: colors.tertiary, icon: 'bike' },
+    PICKED_UP: { label: t('carrier.history.statusPickedUp'), color: colors.secondary, icon: 'package-variant' },
+    DELIVERED: { label: t('carrier.history.statusDelivered'), color: '#10B981', icon: 'check-all' },
+    CANCELLED: { label: t('carrier.history.statusCancelled'), color: colors.error, icon: 'close-circle' },
+  };
 
   useFocusEffect(
     useCallback(() => {
@@ -41,21 +43,21 @@ export function CarrierHistoryScreen({ navigation }: CarrierHistoryScreenProps) 
   const loadHistory = async (pageNum: number, reset: boolean = false) => {
     try {
       const { missions: newMissions, pagination } = await api.getMissionHistory(pageNum, 10);
-      
+
       if (reset) {
         setMissions(newMissions);
         // Calculer les stats
         const delivered = newMissions.filter((m: Mission) => m.status === 'DELIVERED');
         setStats({
           totalDelivered: pagination.total,
-          totalEarned: delivered.reduce((sum: number, m: Mission) => 
+          totalEarned: delivered.reduce((sum: number, m: Mission) =>
             sum + (m.parcel ? Number(m.parcel.price) * 0.8 : 0), 0
           ),
         });
       } else {
         setMissions(prev => [...prev, ...newMissions]);
       }
-      
+
       setPage(pageNum);
       setHasMore(pageNum < pagination.totalPages);
     } catch (e) {
@@ -122,7 +124,7 @@ export function CarrierHistoryScreen({ navigation }: CarrierHistoryScreenProps) 
                   </Text>
                 ) : (
                   <Text variant="bodyMedium" style={styles.cancelled}>
-                    Non rémunéré
+                    {t('carrier.history.notPaid')}
                   </Text>
                 )}
               </View>
@@ -134,7 +136,7 @@ export function CarrierHistoryScreen({ navigation }: CarrierHistoryScreenProps) 
   };
 
   if (isLoading && missions.length === 0) {
-    return <LoadingScreen message="Chargement de l'historique..." />;
+    return <LoadingScreen message={t('carrier.history.loadingHistory')} />;
   }
 
   return (
@@ -145,7 +147,7 @@ export function CarrierHistoryScreen({ navigation }: CarrierHistoryScreenProps) 
           <View style={styles.statItem}>
             <MaterialCommunityIcons name="package-variant-closed-check" size={24} color={colors.primary} />
             <Text variant="headlineSmall" style={styles.statValue}>{stats.totalDelivered}</Text>
-            <Text variant="bodySmall" style={styles.statLabel}>Livraisons</Text>
+            <Text variant="bodySmall" style={styles.statLabel}>{t('carrier.history.deliveries')}</Text>
           </View>
           <View style={styles.statDivider} />
           <View style={styles.statItem}>
@@ -153,7 +155,7 @@ export function CarrierHistoryScreen({ navigation }: CarrierHistoryScreenProps) 
             <Text variant="headlineSmall" style={[styles.statValue, { color: '#10B981' }]}>
               {stats.totalEarned.toFixed(2)} €
             </Text>
-            <Text variant="bodySmall" style={styles.statLabel}>Gains totaux</Text>
+            <Text variant="bodySmall" style={styles.statLabel}>{t('carrier.history.totalEarnings')}</Text>
           </View>
         </Card.Content>
       </Card>
@@ -171,8 +173,8 @@ export function CarrierHistoryScreen({ navigation }: CarrierHistoryScreenProps) 
         ListEmptyComponent={
           <EmptyState
             icon="history"
-            title="Aucun historique"
-            description="Vos missions terminées apparaîtront ici"
+            title={t('carrier.history.empty')}
+            description={t('carrier.history.emptyDesc')}
           />
         }
       />

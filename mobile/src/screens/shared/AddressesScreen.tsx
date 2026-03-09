@@ -10,8 +10,10 @@ import { AddressAutocomplete } from '../../components/forms/AddressAutocomplete'
 import { api } from '../../services/api';
 import { Address } from '../../types';
 import { colors, spacing } from '../../theme';
+import { useTranslation } from '../../i18n/i18nContext';
 
 export function AddressesScreen() {
+  const { t } = useTranslation();
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [modalVisible, setModalVisible] = useState(false);
@@ -38,7 +40,7 @@ export function AddressesScreen() {
       const { addresses } = await api.getAddresses();
       setAddresses(addresses);
     } catch (e) {
-      console.error('Erreur:', e);
+      console.error('Error:', e);
     } finally {
       setIsLoading(false);
     }
@@ -78,7 +80,6 @@ export function AddressesScreen() {
     setEditingAddress(null);
   };
 
-  // Callback quand une adresse est sélectionnée dans l'autocomplete
   const handleAddressSelect = (selectedAddress: {
     street: string;
     city: string;
@@ -98,7 +99,7 @@ export function AddressesScreen() {
 
   const handleSave = async () => {
     if (!form.label || !form.street || !form.city || !form.postalCode) {
-      Alert.alert('Erreur', 'Veuillez remplir tous les champs obligatoires');
+      Alert.alert(t('common.error'), t('common.fillRequired'));
       return;
     }
 
@@ -111,25 +112,25 @@ export function AddressesScreen() {
       closeModal();
       loadAddresses();
     } catch (e: any) {
-      Alert.alert('Erreur', e.message || 'Impossible de sauvegarder l\'adresse');
+      Alert.alert(t('common.error'), e.message || t('shared.addresses.saveError'));
     }
   };
 
   const handleDelete = (address: Address) => {
     Alert.alert(
-      'Supprimer l\'adresse',
-      `Voulez-vous supprimer "${address.label}" ?`,
+      t('shared.addresses.deleteTitle'),
+      t('shared.addresses.deleteMessage').replace('{label}', address.label),
       [
-        { text: 'Annuler', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Supprimer',
+          text: t('common.delete'),
           style: 'destructive',
           onPress: async () => {
             try {
               await api.deleteAddress(address.id);
               loadAddresses();
             } catch (e: any) {
-              Alert.alert('Erreur', e.message);
+              Alert.alert(t('common.error'), e.message);
             }
           },
         },
@@ -146,7 +147,7 @@ export function AddressesScreen() {
             <Text variant="titleMedium" style={styles.label}>{item.label}</Text>
             {item.isDefault && (
               <View style={styles.defaultBadge}>
-                <Text style={styles.defaultText}>Par défaut</Text>
+                <Text style={styles.defaultText}>{t('common.defaultBadge')}</Text>
               </View>
             )}
           </View>
@@ -178,7 +179,7 @@ export function AddressesScreen() {
   );
 
   if (isLoading) {
-    return <LoadingScreen message="Chargement des adresses..." />;
+    return <LoadingScreen message={t('shared.addresses.loadingAddresses')} />;
   }
 
   return (
@@ -191,9 +192,9 @@ export function AddressesScreen() {
         ListEmptyComponent={
           <EmptyState
             icon="map-marker-plus"
-            title="Aucune adresse"
-            description="Ajoutez une adresse pour pouvoir créer des colis"
-            actionLabel="Ajouter une adresse"
+            title={t('shared.addresses.noAddresses')}
+            description={t('shared.addresses.noAddressesDesc')}
+            actionLabel={t('shared.addresses.addAddress')}
             onAction={() => openModal()}
           />
         }
@@ -214,28 +215,26 @@ export function AddressesScreen() {
         >
           <ScrollView showsVerticalScrollIndicator={false}>
             <Text variant="titleLarge" style={styles.modalTitle}>
-              {editingAddress ? 'Modifier l\'adresse' : 'Nouvelle adresse'}
+              {editingAddress ? t('shared.addresses.editAddress') : t('shared.addresses.newAddress')}
             </Text>
 
             <TextInput
-              label="Nom (ex: Maison, Bureau)"
+              label={t('shared.addresses.labelPlaceholder')}
               value={form.label}
               onChangeText={(text) => setForm({ ...form, label: text })}
               mode="outlined"
               style={styles.input}
             />
 
-            {/* Autocomplétion d'adresse */}
             <View style={styles.autocompleteContainer}>
               <AddressAutocomplete
                 value={form.street}
                 onAddressSelect={handleAddressSelect}
-                label="Rechercher une adresse"
-                placeholder="Tapez une adresse..."
+                label={t('shared.addresses.searchAddress')}
+                placeholder={t('shared.addresses.searchPlaceholder')}
               />
             </View>
 
-            {/* Affichage des champs remplis automatiquement */}
             {form.street && (
               <View style={styles.selectedAddressCard}>
                 <MaterialCommunityIcons name="check-circle" size={20} color={colors.primary} />
@@ -250,18 +249,15 @@ export function AddressesScreen() {
                 <IconButton
                   icon="pencil"
                   size={16}
-                  onPress={() => {
-                    // Permettre l'édition manuelle
-                  }}
+                  onPress={() => {}}
                 />
               </View>
             )}
 
-            {/* Champs manuels (cachés si autocomplétion utilisée, mais éditables) */}
             {!form.street && (
               <>
                 <TextInput
-                  label="Rue"
+                  label={t('shared.addresses.street')}
                   value={form.street}
                   onChangeText={(text) => setForm({ ...form, street: text })}
                   mode="outlined"
@@ -270,7 +266,7 @@ export function AddressesScreen() {
 
                 <View style={styles.row}>
                   <TextInput
-                    label="Code postal"
+                    label={t('shared.addresses.postalCode')}
                     value={form.postalCode}
                     onChangeText={(text) => setForm({ ...form, postalCode: text })}
                     mode="outlined"
@@ -278,7 +274,7 @@ export function AddressesScreen() {
                     keyboardType="numeric"
                   />
                   <TextInput
-                    label="Ville"
+                    label={t('shared.addresses.city')}
                     value={form.city}
                     onChangeText={(text) => setForm({ ...form, city: text })}
                     mode="outlined"
@@ -289,26 +285,26 @@ export function AddressesScreen() {
             )}
 
             <TextInput
-              label="Instructions de livraison (optionnel)"
+              label={t('shared.addresses.deliveryInstructions')}
               value={form.instructions}
               onChangeText={(text) => setForm({ ...form, instructions: text })}
               mode="outlined"
               style={styles.input}
-              placeholder="Ex: Code portail 1234, 2ème étage"
+              placeholder={t('shared.addresses.deliveryInstructionsPlaceholder')}
               multiline
             />
 
             <View style={styles.modalActions}>
               <Button mode="outlined" onPress={closeModal} style={styles.modalButton}>
-                Annuler
+                {t('common.cancel')}
               </Button>
-              <Button 
-                mode="contained" 
-                onPress={handleSave} 
+              <Button
+                mode="contained"
+                onPress={handleSave}
                 style={styles.modalButton}
                 disabled={!form.label || !form.street || !form.city || !form.postalCode}
               >
-                Sauvegarder
+                {t('common.save')}
               </Button>
             </View>
           </ScrollView>

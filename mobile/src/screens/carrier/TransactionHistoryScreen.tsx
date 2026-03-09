@@ -16,6 +16,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { CarrierStackParamList } from '../../navigation/types';
 import { api, Transaction, CarrierEarnings } from '../../services/api';
 import { colors, spacing } from '../../theme';
+import { useTranslation } from '../../i18n/i18nContext';
 
 type TransactionHistoryScreenProps = {
   navigation: NativeStackNavigationProp<CarrierStackParamList, 'TransactionHistory'>;
@@ -23,23 +24,24 @@ type TransactionHistoryScreenProps = {
 
 type FilterType = 'all' | 'pending' | 'transferred' | 'captured';
 
-const STATUS_CONFIG = {
-  PENDING: { label: 'En attente', color: '#F59E0B', icon: 'clock-outline' },
-  CAPTURED: { label: 'Capturé', color: '#3B82F6', icon: 'check-circle-outline' },
-  TRANSFERRED: { label: 'Versé', color: '#10B981', icon: 'bank-transfer' },
-  REFUNDED: { label: 'Remboursé', color: '#EF4444', icon: 'cash-refund' },
-  FAILED: { label: 'Échoué', color: '#EF4444', icon: 'alert-circle-outline' },
-};
-
 export function TransactionHistoryScreen({ navigation }: TransactionHistoryScreenProps) {
+  const { t } = useTranslation();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [earnings, setEarnings] = useState<CarrierEarnings | null>(null);
+  const [earnings, setEarnings] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [filter, setFilter] = useState<FilterType>('all');
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+
+  const STATUS_CONFIG = {
+    PENDING: { label: t('carrier.transactions.statusPending'), color: '#F59E0B', icon: 'clock-outline' },
+    CAPTURED: { label: t('carrier.transactions.statusCaptured'), color: '#3B82F6', icon: 'check-circle-outline' },
+    TRANSFERRED: { label: t('carrier.transactions.statusPaid'), color: '#10B981', icon: 'bank-transfer' },
+    REFUNDED: { label: t('carrier.transactions.statusRefunded'), color: '#EF4444', icon: 'cash-refund' },
+    FAILED: { label: t('carrier.transactions.statusFailed'), color: '#EF4444', icon: 'alert-circle-outline' },
+  };
 
   useFocusEffect(
     useCallback(() => {
@@ -53,12 +55,12 @@ export function TransactionHistoryScreen({ navigation }: TransactionHistoryScree
     try {
       const [transactionsData, earningsData] = await Promise.all([
         api.getTransactionsByRole('payee', 1, 20),
-        api.getCarrierEarnings().catch(() => null),
+        api.getCarrierBalance().catch(() => null),
       ]);
-      
+
       setTransactions(transactionsData.transactions || []);
       setHasMore((transactionsData.transactions?.length || 0) >= 20);
-      
+
       if (earningsData) {
         setEarnings(earningsData);
       }
@@ -71,12 +73,12 @@ export function TransactionHistoryScreen({ navigation }: TransactionHistoryScree
 
   const loadMore = async () => {
     if (!hasMore || isLoadingMore) return;
-    
+
     setIsLoadingMore(true);
     try {
       const nextPage = page + 1;
       const data = await api.getTransactionsByRole('payee', nextPage, 20);
-      
+
       if (data.transactions?.length > 0) {
         setTransactions(prev => [...prev, ...data.transactions]);
         setPage(nextPage);
@@ -97,11 +99,11 @@ export function TransactionHistoryScreen({ navigation }: TransactionHistoryScree
     setIsRefreshing(false);
   };
 
-  const filteredTransactions = transactions.filter(t => {
+  const filteredTransactions = transactions.filter(tx => {
     if (filter === 'all') return true;
-    if (filter === 'pending') return t.status === 'PENDING';
-    if (filter === 'transferred') return t.status === 'TRANSFERRED';
-    if (filter === 'captured') return t.status === 'CAPTURED';
+    if (filter === 'pending') return tx.status === 'PENDING';
+    if (filter === 'transferred') return tx.status === 'TRANSFERRED';
+    if (filter === 'captured') return tx.status === 'CAPTURED';
     return true;
   });
 
@@ -126,28 +128,28 @@ export function TransactionHistoryScreen({ navigation }: TransactionHistoryScree
     <View style={styles.earningsCard}>
       <View style={styles.earningsHeader}>
         <MaterialCommunityIcons name="wallet" size={24} color="white" />
-        <Text style={styles.earningsTitle}>Ma Cagnotte</Text>
+        <Text style={styles.earningsTitle}>{t('carrier.transactions.myWallet')}</Text>
       </View>
-      
+
       <Text style={styles.earningsTotal}>
         {earnings?.total?.toFixed(2) || '0.00'} €
       </Text>
-      <Text style={styles.earningsSubtitle}>Total des gains</Text>
-      
+      <Text style={styles.earningsSubtitle}>{t('carrier.transactions.totalEarnings')}</Text>
+
       <Divider style={styles.earningsDivider} />
-      
+
       <View style={styles.earningsGrid}>
         <View style={styles.earningsItem}>
           <Text style={styles.earningsItemValue}>{earnings?.today?.toFixed(2) || '0.00'} €</Text>
-          <Text style={styles.earningsItemLabel}>Aujourd'hui</Text>
+          <Text style={styles.earningsItemLabel}>{t('carrier.transactions.today')}</Text>
         </View>
         <View style={styles.earningsItem}>
           <Text style={styles.earningsItemValue}>{earnings?.week?.toFixed(2) || '0.00'} €</Text>
-          <Text style={styles.earningsItemLabel}>Cette semaine</Text>
+          <Text style={styles.earningsItemLabel}>{t('carrier.transactions.thisWeek')}</Text>
         </View>
         <View style={styles.earningsItem}>
           <Text style={styles.earningsItemValue}>{earnings?.month?.toFixed(2) || '0.00'} €</Text>
-          <Text style={styles.earningsItemLabel}>Ce mois</Text>
+          <Text style={styles.earningsItemLabel}>{t('carrier.transactions.thisMonth')}</Text>
         </View>
       </View>
 
@@ -155,13 +157,13 @@ export function TransactionHistoryScreen({ navigation }: TransactionHistoryScree
         <View style={styles.earningsFooterItem}>
           <MaterialCommunityIcons name="clock-outline" size={16} color="rgba(255,255,255,0.7)" />
           <Text style={styles.earningsFooterText}>
-            En attente: {earnings?.pending?.toFixed(2) || '0.00'} €
+            {t('carrier.transactions.pending')}: {earnings?.pending?.toFixed(2) || '0.00'} €
           </Text>
         </View>
         <View style={styles.earningsFooterItem}>
           <MaterialCommunityIcons name="check-circle" size={16} color="#10B981" />
           <Text style={styles.earningsFooterText}>
-            Disponible: {earnings?.available?.toFixed(2) || '0.00'} €
+            {t('carrier.transactions.available')}: {earnings?.available?.toFixed(2) || '0.00'} €
           </Text>
         </View>
       </View>
@@ -174,10 +176,10 @@ export function TransactionHistoryScreen({ navigation }: TransactionHistoryScree
         selected={filter}
         onSelect={setFilter}
         options={[
-          { key: 'all', label: 'Tout' },
-          { key: 'transferred', label: 'Versés' },
-          { key: 'captured', label: 'Capturés' },
-          { key: 'pending', label: 'En attente' },
+          { key: 'all', label: t('carrier.transactions.filterAll') },
+          { key: 'transferred', label: t('carrier.transactions.filterTransferred') },
+          { key: 'captured', label: t('carrier.transactions.filterCaptured') },
+          { key: 'pending', label: t('carrier.transactions.filterPending') },
         ]}
       />
     </View>
@@ -185,20 +187,20 @@ export function TransactionHistoryScreen({ navigation }: TransactionHistoryScree
 
   const renderTransaction = ({ item }: { item: Transaction }) => {
     const status = STATUS_CONFIG[item.status] || STATUS_CONFIG.PENDING;
-    
+
     return (
       <TouchableOpacity style={styles.transactionCard} activeOpacity={0.7}>
         <View style={styles.transactionLeft}>
           <View style={[styles.transactionIcon, { backgroundColor: `${status.color}15` }]}>
-            <MaterialCommunityIcons 
-              name={status.icon as any} 
-              size={24} 
-              color={status.color} 
+            <MaterialCommunityIcons
+              name={status.icon as any}
+              size={24}
+              color={status.color}
             />
           </View>
           <View style={styles.transactionInfo}>
             <Text style={styles.transactionTitle}>
-              {item.parcel?.dropoffName || 'Livraison'}
+              {item.parcel?.dropoffName || t('carrier.transactions.defaultDelivery')}
             </Text>
             <Text style={styles.transactionDate}>
               {formatDate(item.createdAt)} à {formatTime(item.createdAt)}
@@ -210,13 +212,13 @@ export function TransactionHistoryScreen({ navigation }: TransactionHistoryScree
             </View>
           </View>
         </View>
-        
+
         <View style={styles.transactionRight}>
           <Text style={styles.transactionAmount}>
             +{Number(item.carrierPayout).toFixed(2)} €
           </Text>
           <Text style={styles.transactionFee}>
-            Commission: {Number(item.platformFee).toFixed(2)} €
+            {t('carrier.transactions.commission')}: {Number(item.platformFee).toFixed(2)} €
           </Text>
         </View>
       </TouchableOpacity>
@@ -226,9 +228,9 @@ export function TransactionHistoryScreen({ navigation }: TransactionHistoryScree
   const renderEmpty = () => (
     <View style={styles.emptyContainer}>
       <MaterialCommunityIcons name="cash-remove" size={64} color={colors.outline} />
-      <Text style={styles.emptyTitle}>Aucune transaction</Text>
+      <Text style={styles.emptyTitle}>{t('carrier.transactions.noTransactions')}</Text>
       <Text style={styles.emptySubtitle}>
-        Vos gains apparaîtront ici après vos premières livraisons
+        {t('carrier.transactions.noTransactionsDesc')}
       </Text>
     </View>
   );
@@ -246,7 +248,7 @@ export function TransactionHistoryScreen({ navigation }: TransactionHistoryScree
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={styles.loadingText}>Chargement des transactions...</Text>
+        <Text style={styles.loadingText}>{t('carrier.transactions.loadingTransactions')}</Text>
       </View>
     );
   }
@@ -263,7 +265,7 @@ export function TransactionHistoryScreen({ navigation }: TransactionHistoryScree
             {renderFilters()}
             {filteredTransactions.length > 0 && (
               <Text style={styles.listTitle}>
-                Historique ({filteredTransactions.length})
+                {t('carrier.transactions.history')} ({filteredTransactions.length})
               </Text>
             )}
           </>
@@ -288,13 +290,13 @@ export function TransactionHistoryScreen({ navigation }: TransactionHistoryScree
 }
 
 // Composant pour les filtres scrollables
-function ScrollableChips({ 
-  selected, 
-  onSelect, 
-  options 
-}: { 
-  selected: string; 
-  onSelect: (value: FilterType) => void; 
+function ScrollableChips({
+  selected,
+  onSelect,
+  options
+}: {
+  selected: string;
+  onSelect: (value: FilterType) => void;
   options: { key: string; label: string }[];
 }) {
   return (

@@ -16,10 +16,12 @@ import { api } from '../../services/api';
 import { useAuthStore } from '../../stores/authStore';
 import { colors, spacing } from '../../theme';
 import { Message, Conversation } from '../../types';
+import { useTranslation } from '../../i18n/i18nContext';
 
 type ChatScreenProps = NativeStackScreenProps<any, 'Chat'>;
 
 export function ChatScreen({ route, navigation }: ChatScreenProps) {
+  const { t } = useTranslation();
   const { parcelId } = route.params;
   const { user } = useAuthStore();
   const [conversation, setConversation] = useState<Conversation | null>(null);
@@ -34,13 +36,13 @@ export function ChatScreen({ route, navigation }: ChatScreenProps) {
       const { conversation: conv } = await api.getConversation(parcelId);
       setConversation(conv);
       setMessages(conv.messages || []);
-      
+
       // Marquer comme lu
       if (conv.id) {
         await api.markConversationAsRead(conv.id);
       }
     } catch (error: any) {
-      Alert.alert('Erreur', error.message || 'Impossible de charger la conversation');
+      Alert.alert(t('common.error'), error.message || t('shared.chat.loadError'));
     } finally {
       setIsLoading(false);
     }
@@ -49,27 +51,27 @@ export function ChatScreen({ route, navigation }: ChatScreenProps) {
   useFocusEffect(
     useCallback(() => {
       loadConversation();
-      
-      // Rafraîchir toutes les 5 secondes
+
+      // Rafraichir toutes les 5 secondes
       const interval = setInterval(loadConversation, 5000);
-      
+
       return () => clearInterval(interval);
     }, [parcelId])
   );
 
   useEffect(() => {
-    // Mettre à jour le titre avec le nom du correspondant
+    // Mettre a jour le titre avec le nom du correspondant
     if (conversation) {
       const otherUser =
         user?.id === conversation.parcel.vendor.id
           ? conversation.parcel.assignedCarrier
           : conversation.parcel.vendor;
-      
+
       navigation.setOptions({
-        title: otherUser?.firstName || 'Chat',
+        title: otherUser?.firstName || t('shared.chat.defaultTitle'),
       });
     }
-  }, [conversation, user]);
+  }, [conversation, user, t]);
 
   const handleSend = async () => {
     if (!newMessage.trim() || !conversation || isSending) return;
@@ -78,7 +80,7 @@ export function ChatScreen({ route, navigation }: ChatScreenProps) {
     const messageContent = newMessage.trim();
     setNewMessage('');
 
-    // Optimistic update - ajouter le message immédiatement
+    // Optimistic update - ajouter le message immediatement
     const tempMessage: Message = {
       id: `temp-${Date.now()}`,
       conversationId: conversation.id,
@@ -97,16 +99,16 @@ export function ChatScreen({ route, navigation }: ChatScreenProps) {
     try {
       const { message } = await api.sendMessage(conversation.id, messageContent);
       // Remplacer le message temporaire par le vrai
-      setMessages((prev) => 
+      setMessages((prev) =>
         prev.map((m) => (m.id === tempMessage.id ? message : m))
       );
-      
+
       // Scroll to bottom
       setTimeout(() => {
         flatListRef.current?.scrollToEnd({ animated: true });
       }, 100);
     } catch (error: any) {
-      Alert.alert('Erreur', "Impossible d'envoyer le message");
+      Alert.alert(t('common.error'), t('shared.chat.sendError'));
       // Retirer le message temporaire
       setMessages((prev) => prev.filter((m) => m.id !== tempMessage.id));
       setNewMessage(messageContent);
@@ -130,7 +132,7 @@ export function ChatScreen({ route, navigation }: ChatScreenProps) {
       );
     }
 
-    // Message envoyé et lu
+    // Message envoye et lu
     if (message.isRead) {
       return (
         <MaterialCommunityIcons
@@ -142,7 +144,7 @@ export function ChatScreen({ route, navigation }: ChatScreenProps) {
       );
     }
 
-    // Message envoyé mais non lu
+    // Message envoye mais non lu
     return (
       <MaterialCommunityIcons
         name="check"
@@ -234,10 +236,10 @@ export function ChatScreen({ route, navigation }: ChatScreenProps) {
               color={colors.onSurfaceVariant}
             />
             <Text variant="bodyLarge" style={styles.emptyText}>
-              Aucun message
+              {t('shared.chat.empty')}
             </Text>
             <Text variant="bodySmall" style={styles.emptyHint}>
-              Commencez la conversation !
+              {t('shared.chat.startConversation')}
             </Text>
           </View>
         }
@@ -248,7 +250,7 @@ export function ChatScreen({ route, navigation }: ChatScreenProps) {
         <TextInput
           value={newMessage}
           onChangeText={setNewMessage}
-          placeholder="Votre message..."
+          placeholder={t('shared.chat.placeholder')}
           style={styles.input}
           mode="outlined"
           outlineColor={colors.outline}

@@ -8,6 +8,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 
 import { api } from '../../services/api';
 import { colors, spacing } from '../../theme';
+import { useTranslation } from '../../i18n/i18nContext';
 
 type DocumentType = 'ID_CARD_FRONT' | 'ID_CARD_BACK' | 'KBIS' | 'VEHICLE_REGISTRATION' | 'DRIVING_LICENSE';
 type VehicleType = 'NONE' | 'BIKE' | 'SCOOTER' | 'CAR';
@@ -28,50 +29,51 @@ interface CarrierProfileInfo {
   documentsVerified: boolean;
 }
 
-const documentLabels: Record<DocumentType, { label: string; description: string; icon: string }> = {
-  ID_CARD_FRONT: {
-    label: "Piece d'identite (Recto)",
-    description: "Carte d'identite ou passeport - face avant",
-    icon: 'card-account-details',
-  },
-  ID_CARD_BACK: {
-    label: "Piece d'identite (Verso)",
-    description: "Carte d'identite ou passeport - face arriere",
-    icon: 'card-account-details-outline',
-  },
-  DRIVING_LICENSE: {
-    label: 'Permis de conduire',
-    description: 'Permis de conduire en cours de validite',
-    icon: 'card-account-details',
-  },
-  KBIS: {
-    label: 'Extrait Kbis',
-    description: "Document d'immatriculation entreprise",
-    icon: 'file-document',
-  },
-  VEHICLE_REGISTRATION: {
-    label: 'Carte grise',
-    description: "Certificat d'immatriculation du vehicule",
-    icon: 'car',
-  },
-};
-
-const vehicleOptions = [
-  { value: 'NONE', label: 'Aucun' },
-  { value: 'BIKE', label: 'Velo' },
-  { value: 'SCOOTER', label: 'Scooter' },
-  { value: 'CAR', label: 'Voiture' },
-];
-
 // Taille max fichier : 10 MB
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
 export function CarrierDocumentsScreen() {
+  const { t } = useTranslation();
   const [documents, setDocuments] = useState<CarrierDocument[]>([]);
   const [profile, setProfile] = useState<CarrierProfileInfo | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isUploading, setIsUploading] = useState<DocumentType | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+
+  const documentLabels: Record<DocumentType, { label: string; description: string; icon: string }> = {
+    ID_CARD_FRONT: {
+      label: t('carrier.documents.idFront'),
+      description: t('carrier.documents.idFrontDesc'),
+      icon: 'card-account-details',
+    },
+    ID_CARD_BACK: {
+      label: t('carrier.documents.idBack'),
+      description: t('carrier.documents.idBackDesc'),
+      icon: 'card-account-details-outline',
+    },
+    DRIVING_LICENSE: {
+      label: t('carrier.documents.drivingLicense'),
+      description: t('carrier.documents.drivingLicenseDesc'),
+      icon: 'card-account-details',
+    },
+    KBIS: {
+      label: t('carrier.documents.kbis'),
+      description: t('carrier.documents.kbisDesc'),
+      icon: 'file-document',
+    },
+    VEHICLE_REGISTRATION: {
+      label: t('carrier.documents.vehicleReg'),
+      description: t('carrier.documents.vehicleRegDesc'),
+      icon: 'car',
+    },
+  };
+
+  const vehicleOptions = [
+    { value: 'NONE', label: t('carrier.documents.vehicleNone') },
+    { value: 'BIKE', label: t('carrier.documents.vehicleBike') },
+    { value: 'SCOOTER', label: t('carrier.documents.vehicleScooter') },
+    { value: 'CAR', label: t('carrier.documents.vehicleCar') },
+  ];
 
   const loadDocuments = useCallback(async () => {
     try {
@@ -80,7 +82,7 @@ export function CarrierDocumentsScreen() {
       setProfile(result.profile);
     } catch (error: any) {
       console.error('Erreur chargement documents:', error);
-      Alert.alert('Erreur', error.message || 'Impossible de charger les documents');
+      Alert.alert(t('common.error'), error.message || t('common.genericError'));
     } finally {
       setIsLoading(false);
       setRefreshing(false);
@@ -97,17 +99,17 @@ export function CarrierDocumentsScreen() {
   };
 
   const handlePickDocument = async (type: DocumentType) => {
-    Alert.alert('Ajouter un document', 'Comment souhaitez-vous ajouter ce document ?', [
-      { text: 'Prendre une photo', onPress: () => pickFromCamera(type) },
-      { text: 'Choisir un fichier', onPress: () => pickFromFiles(type) },
-      { text: 'Annuler', style: 'cancel' },
+    Alert.alert(t('carrier.documents.addDocumentTitle'), t('carrier.documents.addDocumentMessage'), [
+      { text: t('carrier.documents.takePhoto'), onPress: () => pickFromCamera(type) },
+      { text: t('carrier.documents.chooseFile'), onPress: () => pickFromFiles(type) },
+      { text: t('common.cancel'), style: 'cancel' },
     ]);
   };
 
   const pickFromCamera = async (type: DocumentType) => {
     const permission = await ImagePicker.requestCameraPermissionsAsync();
     if (!permission.granted) {
-      Alert.alert('Permission refusee', "Vous devez autoriser l'acces a la camera");
+      Alert.alert(t('common.permissionDenied'), t('carrier.documents.cameraPermission'));
       return;
     }
 
@@ -136,8 +138,8 @@ export function CarrierDocumentsScreen() {
         const fileInfo = await FileSystem.getInfoAsync(asset.uri);
         if (fileInfo.exists && 'size' in fileInfo && fileInfo.size && fileInfo.size > MAX_FILE_SIZE) {
           Alert.alert(
-            'Fichier trop volumineux',
-            `Le fichier fait ${Math.round(fileInfo.size / 1024 / 1024)} Mo. La taille maximale est de 10 Mo.`
+            t('carrier.documents.fileTooLarge'),
+            t('carrier.documents.fileTooLargeDesc').replace('{size}', String(Math.round(fileInfo.size / 1024 / 1024)))
           );
           return;
         }
@@ -148,7 +150,7 @@ export function CarrierDocumentsScreen() {
       }
     } catch (error) {
       console.error('Erreur selection fichier:', error);
-      Alert.alert('Erreur', 'Impossible de selectionner le fichier');
+      Alert.alert(t('common.error'), t('carrier.documents.fileSelectError'));
     }
   };
 
@@ -191,7 +193,7 @@ export function CarrierDocumentsScreen() {
       await api.saveCarrierDocument(type, imageUrl);
       console.log('[SCREEN] === UPLOAD TERMINE AVEC SUCCES ===');
 
-      Alert.alert('Succes', 'Document envoye ! Il sera verifie sous 24-48h.');
+      Alert.alert(t('common.success'), t('carrier.documents.uploadSuccess'));
       loadDocuments();
     } catch (error: any) {
       console.error('[SCREEN] === ERREUR UPLOAD ===');
@@ -199,33 +201,33 @@ export function CarrierDocumentsScreen() {
       console.error('[SCREEN] Response status:', error.response?.status);
       console.error('[SCREEN] Response data:', JSON.stringify(error.response?.data));
 
-      let errorMessage = "Impossible d'envoyer le document";
+      let errorMessage = t('carrier.documents.uploadError');
       if (error.response?.status === 413) {
-        errorMessage = 'Le fichier est trop volumineux. Essayez avec un fichier plus petit.';
+        errorMessage = t('carrier.documents.fileTooLargeServer');
       } else if (error.response?.data?.error) {
         errorMessage = error.response.data.error;
       } else if (error.message) {
         errorMessage = error.message;
       }
 
-      Alert.alert('Erreur', errorMessage);
+      Alert.alert(t('common.error'), errorMessage);
     } finally {
       setIsUploading(null);
     }
   };
 
   const handleDeleteDocument = (type: DocumentType) => {
-    Alert.alert('Supprimer le document', 'Etes-vous sur ?', [
-      { text: 'Annuler', style: 'cancel' },
+    Alert.alert(t('carrier.documents.deleteDocumentTitle'), t('carrier.documents.deleteConfirm'), [
+      { text: t('common.cancel'), style: 'cancel' },
       {
-        text: 'Supprimer',
+        text: t('carrier.documents.deleteDocument'),
         style: 'destructive',
         onPress: async () => {
           try {
             await api.deleteCarrierDocument(type);
             loadDocuments();
           } catch (error: any) {
-            Alert.alert('Erreur', error.message);
+            Alert.alert(t('common.error'), error.message);
           }
         },
       },
@@ -238,7 +240,7 @@ export function CarrierDocumentsScreen() {
       setProfile((prev) => (prev ? { ...prev, vehicleType: value as VehicleType } : null));
       loadDocuments();
     } catch (error: any) {
-      Alert.alert('Erreur', error.message);
+      Alert.alert(t('common.error'), error.message);
     }
   };
 
@@ -247,7 +249,7 @@ export function CarrierDocumentsScreen() {
       await api.updateCarrierDocumentsProfile({ hasOwnPrinter: value });
       setProfile((prev) => (prev ? { ...prev, hasOwnPrinter: value } : null));
     } catch (error: any) {
-      Alert.alert('Erreur', error.message);
+      Alert.alert(t('common.error'), error.message);
     }
   };
 
@@ -262,10 +264,10 @@ export function CarrierDocumentsScreen() {
 
   const getStatusLabel = (status: string | null) => {
     switch (status) {
-      case 'APPROVED': return 'Approuve';
-      case 'REJECTED': return 'Refuse';
-      case 'PENDING': return 'En attente de verification';
-      default: return 'Non envoye';
+      case 'APPROVED': return t('carrier.documents.statusApproved');
+      case 'REJECTED': return t('carrier.documents.statusRejected');
+      case 'PENDING': return t('carrier.documents.statusPending');
+      default: return t('carrier.documents.statusNotSent');
     }
   };
 
@@ -282,7 +284,7 @@ export function CarrierDocumentsScreen() {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" />
-        <Text style={styles.loadingText}>Chargement...</Text>
+        <Text style={styles.loadingText}>{t('common.loading')}</Text>
       </View>
     );
   }
@@ -303,12 +305,12 @@ export function CarrierDocumentsScreen() {
           />
           <View style={styles.statusInfo}>
             <Text variant="titleSmall">
-              {profile?.documentsVerified ? 'Documents verifies' : 'Verification en cours'}
+              {profile?.documentsVerified ? t('carrier.documents.verifiedTitle') : t('carrier.documents.pendingTitle')}
             </Text>
             <Text variant="bodySmall" style={styles.statusSubtext}>
               {profile?.documentsVerified
-                ? 'Vous pouvez commencer les livraisons'
-                : 'Envoyez tous les documents requis'}
+                ? t('carrier.documents.verifiedSubtext')
+                : t('carrier.documents.pendingSubtext')}
             </Text>
           </View>
         </Card.Content>
@@ -317,9 +319,9 @@ export function CarrierDocumentsScreen() {
       {/* Type de vehicule */}
       <Card style={styles.card}>
         <Card.Content>
-          <Text variant="titleSmall" style={styles.sectionTitle}>Type de vehicule</Text>
+          <Text variant="titleSmall" style={styles.sectionTitle}>{t('carrier.documents.vehicleType')}</Text>
           <Text variant="bodySmall" style={styles.sectionSubtitle}>
-            Comment effectuez-vous vos livraisons ?
+            {t('carrier.documents.vehicleQuestion')}
           </Text>
           <View style={styles.vehicleOptions}>
             {vehicleOptions.map((option) => (
@@ -350,9 +352,9 @@ export function CarrierDocumentsScreen() {
         <Card.Content>
           <View style={styles.printerRow}>
             <View style={styles.printerInfo}>
-              <Text variant="titleSmall">Possedez-vous une imprimante ?</Text>
+              <Text variant="titleSmall">{t('carrier.documents.printerQuestion')}</Text>
               <Text variant="bodySmall" style={styles.printerSubtext}>
-                Pour imprimer les bordereaux des clients
+                {t('carrier.documents.printerDesc')}
               </Text>
             </View>
             <Switch
@@ -365,7 +367,7 @@ export function CarrierDocumentsScreen() {
       </Card>
 
       {/* Documents */}
-      <Text variant="titleMedium" style={styles.documentsTitle}>Documents requis</Text>
+      <Text variant="titleMedium" style={styles.documentsTitle}>{t('carrier.documents.requiredDocuments')}</Text>
 
       {documents.map((doc) => {
         const docInfo = documentLabels[doc.type];
@@ -386,7 +388,7 @@ export function CarrierDocumentsScreen() {
                     <Text variant="titleSmall">{docInfo.label}</Text>
                     {doc.required && (
                       <Chip compact style={styles.requiredChip} textStyle={styles.requiredChipText}>
-                        Requis
+                        {t('common.required')}
                       </Chip>
                     )}
                   </View>
@@ -426,7 +428,7 @@ export function CarrierDocumentsScreen() {
                     disabled={isCurrentlyUploading}
                     style={styles.uploadButton}
                   >
-                    {doc.uploaded ? 'Renvoyer' : 'Ajouter'}
+                    {doc.uploaded ? t('carrier.documents.resendDocument') : t('carrier.documents.addDocument')}
                   </Button>
                 ) : (
                   <View style={styles.uploadedActions}>
@@ -437,7 +439,7 @@ export function CarrierDocumentsScreen() {
                       disabled={isCurrentlyUploading}
                       style={styles.replaceButton}
                     >
-                      Remplacer
+                      {t('carrier.documents.replaceDocument')}
                     </Button>
                     {doc.status !== 'APPROVED' && (
                       <Button
@@ -446,7 +448,7 @@ export function CarrierDocumentsScreen() {
                         textColor={colors.error}
                         onPress={() => handleDeleteDocument(doc.type)}
                       >
-                        Supprimer
+                        {t('carrier.documents.deleteDocument')}
                       </Button>
                     )}
                   </View>
@@ -460,7 +462,7 @@ export function CarrierDocumentsScreen() {
       <View style={styles.infoBox}>
         <MaterialCommunityIcons name="information" size={20} color={colors.primary} />
         <Text variant="bodySmall" style={styles.infoText}>
-          Vos documents seront verifies sous 24 a 48 heures.
+          {t('carrier.documents.verificationInfo')}
         </Text>
       </View>
     </ScrollView>

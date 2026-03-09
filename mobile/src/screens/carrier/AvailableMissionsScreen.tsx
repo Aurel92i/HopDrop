@@ -10,12 +10,14 @@ import { LoadingScreen } from '../../components/common/LoadingScreen';
 import { useMissionStore } from '../../stores/missionStore';
 import { CarrierStackParamList } from '../../navigation/types';
 import { colors, spacing } from '../../theme';
+import { useTranslation } from '../../i18n/i18nContext';
 
 type AvailableMissionsScreenProps = {
   navigation: NativeStackNavigationProp<CarrierStackParamList, 'AvailableMissions'>;
 };
 
 export function AvailableMissionsScreen({ navigation }: AvailableMissionsScreenProps) {
+  const { t } = useTranslation();
   const { availableMissions, isLoading, fetchAvailableMissions, acceptMission } = useMissionStore();
   const [refreshing, setRefreshing] = useState(false);
   const [radius, setRadius] = useState(5);
@@ -29,7 +31,7 @@ export function AvailableMissionsScreen({ navigation }: AvailableMissionsScreenP
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Permission refusée', 'Activez la localisation pour voir les missions proches.');
+        Alert.alert(t('common.permissionDenied'), t('carrier.availableMissions.locationPermission'));
         // Utiliser Paris par défaut
         setLocation({ latitude: 48.8566, longitude: 2.3522 });
         await fetchAvailableMissions(48.8566, 2.3522, radius);
@@ -58,18 +60,18 @@ export function AvailableMissionsScreen({ navigation }: AvailableMissionsScreenP
 
   const handleAccept = async (parcelId: string) => {
     Alert.alert(
-      'Accepter la mission',
-      'Voulez-vous accepter cette mission ?',
+      t('carrier.availableMissions.acceptTitle'),
+      t('carrier.availableMissions.acceptMessage'),
       [
-        { text: 'Annuler', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Accepter',
+          text: t('carrier.availableMissions.acceptBtn'),
           onPress: async () => {
             try {
               await acceptMission(parcelId);
-              Alert.alert('Succès', 'Mission acceptée !');
+              Alert.alert(t('common.success'), t('carrier.availableMissions.missionAccepted'));
             } catch (e: any) {
-              Alert.alert('Erreur', e.message || 'Impossible d\'accepter la mission');
+              Alert.alert(t('common.error'), e.message || t('carrier.availableMissions.acceptError'));
             }
           },
         },
@@ -78,14 +80,21 @@ export function AvailableMissionsScreen({ navigation }: AvailableMissionsScreenP
   };
 
   if (isLoading && availableMissions.length === 0) {
-    return <LoadingScreen message="Recherche des missions..." />;
+    return <LoadingScreen message={t('carrier.availableMissions.searching')} />;
   }
+
+  const radiusLabels: Record<number, string> = {
+    3: t('carrier.availableMissions.radius3'),
+    5: t('carrier.availableMissions.radius5'),
+    10: t('carrier.availableMissions.radius10'),
+    20: t('carrier.availableMissions.radius20'),
+  };
 
   return (
     <View style={styles.container}>
       {/* Filtres */}
       <View style={styles.filterContainer}>
-        <Text variant="bodyMedium" style={styles.filterLabel}>Rayon de recherche :</Text>
+        <Text variant="bodyMedium" style={styles.filterLabel}>{t('carrier.availableMissions.searchRadius')}</Text>
         <View style={styles.radiusChips}>
           {[3, 5, 10, 20].map((r) => (
             <Chip
@@ -94,7 +103,7 @@ export function AvailableMissionsScreen({ navigation }: AvailableMissionsScreenP
               onPress={() => setRadius(r)}
               style={styles.radiusChip}
             >
-              {r} km
+              {radiusLabels[r]}
             </Chip>
           ))}
         </View>
@@ -115,14 +124,14 @@ export function AvailableMissionsScreen({ navigation }: AvailableMissionsScreenP
         }
         ListHeaderComponent={
           <Text variant="bodySmall" style={styles.resultCount}>
-            {availableMissions.length} mission(s) trouvée(s)
+            {t('carrier.availableMissions.missionsFound').replace('{count}', String(availableMissions.length))}
           </Text>
         }
         ListEmptyComponent={
           <EmptyState
             icon="map-marker-off"
-            title="Aucune mission"
-            description="Aucune mission disponible dans ce rayon. Essayez d'augmenter le rayon de recherche."
+            title={t('carrier.availableMissions.noMissions')}
+            description={t('carrier.availableMissions.noMissionsDesc')}
           />
         }
       />

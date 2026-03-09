@@ -4,6 +4,7 @@ import { Modal, Portal, Text, Button, IconButton } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { colors, spacing } from '../../theme';
+import { useTranslation } from '../../i18n/i18nContext';
 
 interface DeliveryProofModalProps {
   visible: boolean;
@@ -22,12 +23,13 @@ export function DeliveryProofModal({
   isLoading = false,
   dropoffName,
 }: DeliveryProofModalProps) {
+  const { t } = useTranslation();
   const [photoUri, setPhotoUri] = useState<string | null>(null);
 
   const takePhoto = async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Permission requise', 'L\'accès à la caméra est nécessaire pour prendre une photo.');
+      Alert.alert(t('common.cameraRequired'), t('common.cameraRequiredDesc'));
       return;
     }
 
@@ -81,15 +83,15 @@ export function DeliveryProofModal({
             <MaterialCommunityIcons name="package-variant-closed-check" size={32} color={colors.primary} />
           </View>
           <Text variant="headlineSmall" style={styles.title}>
-            Confirmer le dépôt
+            {t('carrier.delivery.title')}
           </Text>
           {dropoffName && (
             <Text variant="bodyMedium" style={styles.subtitle}>
-              📍 {dropoffName}
+              {dropoffName}
             </Text>
           )}
           <Text variant="bodySmall" style={styles.instructions}>
-            Prenez en photo le reçu ou ticket de dépôt fourni par le point relais
+            {t('carrier.delivery.instructions')}
           </Text>
         </View>
 
@@ -110,7 +112,7 @@ export function DeliveryProofModal({
             <View style={styles.photoPlaceholder}>
               <MaterialCommunityIcons name="receipt" size={48} color={colors.onSurfaceVariant} />
               <Text variant="bodyMedium" style={styles.placeholderText}>
-                Photo de la preuve de dépôt
+                {t('carrier.delivery.proofPhoto')}
               </Text>
             </View>
           )}
@@ -125,7 +127,7 @@ export function DeliveryProofModal({
               onPress={takePhoto}
               style={styles.photoButton}
             >
-              Prendre une photo
+              {t('carrier.delivery.takePhoto')}
             </Button>
             <Button
               mode="outlined"
@@ -133,7 +135,7 @@ export function DeliveryProofModal({
               onPress={pickImage}
               style={styles.photoButton}
             >
-              Galerie
+              {t('carrier.delivery.gallery')}
             </Button>
           </View>
         )}
@@ -142,7 +144,7 @@ export function DeliveryProofModal({
         <View style={styles.infoBox}>
           <MaterialCommunityIcons name="information-outline" size={20} color={colors.primary} />
           <Text variant="bodySmall" style={styles.infoText}>
-            Le client aura 12 heures pour confirmer la réception. Passé ce délai, la livraison sera automatiquement validée.
+            {t('carrier.delivery.deadlineInfo')}
           </Text>
         </View>
 
@@ -156,7 +158,7 @@ export function DeliveryProofModal({
             icon="check-circle"
             style={styles.confirmButton}
           >
-            Confirmer le dépôt
+            {t('carrier.delivery.confirmDeposit')}
           </Button>
           <Button
             mode="outlined"
@@ -164,7 +166,7 @@ export function DeliveryProofModal({
             disabled={isLoading}
             style={styles.cancelButton}
           >
-            Annuler
+            {t('common.cancel')}
           </Button>
         </View>
       </Modal>

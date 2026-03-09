@@ -35,6 +35,7 @@ export type ProfileStackParamList = {
   Settings: undefined;
   CarrierDocuments: undefined;
   TransactionHistory: undefined;
+  Legal: { docType: 'cgu' | 'cgv' | 'mentions' | 'confidentialite' };
 };
 
 export type AdminStackParamList = {

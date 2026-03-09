@@ -9,6 +9,7 @@ import { LoadingScreen } from '../../components/common/LoadingScreen';
 import { api } from '../../services/api';
 import { useAuthStore } from '../../stores/authStore';
 import { colors, spacing } from '../../theme';
+import { useTranslation } from '../../i18n/i18nContext';
 
 interface CarrierStats {
   totalDeliveries: number;
@@ -20,6 +21,7 @@ interface CarrierStats {
 
 export function CarrierProfileScreen() {
   const { user, updateUser } = useAuthStore();
+  const { t } = useTranslation();
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [stats, setStats] = useState<CarrierStats>({
@@ -41,15 +43,15 @@ export function CarrierProfileScreen() {
     try {
       // Charger le profil carrier
       const profile = await api.getCarrierProfile();
-      
+
       // Charger les avis reçus pour les stats
       const reviewsData = await api.getMyReviews();
-      
+
       // Charger l'historique pour les gains
       const history = await api.getMissionHistory(1, 100);
-      
+
       const deliveredMissions = history.missions?.filter((m: any) => m.status === 'DELIVERED') || [];
-      const totalEarnings = deliveredMissions.reduce((sum: number, m: any) => 
+      const totalEarnings = deliveredMissions.reduce((sum: number, m: any) =>
         sum + (m.parcel ? Number(m.parcel.price) * 0.8 : 0), 0
       );
 
@@ -75,9 +77,9 @@ export function CarrierProfileScreen() {
 
     const takePhoto = async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
-    
+
     if (status !== 'granted') {
-      Alert.alert('Permission refusée', 'Nous avons besoin de la permission pour accéder à la caméra');
+      Alert.alert(t('common.permissionDenied'), t('common.cameraPermission'));
       return;
     }
 
@@ -98,23 +100,23 @@ export function CarrierProfileScreen() {
     try {
       const avatarUrl = await api.uploadImage(uri);
       await api.updateProfile({ avatarUrl });
-      
+
       // Mettre à jour le store local
       if (user) {
         updateUser({ ...user, avatarUrl });
       }
-      
-      Alert.alert('Succès', 'Photo de profil mise à jour !');
+
+      Alert.alert(t('common.success'), t('shared.profile.photoUpdated'));
     } catch (e: any) {
-      Alert.alert('Erreur', 'Impossible de mettre à jour la photo');
+      Alert.alert(t('common.error'), t('shared.profile.photoError'));
     } finally {
       setIsUploading(false);
     }
   };
 
   const renderStars = (rating: number | null) => {
-    if (!rating) return <Text style={styles.noRating}>Pas encore noté</Text>;
-    
+    if (!rating) return <Text style={styles.noRating}>{t('carrier.profile.notRated')}</Text>;
+
     return (
       <View style={styles.starsContainer}>
         {[1, 2, 3, 4, 5].map((star) => (
@@ -131,11 +133,11 @@ export function CarrierProfileScreen() {
   };
 
   if (isLoading) {
-    return <LoadingScreen message="Chargement du profil..." />;
+    return <LoadingScreen message={t('carrier.profile.loadingProfile')} />;
   }
 
   return (
-    <ScrollView 
+    <ScrollView
       style={styles.container}
       refreshControl={
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} />
@@ -145,23 +147,23 @@ export function CarrierProfileScreen() {
       <View style={styles.avatarSection}>
         <TouchableOpacity onPress={takePhoto} disabled={isUploading}>
           {user?.avatarUrl ? (
-            <Avatar.Image 
-              size={100} 
-              source={{ uri: user.avatarUrl }} 
+            <Avatar.Image
+              size={100}
+              source={{ uri: user.avatarUrl }}
               style={styles.avatar}
             />
           ) : (
-            <Avatar.Icon 
-              size={100} 
-              icon="account" 
+            <Avatar.Icon
+              size={100}
+              icon="account"
               style={styles.avatar}
             />
           )}
           <View style={styles.editBadge}>
-            <MaterialCommunityIcons 
-              name={isUploading ? 'loading' : 'camera'} 
-              size={16} 
-              color="white" 
+            <MaterialCommunityIcons
+              name={isUploading ? 'loading' : 'camera'}
+              size={16}
+              color="white"
             />
           </View>
         </TouchableOpacity>
@@ -178,10 +180,10 @@ export function CarrierProfileScreen() {
         <Card.Content style={styles.ratingCard}>
           <MaterialCommunityIcons name="star-circle" size={40} color="#F59E0B" />
           <View style={styles.ratingInfo}>
-            <Text variant="titleMedium">Note moyenne</Text>
+            <Text variant="titleMedium">{t('carrier.profile.averageRating')}</Text>
             {renderStars(stats.averageRating)}
             <Text variant="bodySmall" style={styles.reviewCount}>
-              {stats.totalReviews} avis reçus
+              {stats.totalReviews} {t('carrier.profile.reviews')}
             </Text>
           </View>
         </Card.Content>
@@ -192,32 +194,32 @@ export function CarrierProfileScreen() {
         <Card.Content>
           <View style={styles.balanceHeader}>
             <MaterialCommunityIcons name="wallet" size={32} color={colors.primary} />
-            <Text variant="titleMedium" style={styles.balanceTitle}>Ma cagnotte</Text>
+            <Text variant="titleMedium" style={styles.balanceTitle}>{t('carrier.profile.wallet')}</Text>
           </View>
           <Text variant="displaySmall" style={styles.balanceAmount}>
             {stats.availableBalance.toFixed(2)} €
           </Text>
           <Text variant="bodySmall" style={styles.balanceHint}>
-            Gains disponibles pour retrait
+            {t('carrier.profile.availableBalance')}
           </Text>
           <Divider style={styles.divider} />
           <View style={styles.earningsRow}>
-            <Text variant="bodyMedium" style={styles.earningsLabel}>Gains totaux</Text>
+            <Text variant="bodyMedium" style={styles.earningsLabel}>{t('carrier.profile.totalEarnings')}</Text>
             <Text variant="titleMedium" style={styles.earningsValue}>
               {stats.totalEarnings.toFixed(2)} €
             </Text>
           </View>
-          <Button 
-            mode="contained" 
+          <Button
+            mode="contained"
             icon="bank-transfer"
             style={styles.withdrawButton}
             disabled={stats.availableBalance < 10}
           >
-            Demander un virement
+            {t('carrier.profile.requestTransfer')}
           </Button>
           {stats.availableBalance < 10 && (
             <Text variant="bodySmall" style={styles.withdrawHint}>
-              Minimum 10€ pour demander un virement
+              {t('carrier.profile.minTransfer')}
             </Text>
           )}
         </Card.Content>
@@ -227,7 +229,7 @@ export function CarrierProfileScreen() {
       <Card style={styles.card}>
         <Card.Content>
           <Text variant="titleMedium" style={styles.sectionTitle}>
-            📊 Statistiques
+            {t('carrier.profile.stats')}
           </Text>
           <View style={styles.statsGrid}>
             <View style={styles.statItem}>
@@ -235,21 +237,21 @@ export function CarrierProfileScreen() {
               <Text variant="headlineSmall" style={styles.statValue}>
                 {stats.totalDeliveries}
               </Text>
-              <Text variant="bodySmall" style={styles.statLabel}>Livraisons</Text>
+              <Text variant="bodySmall" style={styles.statLabel}>{t('carrier.profile.deliveries')}</Text>
             </View>
             <View style={styles.statItem}>
               <MaterialCommunityIcons name="cash-multiple" size={32} color="#10B981" />
               <Text variant="headlineSmall" style={[styles.statValue, { color: '#10B981' }]}>
                 {stats.totalEarnings.toFixed(0)}€
               </Text>
-              <Text variant="bodySmall" style={styles.statLabel}>Gagnés</Text>
+              <Text variant="bodySmall" style={styles.statLabel}>{t('carrier.profile.earned')}</Text>
             </View>
             <View style={styles.statItem}>
               <MaterialCommunityIcons name="star" size={32} color="#F59E0B" />
               <Text variant="headlineSmall" style={[styles.statValue, { color: '#F59E0B' }]}>
                 {stats.averageRating?.toFixed(1) || '-'}
               </Text>
-              <Text variant="bodySmall" style={styles.statLabel}>Note</Text>
+              <Text variant="bodySmall" style={styles.statLabel}>{t('carrier.profile.rating')}</Text>
             </View>
           </View>
         </Card.Content>

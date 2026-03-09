@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
-import { Text, Button, Snackbar } from 'react-native-paper';
+import { Text, Button, Snackbar, TextInput } from 'react-native-paper';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -11,6 +11,7 @@ import { FormInput } from '../../components/forms/FormInput';
 import { useAuthStore } from '../../stores/authStore';
 import { AuthStackParamList } from '../../navigation/AppNavigator';
 import { colors, spacing } from '../../theme';
+import { useTranslation } from '../../i18n/i18nContext';
 
 const loginSchema = z.object({
   email: z.string().email('Email invalide'),
@@ -24,6 +25,7 @@ type LoginScreenProps = {
 };
 
 export function LoginScreen({ navigation }: LoginScreenProps) {
+  const { t } = useTranslation();
   const { login, isLoading, error, clearError } = useAuthStore();
   const [showPassword, setShowPassword] = useState(false);
 
@@ -59,7 +61,7 @@ export function LoginScreen({ navigation }: LoginScreenProps) {
         <View style={styles.header}>
           <Logo size="large" />
           <Text variant="headlineSmall" style={styles.subtitle}>
-            Connectez-vous à votre compte
+            {t('auth.login.subtitle')}
           </Text>
         </View>
 
@@ -67,20 +69,20 @@ export function LoginScreen({ navigation }: LoginScreenProps) {
           <FormInput
             control={control}
             name="email"
-            label="Email"
-            placeholder="votre@email.com"
+            label={t('auth.login.email')}
+            placeholder={t('auth.login.emailPlaceholder')}
             keyboardType="email-address"
             autoCapitalize="none"
-            error={errors.email?.message}
+            error={errors.email ? t('auth.login.emailInvalid') : undefined}
           />
 
           <FormInput
             control={control}
             name="password"
-            label="Mot de passe"
-            placeholder="Votre mot de passe"
+            label={t('auth.login.password')}
+            placeholder={t('auth.login.passwordPlaceholder')}
             secureTextEntry={!showPassword}
-            error={errors.password?.message}
+            error={errors.password ? t('auth.login.passwordRequired') : undefined}
             right={
               <TextInput.Icon
                 icon={showPassword ? 'eye-off' : 'eye'}
@@ -94,7 +96,7 @@ export function LoginScreen({ navigation }: LoginScreenProps) {
             onPress={() => navigation.navigate('ForgotPassword')}
             style={styles.forgotButton}
           >
-            Mot de passe oublié ?
+            {t('auth.login.forgotPassword')}
           </Button>
 
           <Button
@@ -105,16 +107,16 @@ export function LoginScreen({ navigation }: LoginScreenProps) {
             style={styles.submitButton}
             contentStyle={styles.submitButtonContent}
           >
-            Se connecter
+            {t('auth.login.submit')}
           </Button>
         </View>
 
         <View style={styles.footer}>
           <Text variant="bodyMedium" style={styles.footerText}>
-            Pas encore de compte ?
+            {t('auth.login.noAccount')}
           </Text>
           <Button mode="text" onPress={() => navigation.navigate('Register')}>
-            S'inscrire
+            {t('auth.login.register')}
           </Button>
         </View>
       </ScrollView>
@@ -123,16 +125,13 @@ export function LoginScreen({ navigation }: LoginScreenProps) {
         visible={!!error}
         onDismiss={clearError}
         duration={3000}
-        action={{ label: 'OK', onPress: clearError }}
+        action={{ label: t('common.ok'), onPress: clearError }}
       >
         {error}
       </Snackbar>
     </KeyboardAvoidingView>
   );
 }
-
-// Import manquant pour TextInput.Icon
-import { TextInput } from 'react-native-paper';
 
 const styles = StyleSheet.create({
   container: {

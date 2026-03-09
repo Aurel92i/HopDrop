@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
-import { Text, Button, Snackbar, SegmentedButtons } from 'react-native-paper';
+import { Text, Button, Snackbar, SegmentedButtons, Checkbox } from 'react-native-paper';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -11,6 +11,7 @@ import { FormInput } from '../../components/forms/FormInput';
 import { useAuthStore } from '../../stores/authStore';
 import { AuthStackParamList } from '../../navigation/AppNavigator';
 import { colors, spacing } from '../../theme';
+import { useTranslation } from '../../i18n/i18nContext';
 
 const registerSchema = z.object({
   email: z.string().email('Email invalide'),
@@ -18,7 +19,7 @@ const registerSchema = z.object({
   confirmPassword: z.string(),
   firstName: z.string().min(2, 'Le prénom doit contenir au moins 2 caractères'),
   lastName: z.string().min(2, 'Le nom doit contenir au moins 2 caractères'),
-  role: z.enum(['VENDOR', 'CARRIER', 'BOTH']),
+  role: z.enum(['VENDOR', 'CARRIER']),
 }).refine((data) => data.password === data.confirmPassword, {
   message: 'Les mots de passe ne correspondent pas',
   path: ['confirmPassword'],
@@ -31,8 +32,10 @@ type RegisterScreenProps = {
 };
 
 export function RegisterScreen({ navigation }: RegisterScreenProps) {
+  const { t } = useTranslation();
   const { register, isLoading, error, clearError } = useAuthStore();
   const [showPassword, setShowPassword] = useState(false);
+  const [cguAccepted, setCguAccepted] = useState(false);
 
   const {
     control,
@@ -76,7 +79,7 @@ export function RegisterScreen({ navigation }: RegisterScreenProps) {
         <View style={styles.header}>
           <Logo size="medium" />
           <Text variant="headlineSmall" style={styles.subtitle}>
-            Créer un compte
+            {t('auth.register.subtitle')}
           </Text>
         </View>
 
@@ -86,18 +89,18 @@ export function RegisterScreen({ navigation }: RegisterScreenProps) {
               <FormInput
                 control={control}
                 name="firstName"
-                label="Prénom"
+                label={t('auth.register.firstName')}
                 autoCapitalize="words"
-                error={errors.firstName?.message}
+                error={errors.firstName ? t('auth.register.firstNameMin') : undefined}
               />
             </View>
             <View style={styles.halfInput}>
               <FormInput
                 control={control}
                 name="lastName"
-                label="Nom"
+                label={t('auth.register.lastName')}
                 autoCapitalize="words"
-                error={errors.lastName?.message}
+                error={errors.lastName ? t('auth.register.lastNameMin') : undefined}
               />
             </View>
           </View>
@@ -105,33 +108,33 @@ export function RegisterScreen({ navigation }: RegisterScreenProps) {
           <FormInput
             control={control}
             name="email"
-            label="Email"
-            placeholder="votre@email.com"
+            label={t('auth.register.email')}
+            placeholder={t('auth.register.emailPlaceholder')}
             keyboardType="email-address"
             autoCapitalize="none"
-            error={errors.email?.message}
+            error={errors.email ? t('auth.register.emailInvalid') : undefined}
           />
 
           <FormInput
             control={control}
             name="password"
-            label="Mot de passe"
-            placeholder="Minimum 8 caractères"
+            label={t('auth.register.password')}
+            placeholder={t('auth.register.passwordPlaceholder')}
             secureTextEntry={!showPassword}
-            error={errors.password?.message}
+            error={errors.password ? t('auth.register.passwordMin') : undefined}
           />
 
           <FormInput
             control={control}
             name="confirmPassword"
-            label="Confirmer le mot de passe"
+            label={t('auth.register.confirmPassword')}
             secureTextEntry={!showPassword}
-            error={errors.confirmPassword?.message}
+            error={errors.confirmPassword ? t('auth.register.passwordMismatch') : undefined}
           />
 
           <View style={styles.roleSection}>
             <Text variant="bodyLarge" style={styles.roleLabel}>
-              Je souhaite :
+              {t('auth.register.roleLabel')}
             </Text>
             <Controller
               control={control}
@@ -141,9 +144,8 @@ export function RegisterScreen({ navigation }: RegisterScreenProps) {
                   value={value}
                   onValueChange={onChange}
                   buttons={[
-                    { value: 'VENDOR', label: 'Envoyer', icon: 'package-variant' },
-                    { value: 'CARRIER', label: 'Livrer', icon: 'bike' },
-                    { value: 'BOTH', label: 'Les deux', icon: 'swap-horizontal' },
+                    { value: 'VENDOR', label: t('auth.register.roleVendor'), icon: 'package-variant' },
+                    { value: 'CARRIER', label: t('auth.register.roleCarrier'), icon: 'bike' },
                   ]}
                   style={styles.segmentedButtons}
                 />
@@ -151,24 +153,35 @@ export function RegisterScreen({ navigation }: RegisterScreenProps) {
             />
           </View>
 
+          <View style={styles.cguRow}>
+            <Checkbox
+              status={cguAccepted ? 'checked' : 'unchecked'}
+              onPress={() => setCguAccepted(!cguAccepted)}
+              color={colors.primary}
+            />
+            <Text variant="bodySmall" style={styles.cguText}>
+              {t('auth.register.acceptCgu')}
+            </Text>
+          </View>
+
           <Button
             mode="contained"
             onPress={handleSubmit(onSubmit)}
             loading={isLoading}
-            disabled={isLoading}
+            disabled={isLoading || !cguAccepted}
             style={styles.submitButton}
             contentStyle={styles.submitButtonContent}
           >
-            S'inscrire
+            {t('auth.register.submit')}
           </Button>
         </View>
 
         <View style={styles.footer}>
           <Text variant="bodyMedium" style={styles.footerText}>
-            Déjà un compte ?
+            {t('auth.register.hasAccount')}
           </Text>
           <Button mode="text" onPress={() => navigation.goBack()}>
-            Se connecter
+            {t('auth.register.login')}
           </Button>
         </View>
       </ScrollView>
@@ -177,7 +190,7 @@ export function RegisterScreen({ navigation }: RegisterScreenProps) {
         visible={!!error}
         onDismiss={clearError}
         duration={3000}
-        action={{ label: 'OK', onPress: clearError }}
+        action={{ label: t('common.ok'), onPress: clearError }}
       >
         {error}
       </Snackbar>
@@ -238,6 +251,16 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
   },
   footerText: {
+    color: colors.onSurfaceVariant,
+  },
+  cguRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: spacing.md,
+    marginTop: spacing.sm,
+  },
+  cguText: {
+    flex: 1,
     color: colors.onSurfaceVariant,
   },
 });

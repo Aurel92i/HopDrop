@@ -5,6 +5,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AppNavigator } from './src/navigation/AppNavigator';
 import { theme } from './src/theme';
 import { notificationService } from './src/services/notifications';
+import { I18nProvider } from './src/i18n/i18nContext'; 
 
 export default function App() {
   useEffect(() => {
@@ -33,11 +34,13 @@ export default function App() {
   }, []);
 
   return (
-    <SafeAreaProvider>
-      <PaperProvider theme={theme}>
-        <StatusBar style="auto" />
-        <AppNavigator />
-      </PaperProvider>
-    </SafeAreaProvider>
+    <I18nProvider>
+      <SafeAreaProvider>
+        <PaperProvider theme={theme}>
+          <StatusBar style="auto" />
+          <AppNavigator />
+        </PaperProvider>
+      </SafeAreaProvider>
+    </I18nProvider>
   );
 }

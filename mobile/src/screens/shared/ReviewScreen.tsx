@@ -7,6 +7,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { api } from '../../services/api';
 import { colors, spacing } from '../../theme';
+import { useTranslation } from '../../i18n/i18nContext';
 
 type ReviewScreenProps = {
   navigation: NativeStackNavigationProp<any>;
@@ -14,6 +15,7 @@ type ReviewScreenProps = {
 };
 
 export function ReviewScreen({ navigation, route }: ReviewScreenProps) {
+  const { t } = useTranslation();
   const { parcelId, carrierName, dropoffName } = route.params;
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState('');
@@ -21,7 +23,7 @@ export function ReviewScreen({ navigation, route }: ReviewScreenProps) {
 
   const handleSubmit = async () => {
     if (rating === 0) {
-      Alert.alert('Erreur', 'Veuillez sélectionner une note');
+      Alert.alert(t('common.error'), t('shared.review.selectRating'));
       return;
     }
 
@@ -32,17 +34,27 @@ export function ReviewScreen({ navigation, route }: ReviewScreenProps) {
         rating,
         comment: comment.trim() || undefined,
       });
-      
+
       Alert.alert(
-        'Merci !',
-        'Votre avis a bien été enregistré.',
-        [{ text: 'OK', onPress: () => navigation.goBack() }]
+        t('common.thanks'),
+        t('shared.review.reviewSaved'),
+        [{ text: t('common.ok'), onPress: () => navigation.goBack() }]
       );
     } catch (e: any) {
-      Alert.alert('Erreur', e.response?.data?.error || 'Impossible de soumettre l\'avis');
+      Alert.alert(t('common.error'), e.response?.data?.error || t('shared.review.submitError'));
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const getRatingLabel = () => {
+    if (rating === 0) return t('shared.review.tapToRate');
+    if (rating === 1) return t('shared.review.rating1');
+    if (rating === 2) return t('shared.review.rating2');
+    if (rating === 3) return t('shared.review.rating3');
+    if (rating === 4) return t('shared.review.rating4');
+    if (rating === 5) return t('shared.review.rating5');
+    return '';
   };
 
   const renderStar = (index: number) => {
@@ -64,12 +76,12 @@ export function ReviewScreen({ navigation, route }: ReviewScreenProps) {
       <Card style={styles.card}>
         <Card.Content>
           <Text variant="headlineSmall" style={styles.title}>
-            Évaluer la livraison
+            {t('shared.review.evaluateTitle')}
           </Text>
 
           {carrierName && (
             <Text variant="bodyLarge" style={styles.subtitle}>
-              Comment s'est passée la livraison avec {carrierName} ?
+              {t('shared.review.howWasDelivery').replace('{carrierName}', carrierName)}
             </Text>
           )}
 
@@ -88,24 +100,19 @@ export function ReviewScreen({ navigation, route }: ReviewScreenProps) {
           </View>
 
           <Text variant="bodyMedium" style={styles.ratingLabel}>
-            {rating === 0 && 'Touchez les étoiles pour noter'}
-            {rating === 1 && 'Très insatisfait 😞'}
-            {rating === 2 && 'Insatisfait 😕'}
-            {rating === 3 && 'Correct 😐'}
-            {rating === 4 && 'Satisfait 😊'}
-            {rating === 5 && 'Excellent ! 🤩'}
+            {getRatingLabel()}
           </Text>
 
           {/* Comment */}
           <TextInput
-            label="Commentaire (optionnel)"
+            label={t('shared.review.placeholder')}
             value={comment}
             onChangeText={setComment}
             mode="outlined"
             multiline
             numberOfLines={4}
             style={styles.input}
-            placeholder="Décrivez votre expérience..."
+            placeholder={t('shared.review.describeExperience')}
             maxLength={500}
           />
           <Text variant="bodySmall" style={styles.charCount}>
@@ -121,7 +128,7 @@ export function ReviewScreen({ navigation, route }: ReviewScreenProps) {
           style={styles.button}
           disabled={isSubmitting}
         >
-          Plus tard
+          {t('common.later')}
         </Button>
         <Button
           mode="contained"
@@ -130,7 +137,7 @@ export function ReviewScreen({ navigation, route }: ReviewScreenProps) {
           loading={isSubmitting}
           disabled={isSubmitting || rating === 0}
         >
-          Envoyer
+          {t('common.send')}
         </Button>
       </View>
     </ScrollView>

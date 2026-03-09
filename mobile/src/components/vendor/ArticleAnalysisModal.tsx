@@ -15,6 +15,7 @@ import {
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { api, AnalysisResult, PRICING, PACKAGE_SIZES } from '../../services/api';
+import { useTranslation } from '../../i18n/i18nContext';
 
 interface Props {
   visible: boolean;
@@ -23,6 +24,7 @@ interface Props {
 }
 
 export default function ArticleAnalysisModal({ visible, onClose, onAnalysisComplete }: Props) {
+  const { t } = useTranslation();
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
   const [result, setResult] = useState<AnalysisResult | null>(null);
@@ -30,7 +32,7 @@ export default function ArticleAnalysisModal({ visible, onClose, onAnalysisCompl
   const takePhoto = async () => {
     const permission = await ImagePicker.requestCameraPermissionsAsync();
     if (!permission.granted) {
-      Alert.alert('Permission requise', 'Autorisez l\'accès à la caméra');
+      Alert.alert(t('common.cameraRequired'), t('common.cameraPermission'));
       return;
     }
 
@@ -50,7 +52,7 @@ export default function ArticleAnalysisModal({ visible, onClose, onAnalysisCompl
   const pickImage = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
-      Alert.alert('Permission requise', 'Autorisez l\'accès à la galerie');
+      Alert.alert(t('common.cameraRequired'), t('common.galleryPermission'));
       return;
     }
 
@@ -75,7 +77,7 @@ export default function ArticleAnalysisModal({ visible, onClose, onAnalysisCompl
       const analysisResult = await api.analyzeArticleImage(imageUri);
       setResult(analysisResult);
     } catch (error: any) {
-      Alert.alert('Erreur', error.message || 'Impossible d\'analyser l\'image');
+      Alert.alert(t('common.error'), error.message || t('common.genericError'));
     } finally {
       setAnalyzing(false);
     }
@@ -110,9 +112,9 @@ export default function ArticleAnalysisModal({ visible, onClose, onAnalysisCompl
 
   const getConfidenceLabel = (confidence: string) => {
     switch (confidence) {
-      case 'HIGH': return { label: 'Fiabilité haute', color: '#4CAF50' };
-      case 'MEDIUM': return { label: 'Fiabilité moyenne', color: '#FF9800' };
-      case 'LOW': return { label: 'Fiabilité faible', color: '#F44336' };
+      case 'HIGH': return { label: t('vendor.analysis.highConfidence'), color: '#4CAF50' };
+      case 'MEDIUM': return { label: t('vendor.analysis.mediumConfidence'), color: '#FF9800' };
+      case 'LOW': return { label: t('vendor.analysis.lowConfidence'), color: '#F44336' };
       default: return { label: '', color: '#9E9E9E' };
     }
   };
@@ -141,7 +143,7 @@ export default function ArticleAnalysisModal({ visible, onClose, onAnalysisCompl
           <TouchableOpacity onPress={resetAndClose} style={styles.closeButton}>
             <Ionicons name="close" size={28} color="#333" />
           </TouchableOpacity>
-          <Text style={styles.title}>Prendre une photo</Text>
+          <Text style={styles.title}>{t('vendor.analysis.takePhoto')}</Text>
           <View style={{ width: 28 }} />
         </View>
 
@@ -153,20 +155,20 @@ export default function ArticleAnalysisModal({ visible, onClose, onAnalysisCompl
                 <MaterialCommunityIcons name="camera-outline" size={80} color="#007AFF" />
               </View>
 
-              <Text style={styles.mainTitle}>Photographiez votre colis</Text>
+              <Text style={styles.mainTitle}>{t('vendor.analysis.title')}</Text>
               <Text style={styles.instructions}>
-                Prenez une photo claire de votre article pour que notre IA puisse l'analyser et déterminer la taille de colis appropriée.
+                {t('vendor.analysis.subtitle')}
               </Text>
-              
+
               <View style={styles.buttonColumn}>
                 <TouchableOpacity style={styles.imageButton} onPress={takePhoto}>
                   <Ionicons name="camera" size={28} color="#fff" />
-                  <Text style={styles.imageButtonText}>Prendre une photo</Text>
+                  <Text style={styles.imageButtonText}>{t('vendor.analysis.takePhoto')}</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity style={styles.galleryButton} onPress={pickImage}>
                   <Ionicons name="images" size={28} color="#007AFF" />
-                  <Text style={styles.galleryButtonText}>Choisir depuis la galerie</Text>
+                  <Text style={styles.galleryButtonText}>{t('vendor.analysis.pickImage')}</Text>
                 </TouchableOpacity>
               </View>
 
@@ -175,7 +177,7 @@ export default function ArticleAnalysisModal({ visible, onClose, onAnalysisCompl
                 <View style={styles.infoItem}>
                   <Ionicons name="shield-checkmark" size={24} color="#4CAF50" />
                   <View style={styles.infoTextContainer}>
-                    <Text style={styles.infoTitle}>Confidentialité assurée</Text>
+                    <Text style={styles.infoTitle}>{t('vendor.analysis.confidentiality')}</Text>
                     <Text style={styles.infoDescription}>Votre photo reste privée, seule la catégorie générale est partagée</Text>
                   </View>
                 </View>
@@ -183,7 +185,7 @@ export default function ArticleAnalysisModal({ visible, onClose, onAnalysisCompl
                 <View style={styles.infoItem}>
                   <Ionicons name="flash" size={24} color="#FF9800" />
                   <View style={styles.infoTextContainer}>
-                    <Text style={styles.infoTitle}>Analyse instantanée</Text>
+                    <Text style={styles.infoTitle}>{t('vendor.analysis.instantAnalysis')}</Text>
                     <Text style={styles.infoDescription}>Notre IA identifie votre article en quelques secondes</Text>
                   </View>
                 </View>
@@ -191,7 +193,7 @@ export default function ArticleAnalysisModal({ visible, onClose, onAnalysisCompl
                 <View style={styles.infoItem}>
                   <Ionicons name="pricetag" size={24} color="#2196F3" />
                   <View style={styles.infoTextContainer}>
-                    <Text style={styles.infoTitle}>Tarif unique {PRICING.FIXED_PRICE}€</Text>
+                    <Text style={styles.infoTitle}>{t('vendor.analysis.uniquePrice')} {PRICING.FIXED_PRICE}€</Text>
                     <Text style={styles.infoDescription}>Peu importe la taille de votre colis</Text>
                   </View>
                 </View>
@@ -207,14 +209,14 @@ export default function ArticleAnalysisModal({ visible, onClose, onAnalysisCompl
                   onPress={() => { setImageUri(null); setResult(null); }}
                 >
                   <Ionicons name="camera-reverse" size={20} color="#fff" />
-                  <Text style={styles.changePhotoText}>Changer</Text>
+                  <Text style={styles.changePhotoText}>{t('vendor.analysis.change')}</Text>
                 </TouchableOpacity>
               </View>
 
               {!result && !analyzing && (
                 <TouchableOpacity style={styles.analyzeButton} onPress={analyzeImage}>
                   <MaterialCommunityIcons name="sparkles" size={24} color="#fff" />
-                  <Text style={styles.analyzeButtonText}>Analyser avec l'IA</Text>
+                  <Text style={styles.analyzeButtonText}>{t('vendor.analysis.analyzeButton')}</Text>
                 </TouchableOpacity>
               )}
 
@@ -223,8 +225,8 @@ export default function ArticleAnalysisModal({ visible, onClose, onAnalysisCompl
                   <View style={styles.loadingSpinner}>
                     <ActivityIndicator size="large" color="#007AFF" />
                   </View>
-                  <Text style={styles.loadingText}>Analyse en cours...</Text>
-                  <Text style={styles.loadingSubtext}>Notre IA examine votre article</Text>
+                  <Text style={styles.loadingText}>{t('vendor.analysis.analyzing')}</Text>
+                  <Text style={styles.loadingSubtext}>{t('vendor.analysis.analyzingSubtitle')}</Text>
                 </View>
               )}
 
@@ -238,12 +240,12 @@ export default function ArticleAnalysisModal({ visible, onClose, onAnalysisCompl
                       color={result.isCompatible ? "#4CAF50" : "#F44336"}
                     />
                     <Text style={styles.resultHeaderTitle}>
-                      {result.isCompatible ? 'Article analysé avec succès' : 'Article incompatible'}
+                      {result.isCompatible ? t('vendor.analysis.successTitle') : t('vendor.analysis.incompatibleTitle')}
                     </Text>
                     <Text style={styles.resultHeaderSubtitle}>
                       {result.isCompatible
-                        ? 'Votre colis peut être expédié'
-                        : 'Article trop volumineux pour les points relais'}
+                        ? t('vendor.analysis.successSubtitle')
+                        : t('vendor.analysis.incompatibleSubtitle')}
                     </Text>
                   </View>
 
@@ -267,7 +269,7 @@ export default function ArticleAnalysisModal({ visible, onClose, onAnalysisCompl
                     <View style={styles.sizeCard}>
                       <View style={styles.sizeCardHeader}>
                         <Ionicons name="cube-outline" size={24} color="#007AFF" />
-                        <Text style={styles.sizeCardTitle}>Taille de colis recommandée</Text>
+                        <Text style={styles.sizeCardTitle}>{t('vendor.analysis.recommendedSize')}</Text>
                       </View>
                       <View style={styles.sizeCardBody}>
                         <View style={[styles.sizeBadgeLarge, { backgroundColor: getSizeColor(result.packageSize) }]}>
@@ -286,9 +288,9 @@ export default function ArticleAnalysisModal({ visible, onClose, onAnalysisCompl
                   {!result.isCompatible && (
                     <View style={styles.incompatibleCard}>
                       <Ionicons name="warning-outline" size={48} color="#F44336" />
-                      <Text style={styles.incompatibleTitle}>Article trop volumineux</Text>
+                      <Text style={styles.incompatibleTitle}>{t('vendor.analysis.tooLarge')}</Text>
                       <Text style={styles.incompatibleText}>
-                        Cet article dépasse les dimensions maximales acceptées par les points relais.
+                        {t('vendor.analysis.tooLargeDesc')}
                       </Text>
                     </View>
                   )}
@@ -297,14 +299,14 @@ export default function ArticleAnalysisModal({ visible, onClose, onAnalysisCompl
                   <View style={styles.priceCard}>
                     <Ionicons name="pricetag-outline" size={24} color="#2196F3" />
                     <View style={styles.priceCardContent}>
-                      <Text style={styles.priceCardLabel}>Prix de la livraison</Text>
+                      <Text style={styles.priceCardLabel}>{t('vendor.analysis.deliveryPrice')}</Text>
                       <Text style={styles.priceCardValue}>{PRICING.FIXED_PRICE}€</Text>
                     </View>
                   </View>
 
                   {/* Détails de l'analyse */}
                   <View style={styles.analysisDetails}>
-                    <Text style={styles.analysisDetailsTitle}>Détails de l'analyse</Text>
+                    <Text style={styles.analysisDetailsTitle}>{t('vendor.analysis.analysisDetails')}</Text>
                     <Text style={styles.analysisDetailsText}>{result.justification}</Text>
                     <View style={styles.confidenceBadge}>
                       <View style={[styles.confidenceDot, { backgroundColor: getConfidenceLabel(result.confidence).color }]} />
@@ -317,7 +319,7 @@ export default function ArticleAnalysisModal({ visible, onClose, onAnalysisCompl
                     {result.isCompatible && (
                       <TouchableOpacity style={styles.confirmButton} onPress={confirmResult}>
                         <Ionicons name="checkmark-circle" size={24} color="#fff" />
-                        <Text style={styles.confirmButtonText}>Valider et continuer</Text>
+                        <Text style={styles.confirmButtonText}>{t('vendor.analysis.useResult')}</Text>
                       </TouchableOpacity>
                     )}
                     <TouchableOpacity
@@ -325,7 +327,7 @@ export default function ArticleAnalysisModal({ visible, onClose, onAnalysisCompl
                       onPress={() => { setImageUri(null); setResult(null); }}
                     >
                       <Ionicons name="camera-reverse-outline" size={20} color="#007AFF" />
-                      <Text style={styles.retryButtonText}>Reprendre une photo</Text>
+                      <Text style={styles.retryButtonText}>{t('vendor.analysis.retake')}</Text>
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -462,7 +464,7 @@ const styles = StyleSheet.create({
     color: '#666',
     lineHeight: 18,
   },
-  
+
   // Analysis Container
   analysisContainer: {
     flex: 1,
@@ -530,7 +532,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#666',
   },
-  
+
   // Result Container
   resultContainer: {
     marginTop: 20,
@@ -582,7 +584,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#1A1A1A',
   },
-  
+
   // Size Card
   sizeCard: {
     backgroundColor: '#fff',
@@ -711,7 +713,7 @@ const styles = StyleSheet.create({
     color: '#666',
     fontWeight: '600',
   },
-  
+
   // Action Buttons
   actionButtons: {
     gap: 14,

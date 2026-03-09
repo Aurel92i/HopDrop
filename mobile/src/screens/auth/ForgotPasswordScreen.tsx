@@ -11,6 +11,7 @@ import { FormInput } from '../../components/forms/FormInput';
 import { api } from '../../services/api';
 import { AuthStackParamList } from '../../navigation/AppNavigator';
 import { colors, spacing } from '../../theme';
+import { useTranslation } from '../../i18n/i18nContext';
 
 const forgotPasswordSchema = z.object({
   email: z.string().email('Email invalide'),
@@ -23,6 +24,7 @@ type ForgotPasswordScreenProps = {
 };
 
 export function ForgotPasswordScreen({ navigation }: ForgotPasswordScreenProps) {
+  const { t } = useTranslation();
   const [isLoading, setIsLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -45,7 +47,7 @@ export function ForgotPasswordScreen({ navigation }: ForgotPasswordScreenProps) 
       await api.forgotPassword(data.email);
       setSuccess(true);
     } catch (e: any) {
-      setError(e.response?.data?.error || 'Une erreur est survenue');
+      setError(e.response?.data?.error || t('common.genericError'));
     } finally {
       setIsLoading(false);
     }
@@ -57,17 +59,17 @@ export function ForgotPasswordScreen({ navigation }: ForgotPasswordScreenProps) 
         <View style={styles.successContainer}>
           <Logo size="medium" />
           <Text variant="headlineSmall" style={styles.successTitle}>
-            Email envoyé !
+            {t('auth.forgotPassword.successTitle')}
           </Text>
           <Text variant="bodyMedium" style={styles.successText}>
-            Si un compte existe avec cette adresse email, vous recevrez un lien pour réinitialiser votre mot de passe.
+            {t('auth.forgotPassword.successDesc')}
           </Text>
           <Button
             mode="contained"
             onPress={() => navigation.navigate('Login')}
             style={styles.backButton}
           >
-            Retour à la connexion
+            {t('auth.forgotPassword.backToLogin')}
           </Button>
         </View>
       </View>
@@ -86,10 +88,10 @@ export function ForgotPasswordScreen({ navigation }: ForgotPasswordScreenProps) 
         <View style={styles.header}>
           <Logo size="medium" />
           <Text variant="headlineSmall" style={styles.subtitle}>
-            Mot de passe oublié
+            {t('auth.forgotPassword.title')}
           </Text>
           <Text variant="bodyMedium" style={styles.description}>
-            Entrez votre email et nous vous enverrons un lien pour réinitialiser votre mot de passe.
+            {t('auth.forgotPassword.description')}
           </Text>
         </View>
 
@@ -97,11 +99,11 @@ export function ForgotPasswordScreen({ navigation }: ForgotPasswordScreenProps) 
           <FormInput
             control={control}
             name="email"
-            label="Email"
-            placeholder="votre@email.com"
+            label={t('auth.forgotPassword.email')}
+            placeholder={t('auth.forgotPassword.emailPlaceholder')}
             keyboardType="email-address"
             autoCapitalize="none"
-            error={errors.email?.message}
+            error={errors.email ? t('auth.forgotPassword.emailInvalid') : undefined}
           />
 
           <Button
@@ -112,12 +114,12 @@ export function ForgotPasswordScreen({ navigation }: ForgotPasswordScreenProps) 
             style={styles.submitButton}
             contentStyle={styles.submitButtonContent}
           >
-            Envoyer le lien
+            {t('auth.forgotPassword.submit')}
           </Button>
         </View>
 
         <Button mode="text" onPress={() => navigation.goBack()}>
-          Retour à la connexion
+          {t('auth.forgotPassword.backToLogin')}
         </Button>
       </ScrollView>
 
@@ -125,7 +127,7 @@ export function ForgotPasswordScreen({ navigation }: ForgotPasswordScreenProps) 
         visible={!!error}
         onDismiss={() => setError(null)}
         duration={3000}
-        action={{ label: 'OK', onPress: () => setError(null) }}
+        action={{ label: t('common.ok'), onPress: () => setError(null) }}
       >
         {error}
       </Snackbar>

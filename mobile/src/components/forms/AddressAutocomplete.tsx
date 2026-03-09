@@ -3,11 +3,12 @@ import { View, StyleSheet, TouchableOpacity, FlatList, Keyboard } from 'react-na
 import { TextInput, Text, ActivityIndicator } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { colors, spacing } from '../../theme';
+import { useTranslation } from '../../i18n/i18nContext';
 
-// Type pour les résultats de l'API adresse.data.gouv.fr
+// Type pour les resultats de l'API adresse.data.gouv.fr
 interface AddressSuggestion {
-  label: string;        // Adresse complète formatée
-  street: string;       // Numéro + rue
+  label: string;        // Adresse complete formatee
+  street: string;       // Numero + rue
   city: string;         // Ville
   postalCode: string;   // Code postal
   latitude: number;
@@ -31,17 +32,18 @@ interface AddressAutocompleteProps {
 export function AddressAutocomplete({
   value,
   onAddressSelect,
-  placeholder = "Rechercher une adresse...",
-  label = "Adresse",
+  placeholder,
+  label,
   error,
 }: AddressAutocompleteProps) {
+  const { t } = useTranslation();
   const [query, setQuery] = useState(value);
   const [suggestions, setSuggestions] = useState<AddressSuggestion[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Appel à l'API adresse.data.gouv.fr
+  // Appel a l'API adresse.data.gouv.fr
   const searchAddresses = async (searchQuery: string) => {
     if (searchQuery.length < 3) {
       setSuggestions([]);
@@ -66,15 +68,15 @@ export function AddressAutocomplete({
 
       setSuggestions(formattedSuggestions);
       setShowSuggestions(true);
-    } catch (error) {
-      console.error('Erreur recherche adresse:', error);
+    } catch (err) {
+      console.error('Erreur recherche adresse:', err);
       setSuggestions([]);
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Debounce pour éviter trop d'appels API
+  // Debounce pour eviter trop d'appels API
   const handleTextChange = useCallback((text: string) => {
     setQuery(text);
 
@@ -87,7 +89,7 @@ export function AddressAutocomplete({
     }, 300);
   }, []);
 
-  // Sélection d'une adresse
+  // Selection d'une adresse
   const handleSelect = (suggestion: AddressSuggestion) => {
     setQuery(suggestion.label);
     setSuggestions([]);
@@ -109,10 +111,10 @@ export function AddressAutocomplete({
       style={styles.suggestionItem}
       onPress={() => handleSelect(item)}
     >
-      <MaterialCommunityIcons 
-        name="map-marker" 
-        size={20} 
-        color={colors.primary} 
+      <MaterialCommunityIcons
+        name="map-marker"
+        size={20}
+        color={colors.primary}
         style={styles.suggestionIcon}
       />
       <View style={styles.suggestionContent}>
@@ -129,32 +131,32 @@ export function AddressAutocomplete({
   return (
     <View style={styles.container}>
       <TextInput
-        label={label}
+        label={label ?? t('shared.addresses.addressLabel')}
         value={query}
         onChangeText={handleTextChange}
         onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
         mode="outlined"
-        placeholder={placeholder}
+        placeholder={placeholder ?? t('shared.addresses.searchPlaceholder')}
         style={styles.input}
         error={!!error}
         right={
           isLoading ? (
             <TextInput.Icon icon={() => <ActivityIndicator size={20} color={colors.primary} />} />
           ) : query.length > 0 ? (
-            <TextInput.Icon 
-              icon="close" 
+            <TextInput.Icon
+              icon="close"
               onPress={() => {
                 setQuery('');
                 setSuggestions([]);
                 setShowSuggestions(false);
-              }} 
+              }}
             />
           ) : (
             <TextInput.Icon icon="magnify" />
           )
         }
       />
-      
+
       {error && (
         <Text variant="bodySmall" style={styles.errorText}>{error}</Text>
       )}

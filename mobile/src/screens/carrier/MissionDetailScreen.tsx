@@ -10,24 +10,29 @@ import { useMissionStore } from '../../stores/missionStore';
 import { CarrierStackParamList } from '../../navigation/types';
 import { colors, spacing, sizes } from '../../theme';
 import { Mission, MissionStatus } from '../../types';
+import { useTranslation } from '../../i18n/i18nContext';
 
 type MissionDetailScreenProps = {
   navigation: NativeStackNavigationProp<CarrierStackParamList, 'MissionDetail'>;
   route: RouteProp<CarrierStackParamList, 'MissionDetail'>;
 };
 
-const statusConfig: Record<MissionStatus, { label: string; color: string; icon: string; nextAction?: string }> = {
-  ACCEPTED: { label: 'À récupérer', color: colors.primary, icon: 'package-variant', nextAction: 'Marquer comme récupéré' },
-  IN_PROGRESS: { label: 'En cours', color: colors.tertiary, icon: 'bike', nextAction: 'Marquer comme récupéré' },
-  PICKED_UP: { label: 'En livraison', color: colors.secondary, icon: 'package-variant-closed', nextAction: 'Marquer comme livré' },
-  DELIVERED: { label: 'Livré', color: '#10B981', icon: 'check-all' },
-  CANCELLED: { label: 'Annulé', color: colors.error, icon: 'close-circle' },
-};
-
 export function MissionDetailScreen({ navigation, route }: MissionDetailScreenProps) {
   const { missionId } = route.params;
   const { currentMissions, pickupMission, deliverMission, cancelMission, fetchCurrentMissions } = useMissionStore();
   const [isLoading, setIsLoading] = useState(false);
+  const { t, language } = useTranslation();
+
+  const localeMap: Record<string, string> = { fr: 'fr-FR', en: 'en-US', es: 'es-ES', ar: 'ar-SA', pt: 'pt-BR' };
+  const locale = localeMap[language] || 'fr-FR';
+
+  const statusConfig: Record<MissionStatus, { label: string; color: string; icon: string; nextAction?: string }> = {
+    ACCEPTED: { label: t('carrier.missionDetail.toPickup'), color: colors.primary, icon: 'package-variant', nextAction: t('carrier.missionDetail.pickupAction') },
+    IN_PROGRESS: { label: t('carrier.missionDetail.inProgress'), color: colors.tertiary, icon: 'bike', nextAction: t('carrier.missionDetail.pickupAction') },
+    PICKED_UP: { label: t('carrier.missionDetail.inDelivery'), color: colors.secondary, icon: 'package-variant-closed', nextAction: t('carrier.missionDetail.deliverAction') },
+    DELIVERED: { label: t('carrier.missionDetail.delivered'), color: '#10B981', icon: 'check-all' },
+    CANCELLED: { label: t('carrier.missionDetail.cancelled'), color: colors.error, icon: 'close-circle' },
+  };
 
   const mission = currentMissions.find((m) => m.id === missionId);
 
@@ -38,7 +43,7 @@ export function MissionDetailScreen({ navigation, route }: MissionDetailScreenPr
   }, [missionId]);
 
   if (!mission) {
-    return <LoadingScreen message="Chargement de la mission..." />;
+    return <LoadingScreen message={t('carrier.missionDetail.loadingMission')} />;
   }
 
   const status = statusConfig[mission.status];
@@ -46,19 +51,19 @@ export function MissionDetailScreen({ navigation, route }: MissionDetailScreenPr
 
   const handlePickup = async () => {
     Alert.alert(
-      'Confirmer la récupération',
-      'Avez-vous bien récupéré le colis auprès du vendeur ?',
+      t('carrier.missionDetail.confirmPickupTitle'),
+      t('carrier.missionDetail.confirmPickupMessage'),
       [
-        { text: 'Annuler', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Confirmer',
+          text: t('common.confirm'),
           onPress: async () => {
             setIsLoading(true);
             try {
               await pickupMission(missionId);
-              Alert.alert('Succès', 'Colis marqué comme récupéré !');
+              Alert.alert(t('common.success'), t('carrier.missionDetail.pickupSuccess'));
             } catch (e: any) {
-              Alert.alert('Erreur', e.message);
+              Alert.alert(t('common.error'), e.message);
             } finally {
               setIsLoading(false);
             }
@@ -70,21 +75,21 @@ export function MissionDetailScreen({ navigation, route }: MissionDetailScreenPr
 
   const handleDeliver = async () => {
     Alert.alert(
-      'Confirmer la livraison',
-      'Avez-vous bien déposé le colis au point de dépôt ?',
+      t('carrier.missionDetail.confirmDeliveryTitle'),
+      t('carrier.missionDetail.confirmDeliveryMessage'),
       [
-        { text: 'Annuler', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Confirmer',
+          text: t('common.confirm'),
           onPress: async () => {
             setIsLoading(true);
             try {
               await deliverMission(missionId);
-              Alert.alert('Succès', 'Livraison effectuée ! Votre paiement sera bientôt disponible.', [
+              Alert.alert(t('common.success'), t('carrier.missionDetail.deliverySuccess'), [
                 { text: 'OK', onPress: () => navigation.goBack() },
               ]);
             } catch (e: any) {
-              Alert.alert('Erreur', e.message);
+              Alert.alert(t('common.error'), e.message);
             } finally {
               setIsLoading(false);
             }
@@ -96,20 +101,20 @@ export function MissionDetailScreen({ navigation, route }: MissionDetailScreenPr
 
   const handleCancel = async () => {
     Alert.alert(
-      'Annuler la mission',
-      'Êtes-vous sûr de vouloir annuler cette mission ? Cela peut affecter votre réputation.',
+      t('carrier.missionDetail.cancelTitle'),
+      t('carrier.missionDetail.cancelMessage'),
       [
-        { text: 'Non', style: 'cancel' },
+        { text: t('carrier.missionDetail.cancelNo'), style: 'cancel' },
         {
-          text: 'Oui, annuler',
+          text: t('carrier.missionDetail.cancelYes'),
           style: 'destructive',
           onPress: async () => {
             setIsLoading(true);
             try {
-              await cancelMission(missionId, 'Annulé par le livreur');
+              await cancelMission(missionId, t('carrier.missionDetail.cancelledByCarrier'));
               navigation.goBack();
             } catch (e: any) {
-              Alert.alert('Erreur', e.message);
+              Alert.alert(t('common.error'), e.message);
             } finally {
               setIsLoading(false);
             }
@@ -121,7 +126,7 @@ export function MissionDetailScreen({ navigation, route }: MissionDetailScreenPr
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString('fr-FR', {
+    return date.toLocaleDateString(locale, {
       weekday: 'long',
       day: 'numeric',
       month: 'long',
@@ -130,7 +135,7 @@ export function MissionDetailScreen({ navigation, route }: MissionDetailScreenPr
     });
   };
 
-  // 🕐 Formatage du jour de récupération
+  // 🕐 Formatage du jour de recuperation
   const formatPickupDay = (dateString: string) => {
     const date = new Date(dateString);
     const today = new Date();
@@ -138,11 +143,11 @@ export function MissionDetailScreen({ navigation, route }: MissionDetailScreenPr
     tomorrow.setDate(tomorrow.getDate() + 1);
 
     if (date.toDateString() === today.toDateString()) {
-      return "Aujourd'hui";
+      return t('carrier.missionDetail.today');
     } else if (date.toDateString() === tomorrow.toDateString()) {
-      return 'Demain';
+      return t('carrier.missionDetail.tomorrow');
     } else {
-      return date.toLocaleDateString('fr-FR', {
+      return date.toLocaleDateString(locale, {
         weekday: 'long',
         day: 'numeric',
         month: 'long',
@@ -153,7 +158,7 @@ export function MissionDetailScreen({ navigation, route }: MissionDetailScreenPr
   // 🕐 Formatage de l'heure
   const formatPickupTime = (dateString: string) => {
     const date = new Date(dateString);
-    return date.toLocaleTimeString('fr-FR', {
+    return date.toLocaleTimeString(locale, {
       hour: '2-digit',
       minute: '2-digit',
     }).replace(':', 'h');
@@ -173,22 +178,22 @@ export function MissionDetailScreen({ navigation, route }: MissionDetailScreenPr
         </Card.Content>
       </Card>
 
-      {/* 🕐 CRÉNEAU DE RÉCUPÉRATION - ÉLÉMENT CENTRAL */}
+      {/* 🕐 CRENEAU DE RECUPERATION - ELEMENT CENTRAL */}
       {parcel && (mission.status === 'ACCEPTED' || mission.status === 'IN_PROGRESS') && (
         <View style={[
           styles.slotBanner,
           parcel.pickupMode === 'IMMEDIATE' ? styles.slotBannerImmediate : styles.slotBannerScheduled
         ]}>
-          <MaterialCommunityIcons 
-            name={parcel.pickupMode === 'IMMEDIATE' ? 'lightning-bolt' : 'clock-outline'} 
-            size={28} 
-            color="white" 
+          <MaterialCommunityIcons
+            name={parcel.pickupMode === 'IMMEDIATE' ? 'lightning-bolt' : 'clock-outline'}
+            size={28}
+            color="white"
           />
           <View style={styles.slotBannerContent}>
             {parcel.pickupMode === 'IMMEDIATE' ? (
               <>
-                <Text style={styles.slotBannerTitle}>Récupération immédiate</Text>
-                <Text style={styles.slotBannerSubtitle}>Le vendeur vous attend maintenant</Text>
+                <Text style={styles.slotBannerTitle}>{t('carrier.missionDetail.immediatePickup')}</Text>
+                <Text style={styles.slotBannerSubtitle}>{t('carrier.missionDetail.vendorWaiting')}</Text>
               </>
             ) : (
               <>
@@ -198,7 +203,7 @@ export function MissionDetailScreen({ navigation, route }: MissionDetailScreenPr
                 <Text style={styles.slotBannerTime}>
                   {formatPickupTime(parcel.pickupSlotStart)} - {formatPickupTime(parcel.pickupSlotEnd)}
                 </Text>
-                <Text style={styles.slotBannerSubtitle}>Créneau de récupération</Text>
+                <Text style={styles.slotBannerSubtitle}>{t('carrier.missionDetail.pickupSlot')}</Text>
               </>
             )}
           </View>
@@ -210,7 +215,7 @@ export function MissionDetailScreen({ navigation, route }: MissionDetailScreenPr
         <Card style={styles.codeCard}>
           <Card.Content style={styles.codeContent}>
             <Text variant="bodyMedium" style={styles.codeLabel}>
-              Code à demander au vendeur :
+              {t('carrier.missionDetail.codeLabel')}
             </Text>
             <Text variant="displaySmall" style={styles.code}>
               {parcel.pickupCode}
@@ -226,7 +231,7 @@ export function MissionDetailScreen({ navigation, route }: MissionDetailScreenPr
             <View style={styles.noteHeader}>
               <MaterialCommunityIcons name="note-text-outline" size={20} color={colors.secondary} />
               <Text variant="titleSmall" style={styles.noteTitle}>
-                Note du vendeur
+                {t('carrier.missionDetail.vendorNote')}
               </Text>
             </View>
             <Text variant="bodyMedium" style={styles.noteText}>
@@ -241,11 +246,11 @@ export function MissionDetailScreen({ navigation, route }: MissionDetailScreenPr
         <Card style={styles.card}>
           <Card.Content>
             <Text variant="titleMedium" style={styles.sectionTitle}>
-              📦 Colis
+              {`\u{1F4E6} ${t('carrier.missionDetail.parcelSection')}`}
             </Text>
-            
+
             <View style={styles.infoRow}>
-              <Text variant="bodyMedium" style={styles.label}>Taille</Text>
+              <Text variant="bodyMedium" style={styles.label}>{t('carrier.missionDetail.sizeLabel')}</Text>
               <Text variant="bodyMedium">
                 {sizes.parcel[parcel.size as keyof typeof sizes.parcel]?.label || parcel.size}
               </Text>
@@ -253,16 +258,16 @@ export function MissionDetailScreen({ navigation, route }: MissionDetailScreenPr
 
             {parcel.itemCategory && (
               <View style={styles.infoRow}>
-                <Text variant="bodyMedium" style={styles.label}>Catégorie</Text>
+                <Text variant="bodyMedium" style={styles.label}>{t('carrier.missionDetail.categoryLabel')}</Text>
                 <Text variant="bodyMedium">{parcel.itemCategory}</Text>
               </View>
             )}
 
             {/* Info bordereau */}
             <View style={styles.infoRow}>
-              <Text variant="bodyMedium" style={styles.label}>Bordereau</Text>
+              <Text variant="bodyMedium" style={styles.label}>{t('carrier.missionDetail.labelLabel')}</Text>
               <Text variant="bodyMedium">
-                {parcel.hasShippingLabel ? '✅ Imprimé par le vendeur' : '🖨️ À imprimer'}
+                {parcel.hasShippingLabel ? `\u2705 ${t('carrier.missionDetail.labelPrinted')}` : `\u{1F5A8}\uFE0F ${t('carrier.missionDetail.labelToPrint')}`}
               </Text>
             </View>
           </Card.Content>
@@ -274,13 +279,13 @@ export function MissionDetailScreen({ navigation, route }: MissionDetailScreenPr
         <Card style={styles.card}>
           <Card.Content>
             <Text variant="titleMedium" style={styles.sectionTitle}>
-              📍 Itinéraire
+              {`\u{1F4CD} ${t('carrier.missionDetail.routeSection')}`}
             </Text>
 
             <View style={styles.addressBlock}>
               <MaterialCommunityIcons name="home" size={20} color={colors.primary} />
               <View style={styles.addressInfo}>
-                <Text variant="labelMedium" style={styles.addressLabel}>Récupération</Text>
+                <Text variant="labelMedium" style={styles.addressLabel}>{t('carrier.missionDetail.pickupLabel')}</Text>
                 {parcel.pickupAddress && (
                   <>
                     <Text variant="bodyMedium">
@@ -294,13 +299,13 @@ export function MissionDetailScreen({ navigation, route }: MissionDetailScreenPr
               </View>
             </View>
 
-            {/* Informations complémentaires - IMPORTANT pour le livreur */}
+            {/* Informations complementaires - IMPORTANT pour le livreur */}
             {parcel.pickupInstructions && (
               <View style={styles.instructionsBox}>
                 <MaterialCommunityIcons name="information-outline" size={18} color={colors.primary} />
                 <View style={styles.instructionsContent}>
                   <Text variant="labelSmall" style={styles.instructionsLabel}>
-                    Informations complémentaires
+                    {t('carrier.missionDetail.additionalInfo')}
                   </Text>
                   <Text variant="bodyMedium" style={styles.instructionsText}>
                     {parcel.pickupInstructions}
@@ -316,7 +321,7 @@ export function MissionDetailScreen({ navigation, route }: MissionDetailScreenPr
             <View style={styles.addressBlock}>
               <MaterialCommunityIcons name="store" size={20} color={colors.secondary} />
               <View style={styles.addressInfo}>
-                <Text variant="labelMedium" style={styles.addressLabel}>Dépôt</Text>
+                <Text variant="labelMedium" style={styles.addressLabel}>{t('carrier.missionDetail.dropoffLabel')}</Text>
                 <Text variant="bodyMedium">{parcel.dropoffName}</Text>
                 <Text variant="bodySmall" style={styles.addressText}>
                   {parcel.dropoffAddress}
@@ -332,18 +337,18 @@ export function MissionDetailScreen({ navigation, route }: MissionDetailScreenPr
         <Card style={styles.card}>
           <Card.Content>
             <Text variant="titleMedium" style={styles.sectionTitle}>
-              👤 Vendeur
+              {`\u{1F464} ${t('carrier.missionDetail.vendorSection')}`}
             </Text>
             <View style={styles.vendorRow}>
               <MaterialCommunityIcons name="account-circle" size={48} color={colors.primary} />
               <View style={styles.vendorInfo}>
                 <Text variant="titleMedium">{parcel.vendor.firstName}</Text>
                 <Text variant="bodySmall" style={styles.vendorHint}>
-                  Utilisez le chat pour communiquer
+                  {t('carrier.missionDetail.chatHint')}
                 </Text>
               </View>
             </View>
-            
+
             {/* Chat Button */}
             <Button
               mode="outlined"
@@ -351,7 +356,7 @@ export function MissionDetailScreen({ navigation, route }: MissionDetailScreenPr
               onPress={() => navigation.navigate('Chat', { parcelId: parcel.id })}
               style={styles.chatButton}
             >
-              Contacter le vendeur
+              {t('carrier.missionDetail.contactVendor')}
             </Button>
           </Card.Content>
         </Card>
@@ -361,7 +366,7 @@ export function MissionDetailScreen({ navigation, route }: MissionDetailScreenPr
       {parcel && (
         <Card style={styles.earningsCard}>
           <Card.Content style={styles.earningsContent}>
-            <Text variant="bodyMedium">Vous gagnez</Text>
+            <Text variant="bodyMedium">{t('carrier.missionDetail.youEarn')}</Text>
             <Text variant="headlineMedium" style={styles.earningsAmount}>
               {(Number(parcel.price) * 0.8).toFixed(2)} €
             </Text>
@@ -380,7 +385,7 @@ export function MissionDetailScreen({ navigation, route }: MissionDetailScreenPr
             icon="package-variant"
             style={styles.actionButton}
           >
-            J'ai récupéré le colis
+            {t('carrier.missionDetail.pickedUpAction')}
           </Button>
         )}
 
@@ -393,7 +398,7 @@ export function MissionDetailScreen({ navigation, route }: MissionDetailScreenPr
             icon="check-all"
             style={[styles.actionButton, { backgroundColor: colors.secondary }]}
           >
-            J'ai déposé le colis
+            {t('carrier.missionDetail.deliveredAction')}
           </Button>
         )}
 
@@ -405,7 +410,7 @@ export function MissionDetailScreen({ navigation, route }: MissionDetailScreenPr
             textColor={colors.error}
             style={styles.cancelButton}
           >
-            Annuler la mission
+            {t('carrier.missionDetail.cancelMission')}
           </Button>
         )}
       </View>
@@ -434,7 +439,7 @@ const styles = StyleSheet.create({
   statusTextContainer: {
     flex: 1,
   },
-  // 🕐 STYLES CRÉNEAU DE RÉCUPÉRATION
+  // 🕐 STYLES CRENEAU DE RECUPERATION
   slotBanner: {
     flexDirection: 'row',
     alignItems: 'center',

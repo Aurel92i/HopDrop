@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   StyleSheet,
@@ -23,15 +23,18 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { api } from '../../services/api';
 import { colors, spacing } from '../../theme';
 import { AdminStats, PendingDocument, DocumentType } from '../../types';
-
-const documentLabels: Record<DocumentType, string> = {
-  ID_CARD_FRONT: "Pièce d'identité (Recto)",
-  ID_CARD_BACK: "Pièce d'identité (Verso)",
-  KBIS: 'Extrait Kbis',
-  VEHICLE_REGISTRATION: 'Carte grise',
-};
+import { useTranslation } from '../../i18n/i18nContext';
 
 export function AdminDashboardScreen() {
+  const { t } = useTranslation();
+
+  const documentLabels: Record<DocumentType, string> = useMemo(() => ({
+    ID_CARD_FRONT: t('admin.idFront'),
+    ID_CARD_BACK: t('admin.idBack'),
+    KBIS: t('admin.kbis'),
+    VEHICLE_REGISTRATION: t('admin.vehicleReg'),
+  }), [t]);
+
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [documents, setDocuments] = useState<PendingDocument[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -51,12 +54,12 @@ export function AdminDashboardScreen() {
       setDocuments(docsRes.documents);
     } catch (error: any) {
       console.error('Erreur chargement admin:', error);
-      Alert.alert('Erreur', error.message || 'Impossible de charger les données');
+      Alert.alert(t('common.error'), error.message || t('admin.loadError'));
     } finally {
       setIsLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     loadData();
@@ -69,20 +72,20 @@ export function AdminDashboardScreen() {
 
   const handleApprove = async (doc: PendingDocument) => {
     Alert.alert(
-      'Approuver le document',
-      `Voulez-vous approuver ce document (${documentLabels[doc.type]}) ?`,
+      t('admin.approveDocumentTitle'),
+      t('admin.approveDocumentMessage').replace('{docType}', documentLabels[doc.type]),
       [
-        { text: 'Annuler', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Approuver',
+          text: t('admin.approve'),
           onPress: async () => {
             setActionLoading(true);
             try {
               await api.approveDocument(doc.id);
-              Alert.alert('Succès', 'Document approuvé');
+              Alert.alert(t('common.success'), t('admin.documentApproved'));
               loadData();
             } catch (error: any) {
-              Alert.alert('Erreur', error.message);
+              Alert.alert(t('common.error'), error.message);
             } finally {
               setActionLoading(false);
             }
@@ -100,7 +103,7 @@ export function AdminDashboardScreen() {
 
   const handleRejectConfirm = async () => {
     if (!selectedDoc || !rejectReason.trim()) {
-      Alert.alert('Erreur', 'Veuillez indiquer une raison');
+      Alert.alert(t('common.error'), t('admin.pleaseIndicateReason'));
       return;
     }
 
@@ -108,10 +111,10 @@ export function AdminDashboardScreen() {
     try {
       await api.rejectDocument(selectedDoc.id, rejectReason.trim());
       setShowRejectModal(false);
-      Alert.alert('Succès', 'Document refusé');
+      Alert.alert(t('common.success'), t('admin.documentRejected'));
       loadData();
     } catch (error: any) {
-      Alert.alert('Erreur', error.message);
+      Alert.alert(t('common.error'), error.message);
     } finally {
       setActionLoading(false);
     }
@@ -125,7 +128,7 @@ export function AdminDashboardScreen() {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={styles.loadingText}>Chargement...</Text>
+        <Text style={styles.loadingText}>{t('common.loading')}</Text>
       </View>
     );
   }
@@ -138,7 +141,7 @@ export function AdminDashboardScreen() {
     >
       {/* Statistiques */}
       <Text variant="titleLarge" style={styles.sectionTitle}>
-        📊 Statistiques
+        {t('admin.stats')}
       </Text>
 
       <View style={styles.statsGrid}>
@@ -148,7 +151,7 @@ export function AdminDashboardScreen() {
             <Text variant="headlineMedium" style={styles.statValue}>
               {stats?.users.total || 0}
             </Text>
-            <Text variant="bodySmall" style={styles.statLabel}>Utilisateurs</Text>
+            <Text variant="bodySmall" style={styles.statLabel}>{t('admin.users')}</Text>
           </Card.Content>
         </Card>
 
@@ -158,7 +161,7 @@ export function AdminDashboardScreen() {
             <Text variant="headlineMedium" style={styles.statValue}>
               {stats?.carriers.verified || 0}/{stats?.carriers.total || 0}
             </Text>
-            <Text variant="bodySmall" style={styles.statLabel}>Livreurs vérifiés</Text>
+            <Text variant="bodySmall" style={styles.statLabel}>{t('admin.verifiedCarriers')}</Text>
           </Card.Content>
         </Card>
 
@@ -168,7 +171,7 @@ export function AdminDashboardScreen() {
             <Text variant="headlineMedium" style={styles.statValue}>
               {stats?.documents.pending || 0}
             </Text>
-            <Text variant="bodySmall" style={styles.statLabel}>Docs en attente</Text>
+            <Text variant="bodySmall" style={styles.statLabel}>{t('admin.pendingDocs')}</Text>
           </Card.Content>
         </Card>
 
@@ -178,14 +181,14 @@ export function AdminDashboardScreen() {
             <Text variant="headlineMedium" style={styles.statValue}>
               {stats?.parcels.delivered || 0}/{stats?.parcels.total || 0}
             </Text>
-            <Text variant="bodySmall" style={styles.statLabel}>Colis livrés</Text>
+            <Text variant="bodySmall" style={styles.statLabel}>{t('admin.deliveredParcels')}</Text>
           </Card.Content>
         </Card>
       </View>
 
       {/* Documents en attente */}
       <Text variant="titleLarge" style={styles.sectionTitle}>
-        📄 Documents en attente ({documents.length})
+        {t('admin.pendingDocuments')} ({documents.length})
       </Text>
 
       {documents.length === 0 ? (
@@ -193,7 +196,7 @@ export function AdminDashboardScreen() {
           <Card.Content style={styles.emptyContent}>
             <MaterialCommunityIcons name="check-circle" size={48} color={colors.primary} />
             <Text variant="bodyLarge" style={styles.emptyText}>
-              Aucun document en attente
+              {t('admin.noPendingDocuments')}
             </Text>
           </Card.Content>
         </Card>
@@ -201,7 +204,7 @@ export function AdminDashboardScreen() {
         documents.map((doc) => (
           <Card key={doc.id} style={styles.documentCard}>
             <Card.Content>
-              {/* En-tête */}
+              {/* En-tete */}
               <View style={styles.docHeader}>
                 <View>
                   <Text variant="titleMedium">
@@ -229,13 +232,13 @@ export function AdminDashboardScreen() {
                   onPress={() => openDocument(doc.fileUrl)}
                   style={styles.openButton}
                 >
-                  Ouvrir en grand
+                  {t('admin.openFull')}
                 </Button>
               </View>
 
               {/* Date */}
               <Text variant="bodySmall" style={styles.docDate}>
-                Envoyé le {new Date(doc.uploadedAt).toLocaleDateString('fr-FR')}
+                {t('admin.sentOn')} {new Date(doc.uploadedAt).toLocaleDateString('fr-FR')}
               </Text>
 
               {/* Actions */}
@@ -247,7 +250,7 @@ export function AdminDashboardScreen() {
                   style={styles.approveButton}
                   disabled={actionLoading}
                 >
-                  Approuver
+                  {t('admin.approve')}
                 </Button>
                 <Button
                   mode="outlined"
@@ -257,7 +260,7 @@ export function AdminDashboardScreen() {
                   style={styles.rejectButton}
                   disabled={actionLoading}
                 >
-                  Refuser
+                  {t('admin.reject')}
                 </Button>
               </View>
             </Card.Content>
@@ -273,20 +276,20 @@ export function AdminDashboardScreen() {
           contentContainerStyle={styles.modal}
         >
           <Text variant="titleLarge" style={styles.modalTitle}>
-            Refuser le document
+            {t('admin.rejectDocument')}
           </Text>
           <Text variant="bodyMedium" style={styles.modalSubtitle}>
             {selectedDoc && documentLabels[selectedDoc.type]}
           </Text>
 
           <TextInput
-            label="Raison du refus"
+            label={t('admin.rejectReason')}
             value={rejectReason}
             onChangeText={setRejectReason}
             multiline
             numberOfLines={3}
             style={styles.reasonInput}
-            placeholder="Ex: Document illisible, mauvaise qualité..."
+            placeholder={t('admin.rejectPlaceholder')}
           />
 
           <View style={styles.modalActions}>
@@ -295,7 +298,7 @@ export function AdminDashboardScreen() {
               onPress={() => setShowRejectModal(false)}
               style={styles.modalButton}
             >
-              Annuler
+              {t('common.cancel')}
             </Button>
             <Button
               mode="contained"
@@ -305,7 +308,7 @@ export function AdminDashboardScreen() {
               style={styles.modalButton}
               buttonColor={colors.error}
             >
-              Refuser
+              {t('admin.reject')}
             </Button>
           </View>
         </Modal>

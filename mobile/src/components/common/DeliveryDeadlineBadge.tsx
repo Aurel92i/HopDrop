@@ -3,6 +3,7 @@ import { View, StyleSheet } from 'react-native';
 import { Text, ProgressBar } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { colors, spacing } from '../../theme';
+import { useTranslation } from '../../i18n/i18nContext';
 
 interface DeliveryDeadlineBadgeProps {
   // Deadline pour déposer le colis (livreur - 24H)
@@ -20,6 +21,7 @@ export function DeliveryDeadlineBadge({
   confirmationDeadline,
   userType
 }: DeliveryDeadlineBadgeProps) {
+  const { t } = useTranslation();
   const [now, setNow] = useState(new Date());
 
   // Mettre à jour l'heure actuelle toutes les minutes
@@ -68,7 +70,7 @@ export function DeliveryDeadlineBadge({
             color={isExpired ? '#EF4444' : color}
           />
           <Text variant="labelMedium" style={[styles.title, { color: isExpired ? '#EF4444' : color }]}>
-            {isExpired ? 'Délai dépassé !' : 'Temps pour déposer le colis'}
+            {isExpired ? t('carrier.deadline.exceeded') : t('carrier.deadline.timeToDeposit')}
           </Text>
         </View>
 
@@ -84,15 +86,15 @@ export function DeliveryDeadlineBadge({
           </Text>
           <Text variant="bodySmall" style={styles.subText}>
             {isExpired
-              ? 'Veuillez déposer le colis au plus vite'
-              : 'restantes pour déposer au point relais'}
+              ? t('carrier.deadline.depositAsSoonAsPossible')
+              : t('carrier.deadline.remainingToDeposit')}
           </Text>
         </View>
 
         <View style={styles.infoBox}>
           <MaterialCommunityIcons name="information-outline" size={16} color={colors.primary} />
           <Text variant="bodySmall" style={styles.infoText}>
-            Vous avez 24 heures après la récupération pour déposer le colis. Prenez une photo du reçu de dépôt.
+            {t('carrier.deadline.depositInfo')}
           </Text>
         </View>
       </View>
@@ -115,7 +117,7 @@ export function DeliveryDeadlineBadge({
             color={isExpired ? '#10B981' : color}
           />
           <Text variant="labelMedium" style={[styles.title, { color: isExpired ? '#10B981' : color }]}>
-            {isExpired ? 'Confirmé automatiquement' : 'Temps pour confirmer la réception'}
+            {isExpired ? t('carrier.deadline.autoConfirmed') : t('carrier.deadline.timeToConfirm')}
           </Text>
         </View>
 
@@ -132,7 +134,7 @@ export function DeliveryDeadlineBadge({
                 {hours}h {minutes}m
               </Text>
               <Text variant="bodySmall" style={styles.subText}>
-                restantes pour confirmer
+                {t('carrier.deadline.remainingToConfirm')}
               </Text>
             </View>
           </>
@@ -146,8 +148,8 @@ export function DeliveryDeadlineBadge({
           />
           <Text variant="bodySmall" style={styles.infoText}>
             {isExpired
-              ? 'Le délai de 12h est écoulé. La livraison a été validée automatiquement et le paiement du livreur a été déclenché.'
-              : 'Vous avez 12 heures pour confirmer que vous avez reçu la notification de dépôt du transporteur. Sinon, la livraison sera validée automatiquement.'}
+              ? t('carrier.deadline.autoConfirmedInfo')
+              : t('carrier.deadline.confirmInfo')}
           </Text>
         </View>
       </View>

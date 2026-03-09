@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { View, StyleSheet, ScrollView, Alert, Image, Dimensions, TouchableOpacity } from 'react-native';
 import { Text, Card, Button, Chip, Divider, Avatar, Portal, Modal, TextInput, ProgressBar } from 'react-native-paper';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -13,6 +13,7 @@ import { api } from '../../services/api';
 import { VendorStackParamList } from '../../navigation/types';
 import { colors, spacing, sizes } from '../../theme';
 import { ParcelStatus } from '../../types';
+import { useTranslation } from '../../i18n/i18nContext';
 
 type ParcelDetailScreenProps = {
   navigation: NativeStackNavigationProp<VendorStackParamList, 'ParcelDetail'>;
@@ -20,17 +21,6 @@ type ParcelDetailScreenProps = {
 };
 
 const { width: screenWidth } = Dimensions.get('window');
-
-// Statuts de base du colis
-const statusConfig: Record<ParcelStatus, { label: string; color: string; icon: string }> = {
-  PENDING: { label: "En attente d'un livreur", color: colors.tertiary, icon: 'clock-outline' },
-  ACCEPTED: { label: 'Livreur trouvé', color: colors.primary, icon: 'check-circle-outline' },
-  PACKAGING_CONFIRMED: { label: 'Emballage validé', color: '#3B82F6', icon: 'package-check' },
-  PICKED_UP: { label: 'Colis récupéré', color: colors.secondary, icon: 'package-variant' },
-  DELIVERED: { label: 'Livré avec succès', color: '#10B981', icon: 'check-all' },
-  CANCELLED: { label: 'Annulé', color: colors.error, icon: 'close-circle-outline' },
-  EXPIRED: { label: 'Expiré', color: colors.onSurfaceVariant, icon: 'timer-off-outline' },
-};
 
 // Types pour le statut de livraison
 interface DeliveryStatus {
@@ -48,25 +38,37 @@ interface DeliveryStatus {
 export function ParcelDetailScreen({ navigation, route }: ParcelDetailScreenProps) {
   const { parcelId } = route.params;
   const { currentParcel, isLoading, fetchParcel, cancelParcel } = useParcelStore();
-  
-  // 🆕 État pour le statut de livraison
+  const { t } = useTranslation();
+
+  // Statuts de base du colis (moved inside component for translation)
+  const statusConfig = useMemo<Record<ParcelStatus, { label: string; color: string; icon: string }>>(() => ({
+    PENDING: { label: t('vendor.parcelDetail.waitingCarrier'), color: colors.tertiary, icon: 'clock-outline' },
+    ACCEPTED: { label: t('vendor.parcelDetail.carrierFound'), color: colors.primary, icon: 'check-circle-outline' },
+    PACKAGING_CONFIRMED: { label: t('vendor.parcelDetail.packagingValidated'), color: '#3B82F6', icon: 'package-check' },
+    PICKED_UP: { label: t('vendor.parcelDetail.parcelPickedUp'), color: colors.secondary, icon: 'package-variant' },
+    DELIVERED: { label: t('vendor.parcelDetail.deliveredSuccess'), color: '#10B981', icon: 'check-all' },
+    CANCELLED: { label: t('status.CANCELLED'), color: colors.error, icon: 'close-circle-outline' },
+    EXPIRED: { label: t('status.EXPIRED'), color: colors.onSurfaceVariant, icon: 'timer-off-outline' },
+  }), [t]);
+
+  // État pour le statut de livraison
   const [deliveryStatus, setDeliveryStatus] = useState<DeliveryStatus | null>(null);
   const [isLoadingDelivery, setIsLoadingDelivery] = useState(false);
-  
-  // 🆕 Modal de confirmation dépôt
+
+  // Modal de confirmation dépôt
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [showContestForm, setShowContestForm] = useState(false);
   const [contestReason, setContestReason] = useState('');
   const [isActionLoading, setIsActionLoading] = useState(false);
 
-  // 🆕 États pour la note et le commentaire (optionnels)
+  // États pour la note et le commentaire (optionnels)
   const [rating, setRating] = useState<number>(0);
   const [comment, setComment] = useState('');
 
-  // 🆕 Modal de confirmation emballage
+  // Modal de confirmation emballage
   const [showPackagingModal, setShowPackagingModal] = useState(false);
 
-  // 💰 États pour le pourboire
+  // États pour le pourboire
   const [hasTip, setHasTip] = useState(false);
   const [showTipModal, setShowTipModal] = useState(false);
   const [tipAmount, setTipAmount] = useState('');
@@ -78,7 +80,7 @@ export function ParcelDetailScreen({ navigation, route }: ParcelDetailScreenProp
     fetchParcel(parcelId);
   }, [parcelId]);
 
-  // 🆕 Charger le statut de livraison quand le colis est PICKED_UP ou DELIVERED
+  // Charger le statut de livraison quand le colis est PICKED_UP ou DELIVERED
   // ET rafraîchir régulièrement pour détecter le dépôt
   useFocusEffect(
     useCallback(() => {
@@ -86,7 +88,7 @@ export function ParcelDetailScreen({ navigation, route }: ParcelDetailScreenProp
         console.log('🔍 Écran focus - Status colis:', currentParcel.status);
         fetchDeliveryStatus();
 
-        // 💰 Vérifier si un pourboire existe déjà
+        // Vérifier si un pourboire existe déjà
         if (currentParcel.status === 'DELIVERED') {
           checkTipStatus();
         }
@@ -102,7 +104,7 @@ export function ParcelDetailScreen({ navigation, route }: ParcelDetailScreenProp
     }, [currentParcel?.status, parcelId])
   );
 
-  // 💰 Vérifier si le colis a déjà un pourboire
+  // Vérifier si le colis a déjà un pourboire
   const checkTipStatus = async () => {
     try {
       const tip = await api.getTipByParcel(parcelId);
@@ -135,7 +137,7 @@ export function ParcelDetailScreen({ navigation, route }: ParcelDetailScreenProp
     }
   };
 
-  // 🆕 Confirmer la livraison
+  // Confirmer la livraison
   const handleConfirmDelivery = async () => {
     setIsActionLoading(true);
     try {
@@ -146,9 +148,9 @@ export function ParcelDetailScreen({ navigation, route }: ParcelDetailScreenProp
       await api.clientConfirmDelivery(parcelId, ratingToSend, commentToSend);
 
       Alert.alert(
-        '✅ Livraison confirmée !',
-        'Merci pour votre confirmation. Le livreur va recevoir son paiement.',
-        [{ text: 'OK' }]
+        t('vendor.parcelDetail.deliveryConfirmedTitle'),
+        t('vendor.parcelDetail.deliveryConfirmedMessage'),
+        [{ text: t('common.ok') }]
       );
 
       // Réinitialiser les états
@@ -158,16 +160,16 @@ export function ParcelDetailScreen({ navigation, route }: ParcelDetailScreenProp
       fetchParcel(parcelId);
       fetchDeliveryStatus();
     } catch (error: any) {
-      Alert.alert('Erreur', error.message || 'Impossible de confirmer la livraison');
+      Alert.alert(t('common.error'), error.message || t('vendor.parcelDetail.confirmDeliveryError'));
     } finally {
       setIsActionLoading(false);
     }
   };
 
-  // 🆕 Contester la livraison
+  // Contester la livraison
   const handleContestDelivery = async () => {
     if (!contestReason.trim()) {
-      Alert.alert('Erreur', 'Veuillez indiquer la raison de votre contestation');
+      Alert.alert(t('common.error'), t('vendor.parcelDetail.contestReasonRequired'));
       return;
     }
 
@@ -176,9 +178,9 @@ export function ParcelDetailScreen({ navigation, route }: ParcelDetailScreenProp
       await api.clientContestDelivery(parcelId, contestReason.trim());
 
       Alert.alert(
-        '⚠️ Contestation enregistrée',
-        'Notre équipe va examiner votre dossier et vous contacter rapidement.',
-        [{ text: 'OK' }]
+        t('vendor.parcelDetail.contestRegisteredTitle'),
+        t('vendor.parcelDetail.contestRegisteredMessage'),
+        [{ text: t('common.ok') }]
       );
 
       setShowConfirmModal(false);
@@ -186,46 +188,46 @@ export function ParcelDetailScreen({ navigation, route }: ParcelDetailScreenProp
       setContestReason('');
       fetchDeliveryStatus();
     } catch (error: any) {
-      Alert.alert('Erreur', error.message || 'Impossible d\'enregistrer la contestation');
+      Alert.alert(t('common.error'), error.message || t('vendor.parcelDetail.contestError'));
     } finally {
       setIsActionLoading(false);
     }
   };
 
-  // 🆕 Confirmer l'emballage (vendeur)
+  // Confirmer l'emballage (vendeur)
   const handleConfirmPackaging = async () => {
     setIsActionLoading(true);
     try {
       await api.vendorConfirmPackaging(parcelId);
 
       Alert.alert(
-        '✅ Emballage confirmé !',
-        'Le livreur peut maintenant récupérer le colis.',
-        [{ text: 'OK' }]
+        t('vendor.parcelDetail.packagingConfirmedTitle'),
+        t('vendor.parcelDetail.packagingConfirmedMessage'),
+        [{ text: t('common.ok') }]
       );
 
       setShowPackagingModal(false);
       fetchParcel(parcelId);
     } catch (error: any) {
-      Alert.alert('Erreur', error.message || 'Impossible de confirmer l\'emballage');
+      Alert.alert(t('common.error'), error.message || t('vendor.parcelDetail.packagingConfirmError'));
     } finally {
       setIsActionLoading(false);
     }
   };
 
-  // 🆕 Refuser l'emballage (vendeur)
+  // Refuser l'emballage (vendeur)
   const handleRejectPackaging = () => {
     Alert.prompt(
-      'Refuser l\'emballage',
-      'Indiquez au livreur pourquoi l\'emballage n\'est pas acceptable :',
+      t('vendor.parcelDetail.rejectPackagingTitle'),
+      t('vendor.parcelDetail.rejectPackagingPrompt'),
       [
-        { text: 'Annuler', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Refuser',
+          text: t('vendor.parcelDetail.rejectPackagingBtn'),
           style: 'destructive',
           onPress: async (reason) => {
             if (!reason || !reason.trim()) {
-              Alert.alert('Erreur', 'Veuillez indiquer une raison');
+              Alert.alert(t('common.error'), t('vendor.parcelDetail.rejectPackagingReasonRequired'));
               return;
             }
 
@@ -234,15 +236,15 @@ export function ParcelDetailScreen({ navigation, route }: ParcelDetailScreenProp
               await api.vendorRejectPackaging(parcelId, reason.trim());
 
               Alert.alert(
-                '⚠️ Emballage refusé',
-                'Le livreur a été notifié et doit recommencer l\'emballage.',
-                [{ text: 'OK' }]
+                t('vendor.parcelDetail.packagingRejectedTitle'),
+                t('vendor.parcelDetail.packagingRejectedMessage'),
+                [{ text: t('common.ok') }]
               );
 
               setShowPackagingModal(false);
               fetchParcel(parcelId);
             } catch (error: any) {
-              Alert.alert('Erreur', error.message || 'Impossible de refuser l\'emballage');
+              Alert.alert(t('common.error'), error.message || t('vendor.parcelDetail.packagingRejectError'));
             } finally {
               setIsActionLoading(false);
             }
@@ -255,19 +257,19 @@ export function ParcelDetailScreen({ navigation, route }: ParcelDetailScreenProp
 
   const handleCancel = () => {
     Alert.alert(
-      'Annuler le colis',
-      'Êtes-vous sûr de vouloir annuler ce colis ?',
+      t('vendor.parcelDetail.confirmCancelTitle'),
+      t('vendor.parcelDetail.confirmCancelMessage'),
       [
-        { text: 'Non', style: 'cancel' },
+        { text: t('vendor.parcelDetail.cancelNo'), style: 'cancel' },
         {
-          text: 'Oui, annuler',
+          text: t('vendor.parcelDetail.cancelYes'),
           style: 'destructive',
           onPress: async () => {
             try {
               await cancelParcel(parcelId);
               navigation.goBack();
             } catch (e) {
-              Alert.alert('Erreur', "Impossible d'annuler le colis");
+              Alert.alert(t('common.error'), t('vendor.parcelDetail.cancelError'));
             }
           },
         },
@@ -275,16 +277,16 @@ export function ParcelDetailScreen({ navigation, route }: ParcelDetailScreenProp
     );
   };
 
-  // 💰 Envoyer un pourboire
+  // Envoyer un pourboire
   const handleSendTip = async () => {
     const amount = parseFloat(tipAmount);
     if (isNaN(amount) || amount <= 0) {
-      Alert.alert('Erreur', 'Veuillez entrer un montant valide');
+      Alert.alert(t('common.error'), t('vendor.parcelDetail.tipInvalidAmount'));
       return;
     }
 
     if (amount > 50) {
-      Alert.alert('Erreur', 'Le pourboire ne peut pas dépasser 50€');
+      Alert.alert(t('common.error'), t('vendor.parcelDetail.tipMaxExceeded'));
       return;
     }
 
@@ -293,9 +295,11 @@ export function ParcelDetailScreen({ navigation, route }: ParcelDetailScreenProp
       await api.createTip(parcelId, amount, tipMessage || undefined);
 
       Alert.alert(
-        '✅ Pourboire envoyé !',
-        `Merci d'avoir laissé ${amount.toFixed(2)}€ de pourboire à ${currentParcel?.assignedCarrier?.firstName || 'votre livreur'} !`,
-        [{ text: 'OK' }]
+        t('vendor.parcelDetail.tipSentTitle'),
+        t('vendor.parcelDetail.tipSentMessage')
+          .replace('{amount}', amount.toFixed(2))
+          .replace('{carrierName}', currentParcel?.assignedCarrier?.firstName || t('vendor.parcelDetail.carrier')),
+        [{ text: t('common.ok') }]
       );
 
       setShowTipModal(false);
@@ -303,50 +307,50 @@ export function ParcelDetailScreen({ navigation, route }: ParcelDetailScreenProp
       setTipMessage('');
       setHasTip(true);
     } catch (error: any) {
-      Alert.alert('Erreur', error.message || 'Impossible d\'envoyer le pourboire');
+      Alert.alert(t('common.error'), error.message || t('vendor.parcelDetail.tipSendError'));
     } finally {
       setIsSendingTip(false);
     }
   };
 
   if (isLoading || !currentParcel) {
-    return <LoadingScreen message="Chargement du colis..." />;
+    return <LoadingScreen message={t('vendor.parcelDetail.loadingParcel')} />;
   }
 
-  // 🆕 Déterminer le statut affiché
+  // Déterminer le statut affiché
   const getDisplayStatus = () => {
     // Si on a un statut de livraison
     if (deliveryStatus) {
       if (deliveryStatus.status === 'AWAITING_CONFIRMATION') {
         return {
-          label: 'Validation en cours',
+          label: t('vendor.parcelDetail.validationInProgress'),
           color: '#8B5CF6', // Violet
           icon: 'clock-check-outline',
-          hint: 'Colis déposé - Vérifiez le dépôt',
+          hint: t('vendor.parcelDetail.parcelDeposited'),
         };
       }
       if (deliveryStatus.status === 'CONTESTED') {
         return {
-          label: 'Livraison contestée',
+          label: t('vendor.parcelDetail.deliveryContested'),
           color: colors.error,
           icon: 'alert-circle',
-          hint: 'Notre équipe examine votre dossier',
+          hint: t('vendor.parcelDetail.contestedHint'),
         };
       }
       if (deliveryStatus.status === 'CONFIRMED' || deliveryStatus.status === 'AUTO_CONFIRMED') {
         return {
           ...statusConfig['DELIVERED'],
-          hint: deliveryStatus.autoConfirmed ? 'Confirmé automatiquement' : 'Confirmé par vous',
+          hint: deliveryStatus.autoConfirmed ? t('vendor.parcelDetail.autoConfirmed') : t('vendor.parcelDetail.confirmedByYou'),
         };
       }
     }
-    
+
     // Statut par défaut
     const baseStatus = statusConfig[currentParcel.status];
     return {
       ...baseStatus,
-      hint: currentParcel.status === 'PENDING' 
-        ? 'Un livreur proche acceptera bientôt votre colis'
+      hint: currentParcel.status === 'PENDING'
+        ? t('vendor.parcelDetail.pendingHint')
         : undefined,
     };
   };
@@ -365,7 +369,7 @@ export function ParcelDetailScreen({ navigation, route }: ParcelDetailScreenProp
     });
   };
 
-  // 🆕 Rendu du modal de confirmation
+  // Rendu du modal de confirmation
   const renderConfirmationModal = () => {
     if (!deliveryStatus || deliveryStatus.status !== 'AWAITING_CONFIRMATION') return null;
 
@@ -386,10 +390,10 @@ export function ParcelDetailScreen({ navigation, route }: ParcelDetailScreenProp
               <MaterialCommunityIcons name="package-variant-closed-check" size={32} color="#10B981" />
             </View>
             <Text variant="headlineSmall" style={styles.modalTitle}>
-              Colis déposé !
+              {t('vendor.parcelDetail.parcelDepositedModal')}
             </Text>
             <Text variant="bodyMedium" style={styles.modalDropoff}>
-              📍 {currentParcel.dropoffName}
+              {currentParcel.dropoffName}
             </Text>
           </View>
 
@@ -398,7 +402,7 @@ export function ParcelDetailScreen({ navigation, route }: ParcelDetailScreenProp
             <View style={styles.timerHeader}>
               <MaterialCommunityIcons name="clock-outline" size={20} color={colors.tertiary} />
               <Text variant="bodyMedium" style={styles.timerText}>
-                Temps restant pour confirmer
+                {t('vendor.parcelDetail.timeRemainingToConfirm')}
               </Text>
             </View>
             <ProgressBar
@@ -410,17 +414,17 @@ export function ParcelDetailScreen({ navigation, route }: ParcelDetailScreenProp
               styles.hoursText,
               { color: hoursRemaining > 12 ? '#10B981' : hoursRemaining > 6 ? colors.tertiary : colors.error }
             ]}>
-              {hoursRemaining}h restantes
+              {t('vendor.parcelDetail.hoursRemaining').replace('{hours}', String(hoursRemaining))}
             </Text>
             <Text variant="bodySmall" style={styles.autoConfirmText}>
-              Sans action de votre part, la livraison sera automatiquement confirmée.
+              {t('vendor.parcelDetail.autoConfirmNotice')}
             </Text>
           </View>
 
           {/* Photo preuve */}
           <View style={styles.proofSection}>
             <Text variant="labelMedium" style={styles.proofLabel}>
-              Preuve de dépôt du livreur :
+              {t('vendor.parcelDetail.deliveryProofLabel')}
             </Text>
             {deliveryStatus.proofUrl ? (
               <Image
@@ -432,7 +436,7 @@ export function ParcelDetailScreen({ navigation, route }: ParcelDetailScreenProp
               <View style={styles.proofPlaceholder}>
                 <MaterialCommunityIcons name="image-off" size={48} color={colors.onSurfaceVariant} />
                 <Text variant="bodySmall" style={styles.proofPlaceholderText}>
-                  Photo non disponible
+                  {t('vendor.parcelDetail.photoNotAvailable')}
                 </Text>
               </View>
             )}
@@ -442,7 +446,7 @@ export function ParcelDetailScreen({ navigation, route }: ParcelDetailScreenProp
           {!showContestForm && (
             <View style={styles.ratingSection}>
               <Text variant="titleSmall" style={styles.ratingTitle}>
-                Noter le livreur (optionnel)
+                {t('vendor.parcelDetail.rateCarrierOptional')}
               </Text>
               <View style={styles.starsContainer}>
                 {[1, 2, 3, 4, 5].map((star) => (
@@ -459,7 +463,7 @@ export function ParcelDetailScreen({ navigation, route }: ParcelDetailScreenProp
               {rating > 0 && (
                 <TextInput
                   mode="outlined"
-                  placeholder="Ajouter un commentaire (optionnel)"
+                  placeholder={t('vendor.parcelDetail.addCommentOptional')}
                   value={comment}
                   onChangeText={setComment}
                   multiline
@@ -474,11 +478,11 @@ export function ParcelDetailScreen({ navigation, route }: ParcelDetailScreenProp
           {showContestForm ? (
             <View style={styles.contestForm}>
               <Text variant="titleSmall" style={styles.contestTitle}>
-                Pourquoi contestez-vous cette livraison ?
+                {t('vendor.parcelDetail.contestQuestion')}
               </Text>
               <TextInput
                 mode="outlined"
-                placeholder="Ex: Je n'ai pas reçu de notification de dépôt du transporteur..."
+                placeholder={t('vendor.parcelDetail.contestPlaceholder')}
                 value={contestReason}
                 onChangeText={setContestReason}
                 multiline
@@ -495,7 +499,7 @@ export function ParcelDetailScreen({ navigation, route }: ParcelDetailScreenProp
                   style={styles.contestButton}
                   disabled={isActionLoading}
                 >
-                  Annuler
+                  {t('common.cancel')}
                 </Button>
                 <Button
                   mode="contained"
@@ -505,7 +509,7 @@ export function ParcelDetailScreen({ navigation, route }: ParcelDetailScreenProp
                   disabled={!contestReason.trim() || isActionLoading}
                   loading={isActionLoading}
                 >
-                  Contester
+                  {t('vendor.parcelDetail.contestBtn')}
                 </Button>
               </View>
             </View>
@@ -521,7 +525,7 @@ export function ParcelDetailScreen({ navigation, route }: ParcelDetailScreenProp
                 disabled={isActionLoading}
                 buttonColor="#10B981"
               >
-                Confirmer la réception
+                {t('vendor.parcelDetail.confirmReception')}
               </Button>
 
               <Button
@@ -532,7 +536,7 @@ export function ParcelDetailScreen({ navigation, route }: ParcelDetailScreenProp
                 textColor={colors.error}
                 disabled={isActionLoading}
               >
-                Contester la livraison
+                {t('vendor.parcelDetail.contestDelivery')}
               </Button>
             </View>
           )}
@@ -541,7 +545,7 @@ export function ParcelDetailScreen({ navigation, route }: ParcelDetailScreenProp
           <View style={styles.modalNote}>
             <MaterialCommunityIcons name="shield-check" size={16} color={colors.secondary} />
             <Text variant="bodySmall" style={styles.modalNoteText}>
-              En confirmant, vous indiquez avoir bien reçu la notification de dépôt du transporteur.
+              {t('vendor.parcelDetail.confirmNote')}
             </Text>
           </View>
           </ScrollView>
@@ -569,7 +573,7 @@ export function ParcelDetailScreen({ navigation, route }: ParcelDetailScreenProp
         </Card.Content>
       </Card>
 
-      {/* 🆕 DÉLAI DE 24H POUR CONFIRMER LE DÉPÔT */}
+      {/* DÉLAI DE 24H POUR CONFIRMER LE DÉPÔT */}
       {deliveryStatus?.status === 'AWAITING_CONFIRMATION' && deliveryStatus.confirmationDeadline && (
         <Card style={styles.confirmationCard}>
           <Card.Content>
@@ -584,7 +588,7 @@ export function ParcelDetailScreen({ navigation, route }: ParcelDetailScreenProp
               buttonColor="#8B5CF6"
               icon="eye-check"
             >
-              Voir et confirmer
+              {t('vendor.parcelDetail.viewAndConfirm')}
             </Button>
           </Card.Content>
         </Card>
@@ -595,7 +599,7 @@ export function ParcelDetailScreen({ navigation, route }: ParcelDetailScreenProp
         <Card style={styles.codeCard}>
           <Card.Content style={styles.codeContent}>
             <Text variant="bodyMedium" style={styles.codeLabel}>
-              Code de vérification à donner au livreur :
+              {t('vendor.parcelDetail.verificationCode')}
             </Text>
             <Text variant="displaySmall" style={styles.code}>
               {currentParcel.pickupCode}
@@ -604,7 +608,7 @@ export function ParcelDetailScreen({ navigation, route }: ParcelDetailScreenProp
         </Card>
       )}
 
-      {/* 🆕 PASTILLE DE CONFIRMATION D'EMBALLAGE */}
+      {/* PASTILLE DE CONFIRMATION D'EMBALLAGE */}
       {currentParcel.status === 'ACCEPTED' && (currentParcel.packagingConfirmedAt || currentParcel.vendorPackagingConfirmedAt) && (
         <Card style={styles.packagingStatusCard}>
           <Card.Content>
@@ -622,25 +626,25 @@ export function ParcelDetailScreen({ navigation, route }: ParcelDetailScreenProp
                 icon="eye-check"
                 buttonColor={colors.primary}
               >
-                Valider l'emballage
+                {t('vendor.parcelDetail.validatePackaging')}
               </Button>
             )}
           </Card.Content>
         </Card>
       )}
 
-      {/* 🆕 Info dépôt si déposé */}
+      {/* Info dépôt si déposé */}
       {deliveryStatus?.status === 'AWAITING_CONFIRMATION' && deliveryStatus.deliveredAt && (
         <Card style={styles.depositInfoCard}>
           <Card.Content>
             <View style={styles.depositHeader}>
               <MaterialCommunityIcons name="store-check" size={20} color="#8B5CF6" />
               <Text variant="titleSmall" style={styles.depositTitle}>
-                Déposé le {formatDate(deliveryStatus.deliveredAt)}
+                {t('vendor.parcelDetail.depositedOn').replace('{date}', formatDate(deliveryStatus.deliveredAt))}
               </Text>
             </View>
             <Text variant="bodySmall" style={styles.depositText}>
-              Votre colis a été déposé au point relais. Vous devriez recevoir une notification du transporteur.
+              {t('vendor.parcelDetail.depositNotice')}
             </Text>
           </Card.Content>
         </Card>
@@ -650,19 +654,19 @@ export function ParcelDetailScreen({ navigation, route }: ParcelDetailScreenProp
       <Card style={styles.card}>
         <Card.Content>
           <Text variant="titleMedium" style={styles.sectionTitle}>
-            📦 Informations du colis
+            {t('vendor.parcelDetail.parcelInfoTitle')}
           </Text>
 
           <View style={styles.infoRow}>
             <Text variant="bodyMedium" style={styles.label}>
-              Taille
+              {t('vendor.parcelDetail.sizeLabel')}
             </Text>
             <Chip icon="package-variant">{sizeInfo.label}</Chip>
           </View>
 
           <View style={styles.infoRow}>
             <Text variant="bodyMedium" style={styles.label}>
-              Prix
+              {t('vendor.parcelDetail.priceLabel')}
             </Text>
             <Text variant="titleMedium" style={styles.price}>
               {Number(currentParcel.price).toFixed(2)} €
@@ -672,7 +676,7 @@ export function ParcelDetailScreen({ navigation, route }: ParcelDetailScreenProp
           {currentParcel.description && (
             <View style={styles.infoRow}>
               <Text variant="bodyMedium" style={styles.label}>
-                Description
+                {t('vendor.parcelDetail.descriptionLabel')}
               </Text>
               <Text variant="bodyMedium">{currentParcel.description}</Text>
             </View>
@@ -684,14 +688,14 @@ export function ParcelDetailScreen({ navigation, route }: ParcelDetailScreenProp
       <Card style={styles.card}>
         <Card.Content>
           <Text variant="titleMedium" style={styles.sectionTitle}>
-            📍 Adresses
+            {t('vendor.parcelDetail.addressesTitle')}
           </Text>
 
           <View style={styles.addressBlock}>
             <MaterialCommunityIcons name="home" size={20} color={colors.primary} />
             <View style={styles.addressInfo}>
               <Text variant="labelMedium" style={styles.addressLabel}>
-                Récupération
+                {t('vendor.parcelDetail.pickupLabel')}
               </Text>
               {currentParcel.pickupAddress && (
                 <Text variant="bodyMedium">
@@ -708,7 +712,7 @@ export function ParcelDetailScreen({ navigation, route }: ParcelDetailScreenProp
             <MaterialCommunityIcons name="store" size={20} color={colors.secondary} />
             <View style={styles.addressInfo}>
               <Text variant="labelMedium" style={styles.addressLabel}>
-                Dépôt
+                {t('vendor.parcelDetail.dropoffLabel')}
               </Text>
               <Text variant="bodyMedium">{currentParcel.dropoffName}</Text>
               <Text variant="bodySmall" style={styles.addressText}>
@@ -723,11 +727,11 @@ export function ParcelDetailScreen({ navigation, route }: ParcelDetailScreenProp
       <Card style={styles.card}>
         <Card.Content>
           <Text variant="titleMedium" style={styles.sectionTitle}>
-            🕐 Créneau de récupération
+            {t('vendor.parcelDetail.pickupSlotTitle')}
           </Text>
           <Text variant="bodyMedium">{formatDate(currentParcel.pickupSlotStart)}</Text>
           <Text variant="bodySmall" style={styles.slotEnd}>
-            jusqu'à{' '}
+            {t('vendor.parcelDetail.until')}{' '}
             {new Date(currentParcel.pickupSlotEnd).toLocaleTimeString('fr-FR', {
               hour: '2-digit',
               minute: '2-digit',
@@ -741,13 +745,13 @@ export function ParcelDetailScreen({ navigation, route }: ParcelDetailScreenProp
         <Card style={styles.card}>
           <Card.Content>
             <Text variant="titleMedium" style={styles.sectionTitle}>
-              🚴 Livreur
+              {t('vendor.parcelDetail.carrierTitle')}
             </Text>
             <View style={styles.carrierRow}>
               {currentParcel.assignedCarrier.avatarUrl ? (
-                <Avatar.Image 
-                  size={48} 
-                  source={{ uri: currentParcel.assignedCarrier.avatarUrl }} 
+                <Avatar.Image
+                  size={48}
+                  source={{ uri: currentParcel.assignedCarrier.avatarUrl }}
                 />
               ) : (
                 <MaterialCommunityIcons name="account-circle" size={48} color={colors.primary} />
@@ -767,7 +771,7 @@ export function ParcelDetailScreen({ navigation, route }: ParcelDetailScreenProp
         <Card style={styles.card}>
           <Card.Content>
             <Text variant="titleMedium" style={styles.sectionTitle}>
-              ⭐ Votre avis
+              {t('vendor.parcelDetail.yourReviewTitle')}
             </Text>
             <View style={styles.reviewStars}>
               {[1, 2, 3, 4, 5].map((star) => (
@@ -785,15 +789,15 @@ export function ParcelDetailScreen({ navigation, route }: ParcelDetailScreenProp
               </Text>
             )}
             <Text variant="bodySmall" style={styles.reviewDate}>
-              Laissé le {new Date(currentParcel.reviews[0].createdAt).toLocaleDateString('fr-FR')}
+              {t('vendor.parcelDetail.reviewLeftOn').replace('{date}', new Date(currentParcel.reviews[0].createdAt).toLocaleDateString('fr-FR'))}
             </Text>
           </Card.Content>
         </Card>
       )}
 
       {/* Tracking Button - Afficher pour ACCEPTED et PICKED_UP */}
-      {(currentParcel.status === 'ACCEPTED' || currentParcel.status === 'PICKED_UP') && 
-       currentParcel.assignedCarrier && 
+      {(currentParcel.status === 'ACCEPTED' || currentParcel.status === 'PICKED_UP') &&
+       currentParcel.assignedCarrier &&
        !deliveryStatus?.status?.includes('CONFIRM') && (
         <Button
           mode="contained"
@@ -806,12 +810,12 @@ export function ParcelDetailScreen({ navigation, route }: ParcelDetailScreenProp
           }
           style={styles.trackingButton}
         >
-          Suivre le livreur
+          {t('vendor.parcelDetail.trackCarrier')}
         </Button>
       )}
 
       {/* Chat Button */}
-      {(currentParcel.status === 'ACCEPTED' || currentParcel.status === 'PICKED_UP') && 
+      {(currentParcel.status === 'ACCEPTED' || currentParcel.status === 'PICKED_UP') &&
        currentParcel.assignedCarrier && (
         <Button
           mode="outlined"
@@ -819,7 +823,7 @@ export function ParcelDetailScreen({ navigation, route }: ParcelDetailScreenProp
           onPress={() => navigation.navigate('Chat', { parcelId: currentParcel.id })}
           style={styles.chatButton}
         >
-          Contacter le livreur
+          {t('vendor.parcelDetail.contactCarrier')}
         </Button>
       )}
 
@@ -838,11 +842,11 @@ export function ParcelDetailScreen({ navigation, route }: ParcelDetailScreenProp
           style={styles.reviewButton}
           buttonColor="#F59E0B"
         >
-          Laisser un avis
+          {t('vendor.parcelDetail.leaveReview')}
         </Button>
       )}
 
-      {/* 💰 Tip Button - Pourboire */}
+      {/* Tip Button - Pourboire */}
       {(currentParcel.status === 'DELIVERED' || deliveryStatus?.status === 'CONFIRMED' || deliveryStatus?.status === 'AUTO_CONFIRMED') && !hasTip && (
         <Button
           mode="contained"
@@ -851,17 +855,17 @@ export function ParcelDetailScreen({ navigation, route }: ParcelDetailScreenProp
           style={styles.tipButton}
           buttonColor="#10B981"
         >
-          Laisser un pourboire
+          {t('vendor.parcelDetail.leaveTip')}
         </Button>
       )}
 
-      {/* 💰 Affichage si pourboire déjà donné */}
+      {/* Affichage si pourboire déjà donné */}
       {hasTip && (
         <Card style={styles.tipGivenCard}>
           <Card.Content style={styles.tipGivenContent}>
             <MaterialCommunityIcons name="check-circle" size={24} color="#10B981" />
             <Text variant="bodyMedium" style={styles.tipGivenText}>
-              Pourboire envoyé ! Merci pour votre générosité 💚
+              {t('vendor.parcelDetail.tipSentBadge')}
             </Text>
           </Card.Content>
         </Card>
@@ -875,14 +879,14 @@ export function ParcelDetailScreen({ navigation, route }: ParcelDetailScreenProp
           style={styles.cancelButton}
           textColor={colors.error}
         >
-          Annuler le colis
+          {t('vendor.parcelDetail.cancelParcel')}
         </Button>
       )}
 
       {/* Modal de confirmation dépôt */}
       {renderConfirmationModal()}
 
-      {/* 🆕 Modal de confirmation emballage */}
+      {/* Modal de confirmation emballage */}
       <Portal>
         <Modal
           visible={showPackagingModal}
@@ -892,10 +896,10 @@ export function ParcelDetailScreen({ navigation, route }: ParcelDetailScreenProp
           <View style={styles.packagingModalHeader}>
             <MaterialCommunityIcons name="package-variant-closed" size={32} color={colors.primary} />
             <Text variant="headlineSmall" style={styles.modalTitle}>
-              Validation de l'emballage
+              {t('vendor.parcelDetail.packagingValidationTitle')}
             </Text>
             <Text variant="bodySmall" style={styles.modalSubtitle}>
-              Le livreur a pris une photo de l'emballage. Vérifiez qu'il est conforme avant de confirmer.
+              {t('vendor.parcelDetail.packagingValidationSubtitle')}
             </Text>
           </View>
 
@@ -921,7 +925,7 @@ export function ParcelDetailScreen({ navigation, route }: ParcelDetailScreenProp
               disabled={isActionLoading}
               buttonColor="#10B981"
             >
-              Valider l'emballage
+              {t('vendor.parcelDetail.validatePackaging')}
             </Button>
 
             <Button
@@ -932,7 +936,7 @@ export function ParcelDetailScreen({ navigation, route }: ParcelDetailScreenProp
               textColor={colors.error}
               disabled={isActionLoading}
             >
-              Refuser l'emballage
+              {t('vendor.parcelDetail.rejectPackaging')}
             </Button>
           </View>
 
@@ -940,13 +944,13 @@ export function ParcelDetailScreen({ navigation, route }: ParcelDetailScreenProp
           <View style={styles.packagingInfoBox}>
             <MaterialCommunityIcons name="information-outline" size={16} color={colors.primary} />
             <Text variant="bodySmall" style={styles.packagingInfoText}>
-              Si l'emballage est correct, confirmez pour que le livreur puisse récupérer le colis. Si l'emballage n'est pas conforme, refusez et indiquez la raison.
+              {t('vendor.parcelDetail.packagingInfoText')}
             </Text>
           </View>
         </Modal>
       </Portal>
 
-      {/* 💰 Modal de pourboire */}
+      {/* Modal de pourboire */}
       <Portal>
         <Modal
           visible={showTipModal}
@@ -959,10 +963,10 @@ export function ParcelDetailScreen({ navigation, route }: ParcelDetailScreenProp
                 <MaterialCommunityIcons name="hand-coin" size={32} color="#10B981" />
               </View>
               <Text variant="headlineSmall" style={styles.tipModalTitle}>
-                Laisser un pourboire
+                {t('vendor.parcelDetail.tipModalTitle')}
               </Text>
               <Text variant="bodySmall" style={styles.tipModalSubtitle}>
-                Remerciez votre livreur pour son service !
+                {t('vendor.parcelDetail.tipModalSubtitle')}
               </Text>
             </View>
 
@@ -970,7 +974,7 @@ export function ParcelDetailScreen({ navigation, route }: ParcelDetailScreenProp
               <View style={styles.tipCarrierInfo}>
                 <MaterialCommunityIcons name="account" size={20} color={colors.secondary} />
                 <Text variant="bodyMedium">
-                  Livreur: {currentParcel.assignedCarrier.firstName} {currentParcel.assignedCarrier.lastName}
+                  {t('vendor.parcelDetail.tipCarrierLabel').replace('{name}', `${currentParcel.assignedCarrier.firstName} ${currentParcel.assignedCarrier.lastName}`)}
                 </Text>
               </View>
             )}
@@ -978,34 +982,34 @@ export function ParcelDetailScreen({ navigation, route }: ParcelDetailScreenProp
             <View style={styles.tipParcelInfo}>
               <MaterialCommunityIcons name="package-variant" size={20} color={colors.primary} />
               <Text variant="bodyMedium">
-                Livraison vers {currentParcel.dropoffName}
+                {t('vendor.parcelDetail.tipDeliveryTo').replace('{dropoff}', currentParcel.dropoffName)}
               </Text>
             </View>
 
             <TextInput
-              label="Montant (€)"
+              label={t('vendor.parcelDetail.tipAmountLabel')}
               value={tipAmount}
               onChangeText={setTipAmount}
               keyboardType="decimal-pad"
               mode="outlined"
               style={styles.tipInput}
-              placeholder="Ex: 5.00"
+              placeholder={t('vendor.parcelDetail.tipAmountPlaceholder')}
               left={<TextInput.Icon icon="cash" />}
             />
 
             <Text variant="bodySmall" style={styles.tipHelpText}>
-              💡 Montant maximum: 50€
+              {t('vendor.parcelDetail.tipMaxAmount')}
             </Text>
 
             <TextInput
-              label="Message (optionnel)"
+              label={t('vendor.parcelDetail.tipMessageLabel')}
               value={tipMessage}
               onChangeText={setTipMessage}
               mode="outlined"
               multiline
               numberOfLines={3}
               style={styles.tipInput}
-              placeholder="Merci pour cette livraison rapide !"
+              placeholder={t('vendor.parcelDetail.tipMessagePlaceholder')}
               left={<TextInput.Icon icon="message-text" />}
             />
 
@@ -1016,7 +1020,7 @@ export function ParcelDetailScreen({ navigation, route }: ParcelDetailScreenProp
                 style={styles.tipModalButton}
                 disabled={isSendingTip}
               >
-                Annuler
+                {t('common.cancel')}
               </Button>
               <Button
                 mode="contained"
@@ -1026,7 +1030,7 @@ export function ParcelDetailScreen({ navigation, route }: ParcelDetailScreenProp
                 loading={isSendingTip}
                 disabled={isSendingTip || !tipAmount}
               >
-                Envoyer
+                {t('common.send')}
               </Button>
             </View>
           </View>
@@ -1061,7 +1065,7 @@ const styles = StyleSheet.create({
     color: colors.onSurfaceVariant,
     marginTop: spacing.xs,
   },
-  // 🆕 Card de confirmation
+  // Card de confirmation
   confirmationCard: {
     marginBottom: spacing.md,
   },
@@ -1176,7 +1180,7 @@ const styles = StyleSheet.create({
   reviewDate: {
     color: colors.onSurfaceVariant,
   },
-  // 🆕 Modal de confirmation
+  // Modal de confirmation
   modalContainer: {
     backgroundColor: colors.surface,
     margin: spacing.md,
@@ -1325,19 +1329,24 @@ const styles = StyleSheet.create({
     color: colors.onSurfaceVariant,
     flex: 1,
   },
-  // 🆕 ===== CARTE STATUT EMBALLAGE =====
+  // ===== CARTE STATUT EMBALLAGE =====
   packagingStatusCard: {
     marginBottom: spacing.md,
   },
   validatePackagingButton: {
     marginTop: spacing.md,
   },
-  // 🆕 ===== MODAL EMBALLAGE =====
+  // ===== MODAL EMBALLAGE =====
   packagingModalHeader: {
     alignItems: 'center',
     paddingTop: spacing.lg,
     paddingHorizontal: spacing.lg,
     marginBottom: spacing.md,
+  },
+  modalSubtitle: {
+    color: colors.onSurfaceVariant,
+    textAlign: 'center',
+    marginTop: spacing.xs,
   },
   packagingPhotoSection: {
     marginHorizontal: spacing.lg,
@@ -1371,7 +1380,7 @@ const styles = StyleSheet.create({
     flex: 1,
     color: colors.onSurfaceVariant,
   },
-  // 💰 ===== STYLES POURBOIRE =====
+  // ===== STYLES POURBOIRE =====
   tipButton: {
     marginBottom: spacing.md,
   },

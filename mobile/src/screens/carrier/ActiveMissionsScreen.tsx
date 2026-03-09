@@ -14,6 +14,7 @@ import { api } from '../../services/api';
 import { CarrierStackParamList } from '../../navigation/types';
 import { colors, spacing, sizes, carriers } from '../../theme';
 import { Mission, MissionStatus, Carrier } from '../../types';
+import { useTranslation } from '../../i18n/i18nContext';
 
 type ActiveMissionsScreenProps = {
   navigation: NativeStackNavigationProp<CarrierStackParamList, 'ActiveMissions'>;
@@ -21,15 +22,18 @@ type ActiveMissionsScreenProps = {
 
 const { width: screenWidth } = Dimensions.get('window');
 
-const statusConfig: Record<MissionStatus, { label: string; color: string; icon: string }> = {
-  ACCEPTED: { label: 'À récupérer', color: colors.primary, icon: 'package-variant' },
-  IN_PROGRESS: { label: 'En route', color: '#F59E0B', icon: 'bike' },
-  PICKED_UP: { label: 'Validation en cours', color: '#8B5CF6', icon: 'clock-check-outline' },
-  DELIVERED: { label: 'Livré', color: '#10B981', icon: 'check-all' },
-  CANCELLED: { label: 'Annulé', color: colors.error, icon: 'close-circle' },
-};
-
 export function ActiveMissionsScreen({ navigation }: ActiveMissionsScreenProps) {
+  const { t, language } = useTranslation();
+  const localeMap: Record<string, string> = { fr: 'fr-FR', en: 'en-US', es: 'es-ES', ar: 'ar-SA', pt: 'pt-BR' };
+
+  const statusConfig: Record<MissionStatus, { label: string; color: string; icon: string }> = {
+    ACCEPTED: { label: t('carrier.activeMissions.toPickup'), color: colors.primary, icon: 'package-variant' },
+    IN_PROGRESS: { label: t('carrier.activeMissions.enRoute'), color: '#F59E0B', icon: 'bike' },
+    PICKED_UP: { label: t('carrier.activeMissions.validating'), color: '#8B5CF6', icon: 'clock-check-outline' },
+    DELIVERED: { label: t('carrier.activeMissions.delivered'), color: '#10B981', icon: 'check-all' },
+    CANCELLED: { label: t('carrier.activeMissions.cancelled'), color: colors.error, icon: 'close-circle' },
+  };
+
   const [missions, setMissions] = useState<Mission[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedMission, setSelectedMission] = useState<Mission | null>(null);
@@ -79,14 +83,14 @@ export function ActiveMissionsScreen({ navigation }: ActiveMissionsScreenProps) 
       await api.missionDepart(mission.id, latitude, longitude);
       
       Alert.alert(
-        '🚴 C\'est parti !',
-        'Le client a été notifié de votre départ. Bonne route !',
-        [{ text: 'OK' }]
+        t('carrier.activeMissions.departTitle'),
+        t('carrier.activeMissions.departMessage'),
+        [{ text: t('common.ok') }]
       );
-      
+
       await loadMissions();
     } catch (e: any) {
-      Alert.alert('Erreur', e.message || 'Impossible de démarrer le trajet');
+      Alert.alert(t('common.error'), e.message || t('carrier.activeMissions.departError'));
     } finally {
       setIsActionLoading(false);
     }
@@ -99,14 +103,14 @@ export function ActiveMissionsScreen({ navigation }: ActiveMissionsScreenProps) 
       await api.missionArrived(mission.id);
       
       Alert.alert(
-        '📍 Arrivé !',
-        'Le client a été notifié de votre arrivée.',
-        [{ text: 'OK' }]
+        t('carrier.activeMissions.arrivedTitle'),
+        t('carrier.activeMissions.arrivedMessage'),
+        [{ text: t('common.ok') }]
       );
-      
+
       await loadMissions();
     } catch (e: any) {
-      Alert.alert('Erreur', e.message || 'Impossible de signaler l\'arrivée');
+      Alert.alert(t('common.error'), e.message || t('carrier.activeMissions.arrivedError'));
     } finally {
       setIsActionLoading(false);
     }
@@ -116,7 +120,7 @@ export function ActiveMissionsScreen({ navigation }: ActiveMissionsScreenProps) 
   const takePackagingPhoto = async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Permission refusée', 'Autorisez l\'accès à la caméra');
+      Alert.alert(t('common.permissionDenied'), t('carrier.activeMissions.cameraPermission'));
       return;
     }
 
@@ -144,14 +148,14 @@ export function ActiveMissionsScreen({ navigation }: ActiveMissionsScreenProps) 
       setPackagingPhoto(null);
       
       Alert.alert(
-        '📦 Emballage confirmé',
-        'En attente de la confirmation du client...',
-        [{ text: 'OK' }]
+        t('carrier.activeMissions.packagingConfirmedTitle'),
+        t('carrier.activeMissions.packagingConfirmedMessage'),
+        [{ text: t('common.ok') }]
       );
-      
+
       await loadMissions();
     } catch (e: any) {
-      Alert.alert('Erreur', e.message || 'Impossible de confirmer l\'emballage');
+      Alert.alert(t('common.error'), e.message || t('carrier.activeMissions.packagingError'));
     } finally {
       setIsActionLoading(false);
     }
@@ -161,7 +165,7 @@ export function ActiveMissionsScreen({ navigation }: ActiveMissionsScreenProps) 
   const takeDeliveryProofPhoto = async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Permission refusée', 'Autorisez l\'accès à la caméra');
+      Alert.alert(t('common.permissionDenied'), t('carrier.activeMissions.cameraPermission'));
       return;
     }
 
@@ -189,14 +193,14 @@ export function ActiveMissionsScreen({ navigation }: ActiveMissionsScreenProps) 
       setDeliveryProofPhoto(null);
 
       Alert.alert(
-        '✅ Colis déposé !',
-        'Le client a 12h pour confirmer la réception. Passé ce délai, la livraison sera automatiquement validée et votre paiement déclenché.',
-        [{ text: 'Super !' }]
+        t('carrier.activeMissions.depositConfirmedTitle'),
+        t('carrier.activeMissions.depositConfirmedMessage'),
+        [{ text: t('carrier.activeMissions.depositConfirmedBtn') }]
       );
-      
+
       await loadMissions();
     } catch (e: any) {
-      Alert.alert('Erreur', e.message || 'Impossible de confirmer le dépôt');
+      Alert.alert(t('common.error'), e.message || t('carrier.activeMissions.depositError'));
     } finally {
       setIsActionLoading(false);
     }
@@ -205,22 +209,22 @@ export function ActiveMissionsScreen({ navigation }: ActiveMissionsScreenProps) 
   // Annuler la mission
   const handleCancel = (mission: Mission) => {
     Alert.alert(
-      'Annuler la mission',
-      'Êtes-vous sûr de vouloir annuler cette mission ?',
+      t('carrier.activeMissions.cancelTitle'),
+      t('carrier.activeMissions.cancelMessage'),
       [
-        { text: 'Non', style: 'cancel' },
+        { text: t('common.no'), style: 'cancel' },
         {
-          text: 'Oui, annuler',
+          text: t('carrier.activeMissions.cancelYes'),
           style: 'destructive',
           onPress: async () => {
             try {
-              await api.cancelMission(mission.id, 'Annulé par le livreur');
+              await api.cancelMission(mission.id, t('carrier.activeMissions.cancelReason'));
               await loadMissions();
               if (missions.length <= 1) {
                 navigation.goBack();
               }
             } catch (e: any) {
-              Alert.alert('Erreur', e.message);
+              Alert.alert(t('common.error'), e.message);
             }
           },
         },
@@ -231,26 +235,26 @@ export function ActiveMissionsScreen({ navigation }: ActiveMissionsScreenProps) 
   // Marquer comme récupéré
   const handlePickup = async (mission: Mission) => {
     Alert.alert(
-      'Confirmer la récupération',
-      'Avez-vous bien récupéré le colis ?',
+      t('carrier.activeMissions.pickupTitle'),
+      t('carrier.activeMissions.pickupMessage'),
       [
-        { text: 'Non', style: 'cancel' },
+        { text: t('common.no'), style: 'cancel' },
         {
-          text: 'Oui',
+          text: t('common.yes'),
           onPress: async () => {
             setIsActionLoading(true);
             try {
               await api.pickupMission(mission.id);
-              
+
               Alert.alert(
-                '📦 Colis récupéré !',
-                `Dirigez-vous vers ${mission.parcel?.dropoffName || 'le point de dépôt'} pour déposer le colis.`,
-                [{ text: 'C\'est parti !' }]
+                t('carrier.activeMissions.pickupSuccessTitle'),
+                t('carrier.activeMissions.pickupSuccessMessage').replace('{name}', mission.parcel?.dropoffName || t('carrier.activeMissions.pickupDefaultDest')),
+                [{ text: t('carrier.activeMissions.pickupSuccessBtn') }]
               );
-              
+
               await loadMissions();
             } catch (e: any) {
-              Alert.alert('Erreur', e.message);
+              Alert.alert(t('common.error'), e.message);
             } finally {
               setIsActionLoading(false);
             }
@@ -283,7 +287,7 @@ export function ActiveMissionsScreen({ navigation }: ActiveMissionsScreenProps) 
     } else if (date.toDateString() === tomorrow.toDateString()) {
       return 'Demain';
     } else {
-      return date.toLocaleDateString('fr-FR', {
+      return date.toLocaleDateString(localeMap[language] || 'fr-FR', {
         weekday: 'long',
         day: 'numeric',
         month: 'short',
@@ -294,14 +298,14 @@ export function ActiveMissionsScreen({ navigation }: ActiveMissionsScreenProps) 
   // 🕐 Formatage de l'heure
   const formatPickupTime = (dateString: string) => {
     const date = new Date(dateString);
-    return date.toLocaleTimeString('fr-FR', {
+    return date.toLocaleTimeString(localeMap[language] || 'fr-FR', {
       hour: '2-digit',
       minute: '2-digit',
     }).replace(':', 'h');
   };
 
   if (isLoading) {
-    return <LoadingScreen message="Chargement des missions..." />;
+    return <LoadingScreen message={t('carrier.activeMissions.loadingMissions')} />;
   }
 
   if (missions.length === 0) {
@@ -309,10 +313,10 @@ export function ActiveMissionsScreen({ navigation }: ActiveMissionsScreenProps) 
       <View style={styles.emptyContainer}>
         <MaterialCommunityIcons name="package-variant" size={64} color={colors.onSurfaceVariant} />
         <Text variant="titleMedium" style={styles.emptyText}>
-          Aucune mission en cours
+          {t('carrier.activeMissions.noActiveMissions')}
         </Text>
         <Button mode="contained" onPress={() => navigation.goBack()}>
-          Retour à la carte
+          {t('carrier.activeMissions.backToMap')}
         </Button>
       </View>
     );
@@ -868,7 +872,7 @@ export function ActiveMissionsScreen({ navigation }: ActiveMissionsScreenProps) 
         icon="map"
         style={styles.fab}
         onPress={() => navigation.goBack()}
-        label="Carte"
+        label={t('carrier.activeMissions.map')}
       />
     </View>
   );
