@@ -399,8 +399,7 @@ export function CarrierHomeScreen({ navigation }: CarrierHomeScreenProps) {
             <Marker
               key={point.id}
               coordinate={{ latitude: point.latitude, longitude: point.longitude }}
-              title={point.name}
-              description={`${point.address}, ${point.city}`}
+              onPress={() => handleSelectSearchPoint(point)}
             >
               <View style={[styles.poiMarker, { backgroundColor: config.color }, isFromSearch && styles.poiMarkerHighlight]}>
                 <MaterialCommunityIcons name={config.icon as any} size={14} color="white" />
