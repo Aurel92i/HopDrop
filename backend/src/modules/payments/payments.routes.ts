@@ -95,7 +95,30 @@ export async function paymentsRoutes(app: FastifyInstance) {
         data: {
           status: 'PENDING', // Disponible pour les livreurs
         },
+        include: {
+          assignedCarrier: true,
+        },
       });
+
+      // BUG 6: Créer une Transaction si un livreur est assigné
+      if (updatedParcel.assignedCarrierId) {
+        const amount = Number(updatedParcel.price) || 10;
+        const platformFee = Math.round(amount * 0.3 * 100) / 100; // 30% plateforme
+        const carrierPayout = Math.round((amount - platformFee) * 100) / 100; // 70% livreur
+
+        await prisma.transaction.create({
+          data: {
+            parcelId,
+            payerId: userId,
+            payeeId: updatedParcel.assignedCarrierId,
+            amount,
+            platformFee,
+            carrierPayout,
+            stripePaymentIntentId: `pi_simulated_${Date.now()}`,
+            status: 'CAPTURED',
+          },
+        });
+      }
 
       return reply.send({
         success: true,
@@ -121,48 +144,53 @@ export async function paymentsRoutes(app: FastifyInstance) {
     try {
       const userId = (request.user as { id: string }).id;
 
-      // Calculer les gains depuis les missions complétées
-      const completedMissions = await prisma.mission.findMany({
-        where: {
-          carrierId: userId,
-          status: 'DELIVERED',
-        },
-        include: {
-          parcel: true,
-        },
-      });
-
-      // Calculer le total
-      let total = 0;
-      let today = 0;
-      let week = 0;
-
       const now = new Date();
       const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
       const weekStart = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
 
-      for (const mission of completedMissions) {
-        const amount = mission.parcel?.price || 0;
-        // Commission livreur = 70% du prix
-        const carrierAmount = Number(amount) * 0.7;
-        
-        total += carrierAmount;
-        
-        if (mission.completedAt && new Date(mission.completedAt) >= todayStart) {
-          today += carrierAmount;
-        }
-        
-        if (mission.completedAt && new Date(mission.completedAt) >= weekStart) {
-          week += carrierAmount;
-        }
-      }
+      // BUG 6: Calculer les gains depuis les Transactions (pas les missions)
+      const [totalEarnings, todayEarnings, weekEarnings, monthEarnings, pendingEarnings, tipsTotal] = await Promise.all([
+        prisma.transaction.aggregate({
+          where: { payeeId: userId, status: { in: ['CAPTURED', 'TRANSFERRED'] } },
+          _sum: { carrierPayout: true },
+        }),
+        prisma.transaction.aggregate({
+          where: { payeeId: userId, status: { in: ['CAPTURED', 'TRANSFERRED'] }, createdAt: { gte: todayStart } },
+          _sum: { carrierPayout: true },
+        }),
+        prisma.transaction.aggregate({
+          where: { payeeId: userId, status: { in: ['CAPTURED', 'TRANSFERRED'] }, createdAt: { gte: weekStart } },
+          _sum: { carrierPayout: true },
+        }),
+        prisma.transaction.aggregate({
+          where: { payeeId: userId, status: { in: ['CAPTURED', 'TRANSFERRED'] }, createdAt: { gte: monthStart } },
+          _sum: { carrierPayout: true },
+        }),
+        prisma.transaction.aggregate({
+          where: { payeeId: userId, status: 'PENDING' },
+          _sum: { carrierPayout: true },
+        }),
+        // Inclure les pourboires reçus
+        prisma.tip.aggregate({
+          where: { carrierId: userId },
+          _sum: { amount: true },
+        }),
+      ]);
+
+      const total = Number(totalEarnings._sum.carrierPayout || 0) + Number(tipsTotal._sum.amount || 0);
+      const today = Number(todayEarnings._sum.carrierPayout || 0);
+      const week = Number(weekEarnings._sum.carrierPayout || 0);
+      const month = Number(monthEarnings._sum.carrierPayout || 0);
+      const pending = Number(pendingEarnings._sum.carrierPayout || 0);
 
       return reply.send({
         total: Math.round(total * 100) / 100,
         today: Math.round(today * 100) / 100,
         week: Math.round(week * 100) / 100,
-        pending: 0,
-        available: Math.round(total * 100) / 100,
+        month: Math.round(month * 100) / 100,
+        pending: Math.round(pending * 100) / 100,
+        available: Math.round((total - pending) * 100) / 100,
       });
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'Erreur serveur';
