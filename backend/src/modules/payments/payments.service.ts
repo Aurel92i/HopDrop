@@ -1,15 +1,9 @@
 // backend/src/modules/payments/payments.service.ts
 
-import Stripe from 'stripe';
 import { prisma } from '../../shared/prisma.js';
-import { env } from '../../config/env.js';
+import { stripe } from '../../config/stripe.js';
 import { paymentsConfig } from './payments.config.js';
 import { ParcelSize } from '@prisma/client';
-
-// Initialiser Stripe (ou null si pas de clé)
-const stripe = env.STRIPE_SECRET_KEY 
-  ? new Stripe(env.STRIPE_SECRET_KEY)
-  : null;
 
 export class PaymentsService {
   
@@ -36,36 +30,6 @@ export class PaymentsService {
     const amount = paymentsConfig.prices[parcel.size as ParcelSize];
     const platformFee = Math.round(amount * paymentsConfig.platformFeePercentage);
     const carrierPayout = amount - platformFee;
-
-    // Mode simulation si pas de Stripe configuré
-    if (!stripe) {
-      const fakePaymentIntentId = `pi_simulated_${Date.now()}`;
-      
-      // Créer la transaction en BDD
-      const transaction = await prisma.transaction.create({
-        data: {
-          parcelId,
-          payerId: vendorId,
-          payeeId: parcel.assignedCarrierId,
-          amount: amount / 100,
-          platformFee: platformFee / 100,
-          carrierPayout: carrierPayout / 100,
-          stripePaymentIntentId: fakePaymentIntentId,
-          status: 'PENDING',
-        },
-      });
-
-      return {
-        clientSecret: `${fakePaymentIntentId}_secret_simulated`,
-        paymentIntentId: fakePaymentIntentId,
-        amount: amount / 100,
-        platformFee: platformFee / 100,
-        carrierPayout: carrierPayout / 100,
-        currency: paymentsConfig.currency,
-        simulated: true,
-        transaction,
-      };
-    }
 
     // Créer le PaymentIntent Stripe
     const paymentIntent = await stripe.paymentIntents.create({
@@ -117,25 +81,6 @@ export class PaymentsService {
       throw new Error('Transaction non trouvée');
     }
 
-    // Mode simulation
-    if (!stripe || paymentIntentId.startsWith('pi_simulated_')) {
-      const updatedTransaction = await prisma.transaction.update({
-        where: { id: transaction.id },
-        data: { status: 'CAPTURED' },
-        include: {
-          parcel: {
-            select: { id: true, dropoffName: true, status: true }
-          }
-        }
-      });
-
-      return {
-        success: true,
-        message: 'Paiement confirmé (simulé)',
-        transaction: updatedTransaction,
-      };
-    }
-
     // Vérifier le statut du PaymentIntent
     const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
 
@@ -179,21 +124,11 @@ export class PaymentsService {
     }
 
     if (!transaction.payee?.carrierProfile?.stripeAccountId) {
-      // Mode simulation ou pas de compte Stripe Connect
-      await prisma.transaction.update({
-        where: { id: transaction.id },
-        data: { status: 'TRANSFERRED' },
-      });
-
-      return {
-        success: true,
-        message: 'Transfert effectué (simulé)',
-        amount: Number(transaction.carrierPayout),
-      };
+      throw new Error('Le livreur n\'a pas de compte Stripe Connect');
     }
 
     // Créer le transfert Stripe
-    const transfer = await stripe!.transfers.create({
+    const transfer = await stripe.transfers.create({
       amount: Math.round(Number(transaction.carrierPayout) * 100),
       currency: paymentsConfig.currency,
       destination: transaction.payee.carrierProfile.stripeAccountId,
@@ -229,37 +164,19 @@ export class PaymentsService {
       throw new Error('Profil livreur non trouvé');
     }
 
-    // Mode simulation
-    if (!stripe) {
-      const fakeAccountId = `acct_simulated_${Date.now()}`;
-      
-      await prisma.carrierProfile.update({
-        where: { userId: carrierId },
-        data: {
-          stripeAccountId: fakeAccountId,
-          stripeAccountStatus: 'ACTIVE',
-        },
-      });
-
-      return {
-        accountId: fakeAccountId,
-        onboardingUrl: 'https://stripe.com/simulated-onboarding',
-        simulated: true,
-      };
+    if (user.carrierProfile.stripeAccountId) {
+      return { accountId: user.carrierProfile.stripeAccountId, alreadyExists: true };
     }
 
-    // Créer le compte Connect Express
     const account = await stripe.accounts.create({
       type: 'express',
       country: 'FR',
       email: user.email,
       capabilities: {
-        card_payments: { requested: true },
         transfers: { requested: true },
       },
     });
 
-    // Sauvegarder l'ID du compte
     await prisma.carrierProfile.update({
       where: { userId: carrierId },
       data: {
@@ -268,19 +185,26 @@ export class PaymentsService {
       },
     });
 
-    // Créer le lien d'onboarding
+    return { accountId: account.id };
+  }
+
+  async createOnboardingLink(carrierId: string) {
+    const profile = await prisma.carrierProfile.findUnique({
+      where: { userId: carrierId },
+    });
+
+    if (!profile?.stripeAccountId) {
+      throw new Error('Aucun compte Stripe Connect. Créez-en un d\'abord.');
+    }
+
     const accountLink = await stripe.accountLinks.create({
-      account: account.id,
-      refresh_url: `${env.UPLOADS_BASE_URL}/stripe/refresh`,
-      return_url: `${env.UPLOADS_BASE_URL}/stripe/return`,
+      account: profile.stripeAccountId,
+      refresh_url: 'exp+hopdrop://stripe-refresh',
+      return_url: 'exp+hopdrop://stripe-return',
       type: 'account_onboarding',
     });
 
-    return {
-      accountId: account.id,
-      onboardingUrl: accountLink.url,
-      simulated: false,
-    };
+    return { url: accountLink.url };
   }
 
   async getConnectAccountStatus(carrierId: string) {
@@ -293,25 +217,11 @@ export class PaymentsService {
     }
 
     if (!profile.stripeAccountId) {
-      return {
-        hasAccount: false,
-        status: null,
-      };
-    }
-
-    // Mode simulation
-    if (!stripe || profile.stripeAccountId.startsWith('acct_simulated_')) {
-      return {
-        hasAccount: true,
-        accountId: profile.stripeAccountId,
-        status: profile.stripeAccountStatus,
-        simulated: true,
-      };
+      return { hasAccount: false, status: null };
     }
 
     const account = await stripe.accounts.retrieve(profile.stripeAccountId);
 
-    // Mettre à jour le statut
     let status: 'PENDING' | 'ACTIVE' | 'RESTRICTED' = 'PENDING';
     if (account.charges_enabled && account.payouts_enabled) {
       status = 'ACTIVE';

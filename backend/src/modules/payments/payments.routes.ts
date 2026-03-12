@@ -250,16 +250,29 @@ export async function paymentsRoutes(app: FastifyInstance) {
     }
   });
 
-  // ===== Stripe Connect (livreur) =====
-  
-  // Créer un compte Connect
-  app.post('/payments/connect/create', {
-    preHandler: [app.authenticate],
+  // ===== Stripe Connect (livreur uniquement) =====
+
+  const requireCarrier = async (request: FastifyRequest, reply: FastifyReply) => {
+    const userId = (request.user as any).userId;
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { role: true } });
+    if (!user || user.role !== 'CARRIER') {
+      return reply.status(403).send({ error: 'Réservé aux livreurs' });
+    }
+  };
+
+  // Créer un compte Connect Express
+  app.post('/payments/connect/create-account', {
+    preHandler: [app.authenticate, requireCarrier],
   }, paymentsController.createConnectAccount.bind(paymentsController));
+
+  // Créer un lien d'onboarding
+  app.post('/payments/connect/create-onboarding-link', {
+    preHandler: [app.authenticate, requireCarrier],
+  }, paymentsController.createOnboardingLink.bind(paymentsController));
 
   // Obtenir le statut du compte Connect
   app.get('/payments/connect/status', {
-    preHandler: [app.authenticate],
+    preHandler: [app.authenticate, requireCarrier],
   }, paymentsController.getConnectAccountStatus.bind(paymentsController));
 
   // ===== Historique =====

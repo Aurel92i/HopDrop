@@ -52,6 +52,16 @@ export class PaymentsController {
     }
   }
 
+  async createOnboardingLink(request: FastifyRequest, reply: FastifyReply) {
+    try {
+      const userId = (request.user as any).userId;
+      const result = await this.paymentsService.createOnboardingLink(userId);
+      return reply.send(result);
+    } catch (error: any) {
+      return reply.status(400).send({ error: error.message });
+    }
+  }
+
   async getConnectAccountStatus(request: FastifyRequest, reply: FastifyReply) {
     try {
       const userId = (request.user as any).userId;
