@@ -281,14 +281,16 @@ model Review {
 }
 
 model Tip {
-  id         String   @id @default(uuid())
-  parcelId   String   @unique
-  missionId  String   @unique
-  vendorId   String
-  carrierId  String
-  amount     Float
-  message    String?
-  createdAt  DateTime @default(now())
+  id                    String   @id @default(uuid())
+  parcelId              String   @unique
+  missionId             String   @unique
+  vendorId              String
+  carrierId             String
+  amount                Float
+  message               String?
+  stripePaymentIntentId String?
+  stripeTransferId      String?
+  createdAt             DateTime @default(now())
 
   parcel  Parcel  @relation(fields: [parcelId], references: [id])
   mission Mission @relation(fields: [missionId], references: [id])

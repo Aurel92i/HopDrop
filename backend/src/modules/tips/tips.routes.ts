@@ -58,6 +58,26 @@ export async function tipsRoutes(app: FastifyInstance) {
     }
   );
 
+  // ===== POST /tips/confirm =====
+  // Confirmer le paiement et transférer au livreur
+  app.post<{ Body: { tipId: string } }>(
+    '/tips/confirm',
+    { onRequest: [app.authenticate] },
+    async (request: FastifyRequest<{ Body: { tipId: string } }>, reply: FastifyReply) => {
+      try {
+        const { tipId } = request.body;
+        if (!tipId) {
+          return reply.status(400).send({ error: 'tipId requis' });
+        }
+        const result = await tipsService.confirmTipPayment(tipId);
+        return reply.send(result);
+      } catch (error: any) {
+        console.error('Erreur confirmation pourboire:', error);
+        return reply.status(400).send({ error: 'Erreur', message: error.message });
+      }
+    }
+  );
+
   // ===== GET /tips/parcel/:parcelId =====
   // Récupérer le pourboire d'un colis
   app.get<{ Params: GetTipParams }>(

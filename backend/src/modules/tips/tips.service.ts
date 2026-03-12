@@ -1,17 +1,16 @@
 import { prisma } from '../../shared/prisma.js';
+import { stripe } from '../../config/stripe.js';
+import { paymentsConfig } from '../payments/payments.config.js';
 
 export class TipsService {
-  // Créer un pourboire
+  // Créer un pourboire — retourne un clientSecret pour le paiement
   async createTip(parcelId: string, vendorId: string, amount: number, message?: string) {
     // Vérifier que le colis appartient au vendeur
     const parcel = await prisma.parcel.findFirst({
-      where: {
-        id: parcelId,
-        vendorId: vendorId,
-      },
+      where: { id: parcelId, vendorId },
       include: {
         mission: true,
-        assignedCarrier: true,
+        assignedCarrier: { include: { carrierProfile: true } },
       },
     });
 
@@ -27,30 +26,33 @@ export class TipsService {
       throw new Error('Ce colis n\'a pas de livreur assigné');
     }
 
-    // Vérifier que la livraison est confirmée
     if (parcel.status !== 'DELIVERED' || parcel.mission.status !== 'DELIVERED') {
       throw new Error('Le colis doit être livré avant de pouvoir laisser un pourboire');
     }
 
-    // Vérifier qu'un pourboire n'existe pas déjà
-    const existingTip = await prisma.tip.findUnique({
-      where: { parcelId },
-    });
-
+    const existingTip = await prisma.tip.findUnique({ where: { parcelId } });
     if (existingTip) {
       throw new Error('Vous avez déjà laissé un pourboire pour ce colis');
     }
 
-    // Valider le montant
-    if (amount <= 0) {
-      throw new Error('Le montant du pourboire doit être positif');
-    }
+    if (amount <= 0) throw new Error('Le montant du pourboire doit être positif');
+    if (amount > 50) throw new Error('Le pourboire ne peut pas dépasser 50€');
 
-    if (amount > 50) {
-      throw new Error('Le pourboire ne peut pas dépasser 50€');
-    }
+    const amountCents = Math.round(amount * 100);
 
-    // Créer le pourboire
+    // Créer un PaymentIntent Stripe
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount: amountCents,
+      currency: paymentsConfig.currency,
+      metadata: {
+        type: 'tip',
+        parcelId,
+        vendorId,
+        carrierId: parcel.assignedCarrierId,
+      },
+    });
+
+    // Créer le Tip en BDD (en attente de paiement)
     const tip = await prisma.tip.create({
       data: {
         parcelId,
@@ -59,27 +61,57 @@ export class TipsService {
         carrierId: parcel.assignedCarrierId,
         amount,
         message: message || null,
+        stripePaymentIntentId: paymentIntent.id,
       },
       include: {
         carrier: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            avatarUrl: true,
-          },
+          select: { id: true, firstName: true, lastName: true, avatarUrl: true },
         },
       },
     });
 
-    // TODO: Notifier le livreur
-    // TODO: Traiter le paiement du pourboire via Stripe
-
     return {
       success: true,
-      message: 'Pourboire enregistré avec succès',
+      clientSecret: paymentIntent.client_secret,
+      paymentIntentId: paymentIntent.id,
       tip,
     };
+  }
+
+  // Confirmer le paiement du pourboire et transférer au livreur
+  async confirmTipPayment(tipId: string) {
+    const tip = await prisma.tip.findUnique({
+      where: { id: tipId },
+      include: {
+        carrier: { include: { carrierProfile: true } },
+      },
+    });
+
+    if (!tip) throw new Error('Pourboire non trouvé');
+    if (tip.stripeTransferId) return { success: true, alreadyTransferred: true };
+
+    const amountCents = Math.round(tip.amount * 100);
+
+    // Transférer 100% au livreur si compte Stripe actif
+    const carrierProfile = tip.carrier?.carrierProfile;
+    if (carrierProfile?.stripeAccountId && carrierProfile.stripeAccountStatus === 'ACTIVE') {
+      const transfer = await stripe.transfers.create({
+        amount: amountCents,
+        currency: paymentsConfig.currency,
+        destination: carrierProfile.stripeAccountId,
+        metadata: { type: 'tip', tipId: tip.id, parcelId: tip.parcelId },
+      });
+
+      await prisma.tip.update({
+        where: { id: tipId },
+        data: { stripeTransferId: transfer.id },
+      });
+
+      return { success: true, transferId: transfer.id };
+    }
+
+    // Pas de compte Stripe — le transfer sera fait plus tard
+    return { success: true, pendingTransfer: true };
   }
 
   // Récupérer le pourboire d'un colis
@@ -88,29 +120,16 @@ export class TipsService {
       where: { parcelId },
       include: {
         vendor: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            avatarUrl: true,
-          },
+          select: { id: true, firstName: true, lastName: true, avatarUrl: true },
         },
         carrier: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            avatarUrl: true,
-          },
+          select: { id: true, firstName: true, lastName: true, avatarUrl: true },
         },
       },
     });
 
-    if (!tip) {
-      return null;
-    }
+    if (!tip) return null;
 
-    // Vérifier que l'utilisateur est concerné (vendeur ou livreur)
     if (tip.vendorId !== userId && tip.carrierId !== userId) {
       throw new Error('Vous n\'êtes pas autorisé à voir ce pourboire');
     }
@@ -127,19 +146,10 @@ export class TipsService {
         where: { carrierId },
         include: {
           vendor: {
-            select: {
-              id: true,
-              firstName: true,
-              lastName: true,
-              avatarUrl: true,
-            },
+            select: { id: true, firstName: true, lastName: true, avatarUrl: true },
           },
           parcel: {
-            select: {
-              id: true,
-              dropoffName: true,
-              createdAt: true,
-            },
+            select: { id: true, dropoffName: true, createdAt: true },
           },
         },
         orderBy: { createdAt: 'desc' },
@@ -156,12 +166,7 @@ export class TipsService {
 
     return {
       tips,
-      pagination: {
-        page,
-        limit,
-        total,
-        totalPages: Math.ceil(total / limit),
-      },
+      pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
       totalAmount: totalAmount._sum.amount || 0,
     };
   }
@@ -175,19 +180,10 @@ export class TipsService {
         where: { vendorId },
         include: {
           carrier: {
-            select: {
-              id: true,
-              firstName: true,
-              lastName: true,
-              avatarUrl: true,
-            },
+            select: { id: true, firstName: true, lastName: true, avatarUrl: true },
           },
           parcel: {
-            select: {
-              id: true,
-              dropoffName: true,
-              createdAt: true,
-            },
+            select: { id: true, dropoffName: true, createdAt: true },
           },
         },
         orderBy: { createdAt: 'desc' },
@@ -204,12 +200,7 @@ export class TipsService {
 
     return {
       tips,
-      pagination: {
-        page,
-        limit,
-        total,
-        totalPages: Math.ceil(total / limit),
-      },
+      pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
       totalAmount: totalAmount._sum.amount || 0,
     };
   }

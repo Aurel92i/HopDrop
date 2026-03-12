@@ -228,7 +228,7 @@ export async function paymentsRoutes(app: FastifyInstance) {
           status: 'DELIVERED',
         },
         orderBy: {
-          completedAt: 'desc',
+          deliveredAt: 'desc',
         },
         include: {
           parcel: {
@@ -250,7 +250,7 @@ export async function paymentsRoutes(app: FastifyInstance) {
         type: 'CARRIER_PAYMENT',
         amount: Number(mission.parcel?.price || 0) * 0.7,
         status: 'COMPLETED',
-        createdAt: mission.completedAt,
+        createdAt: mission.deliveredAt,
         parcel: mission.parcel,
       }));
 
