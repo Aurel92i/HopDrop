@@ -409,6 +409,7 @@ export const ar: TranslationKeys = {
       cardDeclined: 'البطاقة مرفوضة. يرجى استخدام بطاقة أخرى.',
       insufficientFunds: 'رصيد غير كافٍ. يرجى استخدام بطاقة أخرى.',
       legalPaymentText: "بالنقر على 'دفع'، أنت توافق على شروط البيع وسياسة الخصوصية.",
+      preauthInfo: 'سيتم تفويض بطاقتك مسبقا بمبلغ {amount}€. لن يتم خصم المبلغ إلا عند التسليم الفعلي.',
     },
     history: {
       title: 'السجل',

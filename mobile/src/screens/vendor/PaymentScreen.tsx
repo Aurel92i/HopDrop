@@ -4,16 +4,14 @@ import {
   StyleSheet,
   ScrollView,
   Alert,
-  KeyboardAvoidingView,
-  Platform,
-  TextInput,
+  ActivityIndicator,
   TouchableOpacity,
-  ActivityIndicator
 } from 'react-native';
 import { Text, Card, Divider } from 'react-native-paper';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useStripe } from '@stripe/stripe-react-native';
 
 import { VendorStackParamList } from '../../navigation/types';
 import { colors, spacing } from '../../theme';
@@ -25,111 +23,74 @@ type PaymentScreenProps = {
   route: RouteProp<VendorStackParamList, 'Payment'>;
 };
 
-// Cartes de test pour simulation
-const TEST_CARDS = {
-  success: '4242424242424242',
-  decline: '4000000000000002',
-  insufficient: '4000000000009995',
-};
-
 export function PaymentScreen({ navigation, route }: PaymentScreenProps) {
-  const { parcelId, amount } = route.params;
+  const { parcelId, amount, clientSecret, paymentIntentId } = route.params;
   const { t } = useTranslation();
+  const { initPaymentSheet, presentPaymentSheet } = useStripe();
 
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
   const [parcel, setParcel] = useState<any>(null);
-
-  // État du formulaire de carte
-  const [cardNumber, setCardNumber] = useState('');
-  const [cardExpiry, setCardExpiry] = useState('');
-  const [cardCvc, setCardCvc] = useState('');
-  const [cardName, setCardName] = useState('');
+  const [sheetReady, setSheetReady] = useState(false);
 
   useEffect(() => {
-    loadParcel();
-  }, [parcelId]);
+    loadParcelAndInitSheet();
+  }, []);
 
-  const loadParcel = async () => {
-    setIsLoading(true);
+  const loadParcelAndInitSheet = async () => {
     try {
       const data = await api.getParcel(parcelId);
       setParcel(data);
+
+      if (clientSecret) {
+        const { error } = await initPaymentSheet({
+          paymentIntentClientSecret: clientSecret,
+          merchantDisplayName: 'HopDrop',
+          style: 'automatic',
+        });
+
+        if (!error) {
+          setSheetReady(true);
+        } else {
+          console.error('Erreur init PaymentSheet:', error);
+        }
+      }
     } catch (error) {
-      console.error('Erreur chargement colis:', error);
+      console.error('Erreur chargement:', error);
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Formatage numéro de carte
-  const formatCardNumber = (text: string) => {
-    const cleaned = text.replace(/\D/g, '');
-    const groups = cleaned.match(/.{1,4}/g) || [];
-    return groups.join(' ').substring(0, 19);
-  };
-
-  // Formatage date expiration
-  const formatExpiry = (text: string) => {
-    const cleaned = text.replace(/\D/g, '');
-    if (cleaned.length >= 2) {
-      return cleaned.substring(0, 2) + '/' + cleaned.substring(2, 4);
-    }
-    return cleaned;
-  };
-
-  // Détection type de carte
-  const getCardType = (number: string) => {
-    const cleaned = number.replace(/\s/g, '');
-    if (cleaned.startsWith('4')) return 'visa';
-    if (cleaned.startsWith('5') || cleaned.startsWith('2')) return 'mastercard';
-    if (cleaned.startsWith('3')) return 'amex';
-    return null;
-  };
-
-  // Validation du formulaire
-  const isFormValid = () => {
-    const cleanedCard = cardNumber.replace(/\s/g, '');
-    return (
-      cleanedCard.length >= 15 &&
-      cardExpiry.length === 5 &&
-      cardCvc.length >= 3 &&
-      cardName.length >= 2
-    );
-  };
-
-  // Simulation de paiement
-  const processPayment = async () => {
-    if (!isFormValid()) {
-      Alert.alert(t('common.error'), t('vendor.payment.fillCardFields'));
+  const handlePay = async () => {
+    // Si pas de clientSecret valide, fallback simulation
+    if (!clientSecret || !sheetReady) {
+      await handleSimulatedPayment();
       return;
     }
 
     setIsProcessing(true);
-
     try {
-      // Simulation d'un délai de traitement
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      const { error } = await presentPaymentSheet();
 
-      const cleanedCard = cardNumber.replace(/\s/g, '');
-
-      // Simulation des différents scénarios de carte de test
-      if (cleanedCard === TEST_CARDS.decline) {
-        throw new Error(t('vendor.payment.cardDeclined'));
+      if (error) {
+        if (error.code === 'Canceled') {
+          // L'utilisateur a annule
+          return;
+        }
+        Alert.alert(t('vendor.payment.paymentFailed'), error.message);
+        return;
       }
 
-      if (cleanedCard === TEST_CARDS.insufficient) {
-        throw new Error(t('vendor.payment.insufficientFunds'));
+      // Paiement reussi - confirmer cote backend
+      if (paymentIntentId) {
+        try {
+          await api.confirmPayment(paymentIntentId);
+        } catch (e) {
+          console.log('Confirm API fallback:', e);
+        }
       }
 
-      // Appeler l'API pour marquer le colis comme payé
-      try {
-        await api.simulatePayment(parcelId);
-      } catch (apiError) {
-        console.log('API payment simulation failed, continuing in test mode');
-      }
-
-      // Succès !
       Alert.alert(
         t('vendor.payment.successTitle'),
         t('vendor.payment.successDesc').replace('{amount}', amount.toFixed(2)),
@@ -152,7 +113,6 @@ export function PaymentScreen({ navigation, route }: PaymentScreenProps) {
           },
         ]
       );
-
     } catch (error: any) {
       Alert.alert(t('vendor.payment.paymentFailed'), error.message || t('common.genericError'));
     } finally {
@@ -160,12 +120,38 @@ export function PaymentScreen({ navigation, route }: PaymentScreenProps) {
     }
   };
 
-  // Remplir avec carte de test
-  const fillTestCard = (type: 'success' | 'decline' | 'insufficient') => {
-    setCardNumber(formatCardNumber(TEST_CARDS[type]));
-    setCardExpiry('12/28');
-    setCardCvc('123');
-    setCardName('TEST USER');
+  // Fallback mode test
+  const handleSimulatedPayment = async () => {
+    setIsProcessing(true);
+    try {
+      await api.simulatePayment(parcelId);
+      Alert.alert(
+        t('vendor.payment.successTitle'),
+        t('vendor.payment.successDesc').replace('{amount}', amount.toFixed(2)),
+        [
+          {
+            text: t('vendor.payment.viewParcel'),
+            onPress: () => {
+              navigation.reset({
+                index: 1,
+                routes: [
+                  { name: 'VendorHome' },
+                  { name: 'ParcelDetail', params: { parcelId } },
+                ],
+              });
+            },
+          },
+          {
+            text: t('vendor.payment.backToHome'),
+            onPress: () => navigation.navigate('VendorHome'),
+          },
+        ]
+      );
+    } catch (error: any) {
+      Alert.alert(t('vendor.payment.paymentFailed'), error.message || t('common.genericError'));
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   if (isLoading) {
@@ -177,348 +163,115 @@ export function PaymentScreen({ navigation, route }: PaymentScreenProps) {
     );
   }
 
-  const cardType = getCardType(cardNumber);
-
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-        {/* Résumé de la commande */}
-        <Card style={styles.summaryCard}>
-          <Card.Content>
-            <Text style={styles.summaryTitle}>{t('vendor.payment.summary')}</Text>
+    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      {/* Resume de la commande */}
+      <Card style={styles.summaryCard}>
+        <Card.Content>
+          <Text style={styles.summaryTitle}>{t('vendor.payment.summary')}</Text>
 
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>{t('vendor.payment.parcel')}</Text>
-              <Text style={styles.summaryValue}>{parcel?.description || t('vendor.payment.parcel')}</Text>
-            </View>
+          <View style={styles.summaryRow}>
+            <Text style={styles.summaryLabel}>{t('vendor.payment.parcel')}</Text>
+            <Text style={styles.summaryValue}>{parcel?.description || t('vendor.payment.parcel')}</Text>
+          </View>
 
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>{t('vendor.payment.size')}</Text>
-              <Text style={styles.summaryValue}>{parcel?.size || 'M'}</Text>
-            </View>
+          <View style={styles.summaryRow}>
+            <Text style={styles.summaryLabel}>{t('vendor.payment.size')}</Text>
+            <Text style={styles.summaryValue}>{parcel?.size || 'M'}</Text>
+          </View>
 
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>{t('vendor.payment.deliverTo')}</Text>
-              <Text style={styles.summaryValue}>{parcel?.dropoffName || 'Point relais'}</Text>
-            </View>
+          <View style={styles.summaryRow}>
+            <Text style={styles.summaryLabel}>{t('vendor.payment.deliverTo')}</Text>
+            <Text style={styles.summaryValue}>{parcel?.dropoffName || 'Point relais'}</Text>
+          </View>
 
-            <Divider style={styles.divider} />
+          <Divider style={styles.divider} />
 
-            <View style={styles.totalRow}>
-              <Text style={styles.totalLabel}>{t('vendor.payment.total')}</Text>
-              <Text style={styles.totalAmount}>{amount.toFixed(2)} €</Text>
-            </View>
-          </Card.Content>
-        </Card>
+          <View style={styles.totalRow}>
+            <Text style={styles.totalLabel}>{t('vendor.payment.total')}</Text>
+            <Text style={styles.totalAmount}>{amount.toFixed(2)} €</Text>
+          </View>
+        </Card.Content>
+      </Card>
 
-        {/* Mode test */}
-        <Card style={styles.testCard}>
-          <Card.Content>
-            <View style={styles.testHeader}>
-              <MaterialCommunityIcons name="test-tube" size={20} color="#F59E0B" />
-              <Text style={styles.testTitle}>{t('vendor.payment.testMode')}</Text>
-            </View>
-            <Text style={styles.testDescription}>
-              {t('vendor.payment.testDescription')}
-            </Text>
-            <View style={styles.testButtons}>
-              <TouchableOpacity
-                style={[styles.testButton, styles.testButtonSuccess]}
-                onPress={() => fillTestCard('success')}
-              >
-                <Text style={styles.testButtonText}>{t('vendor.payment.testSuccess')}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.testButton, styles.testButtonDanger]}
-                onPress={() => fillTestCard('decline')}
-              >
-                <Text style={styles.testButtonText}>{t('vendor.payment.testDeclined')}</Text>
-              </TouchableOpacity>
-            </View>
-          </Card.Content>
-        </Card>
-
-        {/* Formulaire carte */}
-        <Card style={styles.cardForm}>
-          <Card.Content>
-            <Text style={styles.sectionTitle}>{t('vendor.payment.cardInfo')}</Text>
-
-            {/* Numéro de carte */}
-            <View style={styles.inputContainer}>
-              <Text style={styles.inputLabel}>{t('vendor.payment.cardNumber')}</Text>
-              <View style={styles.inputWrapper}>
-                <MaterialCommunityIcons name="credit-card" size={20} color="#9CA3AF" style={styles.inputIcon} />
-                <TextInput
-                  style={styles.input}
-                  value={cardNumber}
-                  onChangeText={(text) => setCardNumber(formatCardNumber(text))}
-                  keyboardType="numeric"
-                  maxLength={19}
-                  placeholder={t('vendor.payment.cardPlaceholder')}
-                  placeholderTextColor="#9CA3AF"
-                />
-                {cardType && (
-                  <MaterialCommunityIcons
-                    name="check-circle"
-                    size={20}
-                    color="#10B981"
-                    style={styles.inputIconRight}
-                  />
-                )}
-              </View>
-            </View>
-
-            {/* Expiration + CVC */}
-            <View style={styles.row}>
-              <View style={[styles.inputContainer, { flex: 1, marginRight: 8 }]}>
-                <Text style={styles.inputLabel}>{t('vendor.payment.expiryLabel')}</Text>
-                <View style={styles.inputWrapper}>
-                  <TextInput
-                    style={styles.input}
-                    value={cardExpiry}
-                    onChangeText={(text) => setCardExpiry(formatExpiry(text))}
-                    keyboardType="numeric"
-                    maxLength={5}
-                    placeholder={t('vendor.payment.expiryPlaceholder')}
-                    placeholderTextColor="#9CA3AF"
-                  />
-                </View>
-              </View>
-
-              <View style={[styles.inputContainer, { flex: 1, marginLeft: 8 }]}>
-                <Text style={styles.inputLabel}>{t('vendor.payment.cardCvc')}</Text>
-                <View style={styles.inputWrapper}>
-                  <TextInput
-                    style={styles.input}
-                    value={cardCvc}
-                    onChangeText={setCardCvc}
-                    keyboardType="numeric"
-                    maxLength={4}
-                    secureTextEntry
-                    placeholder={t('vendor.payment.cvcPlaceholder')}
-                    placeholderTextColor="#9CA3AF"
-                  />
-                </View>
-              </View>
-            </View>
-
-            {/* Nom sur la carte */}
-            <View style={styles.inputContainer}>
-              <Text style={styles.inputLabel}>{t('vendor.payment.cardName')}</Text>
-              <View style={styles.inputWrapper}>
-                <MaterialCommunityIcons name="account" size={20} color="#9CA3AF" style={styles.inputIcon} />
-                <TextInput
-                  style={styles.input}
-                  value={cardName}
-                  onChangeText={setCardName}
-                  autoCapitalize="characters"
-                  placeholder={t('vendor.payment.namePlaceholder')}
-                  placeholderTextColor="#9CA3AF"
-                />
-              </View>
-            </View>
-          </Card.Content>
-        </Card>
-
-        {/* Sécurité */}
-        <View style={styles.securityInfo}>
-          <MaterialCommunityIcons name="shield-check" size={20} color="#10B981" />
-          <Text style={styles.securityText}>
-            {t('vendor.payment.securedPayment')}
-          </Text>
-        </View>
-
-        {/* Bouton de paiement */}
-        <TouchableOpacity
-          style={[
-            styles.payButton,
-            (!isFormValid() || isProcessing) && styles.payButtonDisabled
-          ]}
-          onPress={processPayment}
-          disabled={isProcessing || !isFormValid()}
-        >
-          {isProcessing ? (
-            <ActivityIndicator color="white" />
-          ) : (
-            <>
-              <MaterialCommunityIcons name="lock" size={20} color="white" />
-              <Text style={styles.payButtonText}>{t('vendor.payment.pay')} {amount.toFixed(2)} €</Text>
-            </>
-          )}
-        </TouchableOpacity>
-
-        <Text style={styles.legalText}>
-          {t('vendor.payment.legalPaymentText')}
+      {/* Info pre-autorisation */}
+      <View style={styles.infoBox}>
+        <MaterialCommunityIcons name="information-outline" size={20} color={colors.primary} />
+        <Text style={styles.infoText}>
+          {t('vendor.payment.preauthInfo').replace('{amount}', amount.toFixed(2))}
         </Text>
+      </View>
 
-        <View style={{ height: 40 }} />
-      </ScrollView>
-    </KeyboardAvoidingView>
+      {/* Securite */}
+      <View style={styles.securityInfo}>
+        <MaterialCommunityIcons name="shield-check" size={20} color="#10B981" />
+        <Text style={styles.securityText}>
+          {t('vendor.payment.securedPayment')}
+        </Text>
+      </View>
+
+      {/* Bouton de paiement */}
+      <TouchableOpacity
+        style={[styles.payButton, isProcessing && styles.payButtonDisabled]}
+        onPress={handlePay}
+        disabled={isProcessing}
+      >
+        {isProcessing ? (
+          <ActivityIndicator color="white" />
+        ) : (
+          <>
+            <MaterialCommunityIcons name="lock" size={20} color="white" />
+            <Text style={styles.payButtonText}>
+              {t('vendor.payment.pay')} {amount.toFixed(2)} €
+            </Text>
+          </>
+        )}
+      </TouchableOpacity>
+
+      {/* Mode test fallback */}
+      {!clientSecret && (
+        <View style={styles.testBadge}>
+          <MaterialCommunityIcons name="test-tube" size={16} color="#92400E" />
+          <Text style={styles.testBadgeText}>{t('vendor.payment.testMode')}</Text>
+        </View>
+      )}
+
+      <Text style={styles.legalText}>
+        {t('vendor.payment.legalPaymentText')}
+      </Text>
+
+      <View style={{ height: 40 }} />
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F9FAFB',
-  },
-  scrollView: {
-    flex: 1,
-    padding: 16,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    marginTop: 16,
-    color: '#6B7280',
-  },
+  container: { flex: 1, backgroundColor: '#F9FAFB' },
+  content: { padding: 16 },
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  loadingText: { marginTop: 16, color: '#6B7280' },
 
-  // Summary Card
-  summaryCard: {
-    marginBottom: 16,
-    borderRadius: 16,
-    elevation: 2,
-  },
-  summaryTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#1F2937',
-    marginBottom: 16,
-  },
-  summaryRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  summaryLabel: {
-    fontSize: 14,
-    color: '#6B7280',
-  },
-  summaryValue: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#374151',
-  },
-  divider: {
-    marginVertical: 16,
-  },
-  totalRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  totalLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1F2937',
-  },
-  totalAmount: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: colors.primary,
-  },
+  summaryCard: { marginBottom: 16, borderRadius: 16, elevation: 2 },
+  summaryTitle: { fontSize: 18, fontWeight: '700', color: '#1F2937', marginBottom: 16 },
+  summaryRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
+  summaryLabel: { fontSize: 14, color: '#6B7280' },
+  summaryValue: { fontSize: 14, fontWeight: '500', color: '#374151' },
+  divider: { marginVertical: 16 },
+  totalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  totalLabel: { fontSize: 16, fontWeight: '600', color: '#1F2937' },
+  totalAmount: { fontSize: 24, fontWeight: '800', color: colors.primary },
 
-  // Test Card
-  testCard: {
-    marginBottom: 16,
-    borderRadius: 16,
-    backgroundColor: '#FFFBEB',
-    borderWidth: 1,
-    borderColor: '#FCD34D',
-  },
-  testHeader: {
+  infoBox: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 8,
-  },
-  testTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#92400E',
-  },
-  testDescription: {
-    fontSize: 13,
-    color: '#92400E',
-    marginBottom: 12,
-  },
-  testButtons: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  testButton: {
-    flex: 1,
-    paddingVertical: 10,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  testButtonSuccess: {
-    backgroundColor: '#D1FAE5',
-  },
-  testButtonDanger: {
-    backgroundColor: '#FEE2E2',
-  },
-  testButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#374151',
-  },
-
-  // Card Form
-  cardForm: {
-    marginBottom: 16,
-    borderRadius: 16,
-    elevation: 2,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#1F2937',
-    marginBottom: 16,
-  },
-
-  // Inputs
-  inputContainer: {
-    marginBottom: 16,
-  },
-  inputLabel: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#374151',
-    marginBottom: 8,
-  },
-  inputWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
+    alignItems: 'flex-start',
+    gap: 10,
+    padding: 14,
+    backgroundColor: colors.primaryContainer || '#DBEAFE',
     borderRadius: 12,
-    paddingHorizontal: 12,
+    marginBottom: 16,
   },
-  inputIcon: {
-    marginRight: 8,
-  },
-  inputIconRight: {
-    marginLeft: 8,
-  },
-  input: {
-    flex: 1,
-    height: 48,
-    fontSize: 16,
-    color: '#1F2937',
-  },
-  row: {
-    flexDirection: 'row',
-  },
+  infoText: { flex: 1, fontSize: 13, color: '#1E40AF', lineHeight: 18 },
 
-  // Security
   securityInfo: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -526,12 +279,8 @@ const styles = StyleSheet.create({
     gap: 8,
     marginBottom: 16,
   },
-  securityText: {
-    fontSize: 13,
-    color: '#6B7280',
-  },
+  securityText: { fontSize: 13, color: '#6B7280' },
 
-  // Pay Button
   payButton: {
     backgroundColor: colors.primary,
     flexDirection: 'row',
@@ -542,20 +291,24 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     gap: 8,
   },
-  payButtonDisabled: {
-    backgroundColor: '#9CA3AF',
-  },
-  payButtonText: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: 'white',
-  },
+  payButtonDisabled: { backgroundColor: '#9CA3AF' },
+  payButtonText: { fontSize: 17, fontWeight: '700', color: 'white' },
 
-  // Legal
-  legalText: {
-    fontSize: 11,
-    color: '#9CA3AF',
-    textAlign: 'center',
-    lineHeight: 16,
+  testBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    backgroundColor: '#FFFBEB',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#FCD34D',
+    alignSelf: 'center',
+    marginBottom: 16,
   },
+  testBadgeText: { fontSize: 13, fontWeight: '600', color: '#92400E' },
+
+  legalText: { fontSize: 11, color: '#9CA3AF', textAlign: 'center', lineHeight: 16 },
 });

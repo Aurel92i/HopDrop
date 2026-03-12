@@ -409,6 +409,7 @@ export const en: TranslationKeys = {
       cardDeclined: 'Card declined. Please use another card.',
       insufficientFunds: 'Insufficient funds. Please use another card.',
       legalPaymentText: "By clicking 'Pay', you accept our terms of sale and privacy policy.",
+      preauthInfo: 'Your card will be pre-authorized for {amount}€. The amount will only be charged upon actual delivery.',
     },
     history: {
       title: 'History',

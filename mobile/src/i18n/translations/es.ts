@@ -409,6 +409,7 @@ export const es: TranslationKeys = {
       cardDeclined: 'Tarjeta rechazada. Por favor usa otra tarjeta.',
       insufficientFunds: 'Fondos insuficientes. Por favor usa otra tarjeta.',
       legalPaymentText: "Al hacer clic en 'Pagar', aceptas nuestras condiciones de venta y nuestra política de privacidad.",
+      preauthInfo: 'Tu tarjeta sera pre-autorizada por {amount}€. El monto solo se cobrara cuando se entregue el paquete.',
     },
     history: {
       title: 'Historial',

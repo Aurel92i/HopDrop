@@ -409,6 +409,7 @@ export const pt: TranslationKeys = {
       cardDeclined: 'Cartão recusado. Por favor use outro cartão.',
       insufficientFunds: 'Saldo insuficiente. Por favor use outro cartão.',
       legalPaymentText: "Ao clicar em 'Pagar', você aceita nossos termos de venda e nossa política de privacidade.",
+      preauthInfo: 'Seu cartao sera pre-autorizado em {amount}€. O valor so sera cobrado na entrega efetiva.',
     },
     history: {
       title: 'Histórico',

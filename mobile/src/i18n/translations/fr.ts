@@ -407,6 +407,7 @@ export const fr = {
       cardDeclined: 'Carte refusée. Veuillez utiliser une autre carte.',
       insufficientFunds: 'Fonds insuffisants. Veuillez utiliser une autre carte.',
       legalPaymentText: "En cliquant sur 'Payer', vous acceptez nos conditions générales de vente et notre politique de confidentialité.",
+      preauthInfo: 'Votre carte sera pre-autorisee pour {amount}€. Le montant ne sera debite qu\'a la livraison effective du colis.',
     },
     history: {
       title: 'Historique',

@@ -368,13 +368,7 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
 
   const onSubmit = async (data: CreateParcelFormData) => {
     try {
-      // 1. Créer un PaymentIntent en mode pré-autorisation
-      const { paymentIntentId } = await api.createPaymentIntentForNewParcel({
-        size: data.size,
-        carrier: data.carrier,
-      });
-
-      // 2. Préparer les créneaux
+      // 1. Preparer les creneaux
       let pickupSlotStart: string;
       let pickupSlotEnd: string;
 
@@ -390,7 +384,7 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
         pickupSlotEnd = endDate.toISOString();
       }
 
-      // 3. Créer le colis avec le paymentIntentId
+      // 2. Creer le colis d'abord
       const parcel = await createParcel({
         pickupAddressId: data.pickupAddressId,
         size: data.size,
@@ -408,16 +402,26 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
         description: data.description || data.itemCategory || undefined,
         itemPhotoUrl: data.itemPhotoUrl || undefined,
         itemCategory: data.itemCategory || undefined,
-        paymentIntentId, // Associer le paiement pré-autorisé
-        paymentStatus: 'AUTHORIZED',
       });
 
-      // 4. Afficher confirmation et naviguer
-      Alert.alert(
-        t('vendor.createParcel.successTitle'),
-        t('vendor.createParcel.successMessage'),
-        [{ text: 'OK', onPress: () => navigation.replace('ParcelDetail', { parcelId: parcel.id }) }]
-      );
+      // 3. Creer le PaymentIntent avec le parcelId
+      let clientSecret: string | undefined;
+      let paymentIntentId: string | undefined;
+      try {
+        const paymentResult = await api.createPaymentIntentForNewParcel({ parcelId: parcel.id });
+        clientSecret = paymentResult.clientSecret;
+        paymentIntentId = paymentResult.paymentIntentId;
+      } catch (paymentError) {
+        console.log('PaymentIntent creation failed, will use simulation:', paymentError);
+      }
+
+      // 4. Naviguer vers l'ecran de paiement
+      navigation.replace('Payment', {
+        parcelId: parcel.id,
+        amount: 10,
+        clientSecret,
+        paymentIntentId,
+      });
     } catch (e: any) {
       Alert.alert(t('common.error'), e.message || t('vendor.createParcel.errorGeneric'));
     }

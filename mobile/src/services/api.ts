@@ -513,7 +513,7 @@ class ApiService {
     return response.data;
   }
 
-  async createPaymentIntentForNewParcel(data: { size: string; carrier: string }): Promise<{ clientSecret: string; paymentIntentId: string }> {
+  async createPaymentIntentForNewParcel(data: { parcelId: string }): Promise<{ clientSecret: string; paymentIntentId: string; amount: number }> {
     const response = await this.api.post('/payments/create-preauth-intent', data);
     return response.data;
   }

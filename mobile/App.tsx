@@ -2,10 +2,13 @@ import React, { useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { PaperProvider } from 'react-native-paper';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { StripeProvider } from '@stripe/stripe-react-native';
 import { AppNavigator } from './src/navigation/AppNavigator';
 import { theme } from './src/theme';
 import { notificationService } from './src/services/notifications';
-import { I18nProvider } from './src/i18n/i18nContext'; 
+import { I18nProvider } from './src/i18n/i18nContext';
+
+const STRIPE_PUBLISHABLE_KEY = 'pk_test_51TAEIeLDRXHAZGFenveXlaFKG7q9XuodVTRj47FpmvN0ybZzkGvpaObKgH9deujvMWvj7niJ9djLFjMm0J9iN1BD00lS0gZaVD'; 
 
 export default function App() {
   useEffect(() => {
@@ -35,12 +38,14 @@ export default function App() {
 
   return (
     <I18nProvider>
-      <SafeAreaProvider>
-        <PaperProvider theme={theme}>
-          <StatusBar style="auto" />
-          <AppNavigator />
-        </PaperProvider>
-      </SafeAreaProvider>
+      <StripeProvider publishableKey={STRIPE_PUBLISHABLE_KEY}>
+        <SafeAreaProvider>
+          <PaperProvider theme={theme}>
+            <StatusBar style="auto" />
+            <AppNavigator />
+          </PaperProvider>
+        </SafeAreaProvider>
+      </StripeProvider>
     </I18nProvider>
   );
 }

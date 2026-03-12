@@ -14,7 +14,7 @@ export type VendorStackParamList = {
   Tracking: { parcelId: string; carrierId: string };
   Chat: { parcelId: string };
   Review: { parcelId: string; carrierName?: string; dropoffName?: string };
-  Payment: { parcelId: string; amount: number };
+  Payment: { parcelId: string; amount: number; clientSecret?: string; paymentIntentId?: string };
 };
 
 export type CarrierStackParamList = {
