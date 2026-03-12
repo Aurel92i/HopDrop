@@ -2,6 +2,7 @@
 
 import { prisma } from '../../shared/prisma.js';
 import { stripe } from '../../config/stripe.js';
+import { env } from '../../config/env.js';
 import { paymentsConfig } from './payments.config.js';
 import { ParcelSize } from '@prisma/client';
 
@@ -241,6 +242,143 @@ export class PaymentsService {
       chargesEnabled: account.charges_enabled,
       payoutsEnabled: account.payouts_enabled,
     };
+  }
+
+  // ===== Pré-autorisation (vendeur crée un colis) =====
+  async createPreauthIntent(vendorId: string, parcelId: string) {
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount: paymentsConfig.FIXED_AMOUNT,
+      currency: paymentsConfig.currency,
+      capture_method: 'manual',
+      metadata: { parcelId, vendorId },
+    });
+
+    await prisma.transaction.create({
+      data: {
+        parcelId,
+        payerId: vendorId,
+        amount: paymentsConfig.FIXED_AMOUNT / 100,
+        platformFee: paymentsConfig.PLATFORM_FEE / 100,
+        carrierPayout: paymentsConfig.CARRIER_PAYOUT / 100,
+        stripePaymentIntentId: paymentIntent.id,
+        status: 'PENDING',
+      },
+    });
+
+    return {
+      clientSecret: paymentIntent.client_secret,
+      paymentIntentId: paymentIntent.id,
+      amount: paymentsConfig.FIXED_AMOUNT / 100,
+    };
+  }
+
+  // ===== Capture + Transfer après livraison =====
+  async captureAndTransfer(parcelId: string) {
+    const transaction = await prisma.transaction.findFirst({
+      where: { parcelId, status: 'PENDING' },
+      include: {
+        payee: { include: { carrierProfile: true } },
+      },
+    });
+
+    if (!transaction?.stripePaymentIntentId) {
+      // Pas de transaction Stripe pour ce colis (mode simulation)
+      return null;
+    }
+
+    // Capture le PaymentIntent
+    await stripe.paymentIntents.capture(transaction.stripePaymentIntentId);
+
+    // Assigner le payee si pas encore fait
+    const parcel = await prisma.parcel.findUnique({
+      where: { id: parcelId },
+      select: { assignedCarrierId: true },
+    });
+
+    const carrierId = transaction.payeeId || parcel?.assignedCarrierId;
+
+    if (carrierId && !transaction.payeeId) {
+      await prisma.transaction.update({
+        where: { id: transaction.id },
+        data: { payeeId: carrierId },
+      });
+    }
+
+    // Créer le transfer vers le livreur si compte Stripe actif
+    let stripeTransferId: string | null = null;
+
+    if (carrierId) {
+      const carrierProfile = await prisma.carrierProfile.findUnique({
+        where: { userId: carrierId },
+      });
+
+      if (carrierProfile?.stripeAccountId && carrierProfile.stripeAccountStatus === 'ACTIVE') {
+        const transfer = await stripe.transfers.create({
+          amount: paymentsConfig.CARRIER_PAYOUT,
+          currency: paymentsConfig.currency,
+          destination: carrierProfile.stripeAccountId,
+          metadata: { parcelId, transactionId: transaction.id },
+        });
+        stripeTransferId = transfer.id;
+      }
+    }
+
+    await prisma.transaction.update({
+      where: { id: transaction.id },
+      data: {
+        status: stripeTransferId ? 'TRANSFERRED' : 'CAPTURED',
+        stripeTransferId,
+        payeeId: carrierId,
+      },
+    });
+
+    return {
+      captured: true,
+      transferred: !!stripeTransferId,
+      amount: paymentsConfig.FIXED_AMOUNT / 100,
+      carrierPayout: paymentsConfig.CARRIER_PAYOUT / 100,
+    };
+  }
+
+  // ===== Webhook Stripe =====
+  async handleWebhook(rawBody: Buffer, signature: string) {
+    const event = stripe.webhooks.constructEvent(
+      rawBody,
+      signature,
+      env.STRIPE_WEBHOOK_SECRET,
+    );
+
+    switch (event.type) {
+      case 'payment_intent.succeeded': {
+        const pi = event.data.object;
+        await prisma.transaction.updateMany({
+          where: { stripePaymentIntentId: pi.id, status: 'PENDING' },
+          data: { status: 'CAPTURED' },
+        });
+        break;
+      }
+      case 'payment_intent.payment_failed': {
+        const pi = event.data.object;
+        await prisma.transaction.updateMany({
+          where: { stripePaymentIntentId: pi.id },
+          data: { status: 'FAILED' },
+        });
+        break;
+      }
+      case 'transfer.created': {
+        const transfer = event.data.object;
+        const transactionId = transfer.metadata?.transactionId;
+        if (transactionId) {
+          await prisma.transaction.update({
+            where: { id: transactionId },
+            data: { status: 'TRANSFERRED', stripeTransferId: transfer.id },
+          });
+        }
+        break;
+      }
+    }
+
+    return { received: true };
   }
 
   async getTransactionHistory(userId: string, page: number = 1, limit: number = 10) {

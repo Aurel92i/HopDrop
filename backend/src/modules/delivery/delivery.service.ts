@@ -1,11 +1,13 @@
 import { ParcelStatus, MissionStatus } from '@prisma/client';
 import { prisma } from '../../shared/prisma.js';
 import { NotificationService } from '../../shared/services/notification.service.js';
+import { PaymentsService } from '../payments/payments.service.js';
 
 const CONFIRMATION_DELAY_HOURS = 12; // Délai de 12H pour que le vendeur confirme le dépôt
 
 export class DeliveryService {
   private notificationService = new NotificationService();
+  private paymentsService = new PaymentsService();
 
   // ===== LIVREUR DÉPOSE LE COLIS =====
   async confirmDelivery(missionId: string, carrierId: string, proofUrl: string) {
@@ -165,8 +167,12 @@ export class DeliveryService {
       }
     }
 
-    // TODO: Déclencher le paiement du livreur ici
-    // await this.processCarrierPayment(parcel.mission.id);
+    // Capturer le paiement et transférer au livreur
+    try {
+      await this.paymentsService.captureAndTransfer(parcelId);
+    } catch (paymentError) {
+      console.error('Erreur capture paiement:', paymentError);
+    }
 
     // Notifier le livreur
     if (parcel.assignedCarrier?.fcmToken) {
@@ -306,8 +312,12 @@ export class DeliveryService {
           });
         }
 
-        // TODO: Déclencher le paiement
-        // await this.processCarrierPayment(mission.id);
+        // Capturer le paiement et transférer au livreur
+        try {
+          await this.paymentsService.captureAndTransfer(mission.parcelId);
+        } catch (paymentError) {
+          console.error(`Erreur capture paiement mission ${mission.id}:`, paymentError);
+        }
 
         // Notifier les deux parties
         if (mission.parcel.vendor.fcmToken) {

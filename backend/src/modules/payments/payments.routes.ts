@@ -7,11 +7,14 @@ import { prisma } from '../../shared/prisma.js';
 
 // Types pour les requêtes
 interface CreatePreauthBody {
-  size: string;
-  carrier: string;
+  parcelId: string;
 }
 
 interface SimulatePaymentParams {
+  parcelId: string;
+}
+
+interface CaptureBody {
   parcelId: string;
 }
 
@@ -36,32 +39,41 @@ export async function paymentsRoutes(app: FastifyInstance) {
   }, paymentsController.confirmPayment.bind(paymentsController));
 
   // ===== Route: /payments/create-preauth-intent =====
-  
+
   /**
    * POST /payments/create-preauth-intent
-   * Crée un PaymentIntent en mode pré-autorisation pour un nouveau colis
+   * Crée un vrai PaymentIntent Stripe en pré-autorisation (capture_method: manual)
    */
   app.post<{ Body: CreatePreauthBody }>('/payments/create-preauth-intent', {
     preHandler: [app.authenticate],
   }, async (request, reply) => {
-    const { size, carrier } = request.body;
-    const userId = (request.user as { id: string }).id;
-    
-    // Calculer le prix selon la taille (prix fixe pour MVP)
-    const PRICING: Record<string, number> = { 
-      SMALL: 10, 
-      MEDIUM: 10, 
-      LARGE: 10, 
-      XLARGE: 10 
-    };
-    const amount = PRICING[size] || 10;
-    
-    // En mode réel, créer un PaymentIntent Stripe avec capture_method: 'manual'
-    // Pour le MVP, on simule
-    const paymentIntentId = `pi_preauth_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    const clientSecret = `${paymentIntentId}_secret_${Math.random().toString(36).substr(2, 9)}`;
-    
-    return reply.send({ clientSecret, paymentIntentId, amount });
+    try {
+      const { parcelId } = request.body;
+      const userId = (request.user as any).userId;
+      const result = await paymentsService.createPreauthIntent(userId, parcelId);
+      return reply.status(201).send(result);
+    } catch (error: any) {
+      return reply.status(400).send({ error: error.message });
+    }
+  });
+
+  /**
+   * POST /payments/capture
+   * Capture un PaymentIntent + transfer vers le livreur
+   */
+  app.post<{ Body: CaptureBody }>('/payments/capture', {
+    preHandler: [app.authenticate],
+  }, async (request, reply) => {
+    try {
+      const { parcelId } = request.body;
+      const result = await paymentsService.captureAndTransfer(parcelId);
+      if (!result) {
+        return reply.send({ success: true, simulated: true });
+      }
+      return reply.send({ success: true, ...result });
+    } catch (error: any) {
+      return reply.status(400).send({ error: error.message });
+    }
   });
 
   // ===== Simulation de paiement (mode test) =====
@@ -298,9 +310,31 @@ export async function paymentsRoutes(app: FastifyInstance) {
   });
 
   // ===== Gains livreur =====
-  
+
   // Obtenir les gains du livreur
   app.get('/carrier/earnings', {
     preHandler: [app.authenticate],
   }, paymentsController.getCarrierEarnings.bind(paymentsController));
+
+  // ===== Webhook Stripe (pas d'auth, signature Stripe) =====
+  app.register(async (webhookScope) => {
+    webhookScope.removeAllContentTypeParsers();
+    webhookScope.addContentTypeParser('application/json', { parseAs: 'buffer' }, (_req, body, done) => {
+      done(null, body);
+    });
+
+    webhookScope.post('/payments/webhook', async (request, reply) => {
+      try {
+        const signature = request.headers['stripe-signature'] as string;
+        if (!signature) {
+          return reply.status(400).send({ error: 'Missing stripe-signature header' });
+        }
+        const result = await paymentsService.handleWebhook(request.body as Buffer, signature);
+        return reply.send(result);
+      } catch (error: any) {
+        console.error('Webhook error:', error.message);
+        return reply.status(400).send({ error: error.message });
+      }
+    });
+  });
 }
