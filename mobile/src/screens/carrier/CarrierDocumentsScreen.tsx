@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, StyleSheet, ScrollView, RefreshControl, TouchableOpacity, Alert } from 'react-native';
+import { View, StyleSheet, ScrollView, RefreshControl, TouchableOpacity, Alert, Linking } from 'react-native';
 import { Text, Button, Card, Chip, Switch, ActivityIndicator } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
@@ -41,6 +41,15 @@ export function CarrierDocumentsScreen() {
   const [isUploading, setIsUploading] = useState<DocumentType | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [rawDocPhoto, setRawDocPhoto] = useState<{ uri: string; type: DocumentType } | null>(null);
+
+  // Stripe Connect state
+  const [stripeStatus, setStripeStatus] = useState<{
+    hasAccount: boolean;
+    status?: 'PENDING' | 'ACTIVE' | 'RESTRICTED' | null;
+    chargesEnabled?: boolean;
+    payoutsEnabled?: boolean;
+  } | null>(null);
+  const [stripeLoading, setStripeLoading] = useState(false);
 
   const documentLabels: Record<DocumentType, { label: string; description: string; icon: string }> = {
     ID_CARD_FRONT: {
@@ -91,9 +100,38 @@ export function CarrierDocumentsScreen() {
     }
   }, []);
 
+  const loadStripeStatus = useCallback(async () => {
+    try {
+      const status = await api.getConnectStatus();
+      setStripeStatus(status);
+    } catch (error) {
+      console.log('Erreur chargement statut Stripe:', error);
+    }
+  }, []);
+
+  const handleSetupStripe = async () => {
+    setStripeLoading(true);
+    try {
+      // Create account if needed
+      if (!stripeStatus?.hasAccount) {
+        await api.createConnectAccount();
+      }
+      // Get onboarding link and open it
+      const { url } = await api.getConnectOnboardingLink();
+      await Linking.openURL(url);
+      // Refresh status when user comes back
+      setTimeout(() => loadStripeStatus(), 2000);
+    } catch (error: any) {
+      Alert.alert(t('common.error'), error.response?.data?.error || error.message);
+    } finally {
+      setStripeLoading(false);
+    }
+  };
+
   useEffect(() => {
     loadDocuments();
-  }, [loadDocuments]);
+    loadStripeStatus();
+  }, [loadDocuments, loadStripeStatus]);
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -368,6 +406,62 @@ export function CarrierDocumentsScreen() {
         </Card.Content>
       </Card>
 
+      {/* Stripe Connect */}
+      <Card style={[styles.card, styles.stripeCard]}>
+        <Card.Content>
+          <View style={styles.stripeHeader}>
+            <MaterialCommunityIcons
+              name={stripeStatus?.status === 'ACTIVE' ? 'check-circle' : 'credit-card-settings-outline'}
+              size={28}
+              color={stripeStatus?.status === 'ACTIVE' ? colors.secondary : colors.tertiary}
+            />
+            <View style={{ flex: 1 }}>
+              <Text variant="titleSmall">Configurer mes paiements</Text>
+              <Text variant="bodySmall" style={{ color: colors.onSurfaceVariant }}>
+                {stripeStatus?.status === 'ACTIVE'
+                  ? 'Paiements actives'
+                  : 'Recevez vos gains de livraison'}
+              </Text>
+            </View>
+          </View>
+
+          {!stripeStatus || !stripeStatus.hasAccount ? (
+            <Button
+              mode="contained"
+              icon="credit-card-plus-outline"
+              onPress={handleSetupStripe}
+              loading={stripeLoading}
+              disabled={stripeLoading}
+              style={styles.stripeButton}
+            >
+              Configurer Stripe
+            </Button>
+          ) : stripeStatus.status === 'ACTIVE' ? (
+            <View style={styles.stripeActive}>
+              <MaterialCommunityIcons name="check-circle" size={20} color={colors.secondary} />
+              <Text style={{ color: colors.secondary, fontWeight: '600' }}>Paiements actives</Text>
+            </View>
+          ) : (
+            <View>
+              <View style={styles.stripePending}>
+                <MaterialCommunityIcons name="clock-outline" size={20} color={colors.tertiary} />
+                <Text style={{ color: colors.tertiary, fontWeight: '500' }}>Verification en cours</Text>
+              </View>
+              <Button
+                mode="outlined"
+                icon="open-in-new"
+                onPress={handleSetupStripe}
+                loading={stripeLoading}
+                disabled={stripeLoading}
+                style={{ marginTop: spacing.sm }}
+              >
+                Completer la verification
+              </Button>
+            </View>
+          )}
+        </Card.Content>
+      </Card>
+
       {/* Documents */}
       <Text variant="titleMedium" style={styles.documentsTitle}>{t('carrier.documents.requiredDocuments')}</Text>
 
@@ -553,4 +647,9 @@ const styles = StyleSheet.create({
     marginTop: spacing.lg,
   },
   infoText: { flex: 1, color: colors.onSurface },
+  stripeCard: { marginBottom: spacing.lg, borderWidth: 1, borderColor: colors.outline },
+  stripeHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginBottom: spacing.md },
+  stripeButton: { alignSelf: 'flex-start' },
+  stripeActive: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, padding: spacing.sm, backgroundColor: colors.secondaryContainer, borderRadius: 8 },
+  stripePending: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, padding: spacing.sm, backgroundColor: colors.tertiaryContainer, borderRadius: 8 },
 });

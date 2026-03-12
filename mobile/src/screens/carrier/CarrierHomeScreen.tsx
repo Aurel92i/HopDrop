@@ -39,6 +39,7 @@ export function CarrierHomeScreen({ navigation }: CarrierHomeScreenProps) {
 
   // Cagnotte (connectée à l'API)
   const [earnings, setEarnings] = useState({ today: 0, week: 0, total: 0 });
+  const [stripeConfigured, setStripeConfigured] = useState(true); // default true to avoid flash
 
   // Points visibles (toujours MR + Vinted lockers)
   const visibleTypes = useMemo(() => new Set(DEFAULT_VISIBLE_TYPES), []);
@@ -205,6 +206,14 @@ export function CarrierHomeScreen({ navigation }: CarrierHomeScreenProps) {
         });
       } catch (balanceError) {
         console.log('Erreur chargement balance:', balanceError);
+      }
+
+      // Vérifier le statut Stripe Connect
+      try {
+        const connectStatus = await api.getConnectStatus();
+        setStripeConfigured(connectStatus.hasAccount && connectStatus.status === 'ACTIVE');
+      } catch {
+        // Silently ignore - banner won't show
       }
     } catch (e) {
       console.log('Pas de profil carrier');
@@ -473,6 +482,21 @@ export function CarrierHomeScreen({ navigation }: CarrierHomeScreenProps) {
           </TouchableOpacity>
         </View>
       </View>
+
+      {/* Bandeau Stripe non configuré */}
+      {!stripeConfigured && (
+        <TouchableOpacity
+          style={styles.stripeBanner}
+          onPress={() => navigation.navigate('CarrierDocuments')}
+          activeOpacity={0.8}
+        >
+          <MaterialCommunityIcons name="alert-circle-outline" size={18} color="#fff" />
+          <Text style={styles.stripeBannerText}>
+            Configurez Stripe pour recevoir vos paiements
+          </Text>
+          <MaterialCommunityIcons name="chevron-right" size={18} color="#fff" />
+        </TouchableOpacity>
+      )}
 
       {/* Indicateur points recherchés */}
       {searchSelectedPoints.length > 0 && (
@@ -796,9 +820,33 @@ const styles = StyleSheet.create({
   },
 
   // Indicateur recherche
-  searchIndicator: {
+  stripeBanner: {
     position: 'absolute',
     top: 170,
+    left: 16,
+    right: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#F59E0B',
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+  },
+  stripeBannerText: {
+    flex: 1,
+    color: '#fff',
+    fontWeight: '600',
+    fontSize: 13,
+  },
+  searchIndicator: {
+    position: 'absolute',
+    top: 200,
     left: 16,
     flexDirection: 'row',
     alignItems: 'center',

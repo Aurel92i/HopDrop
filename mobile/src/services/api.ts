@@ -561,6 +561,28 @@ class ApiService {
     return response.data;
   }
 
+  // === Stripe Connect ===
+  async createConnectAccount(): Promise<{ accountId: string; alreadyExists?: boolean }> {
+    const response = await this.api.post('/payments/connect/create-account');
+    return response.data;
+  }
+
+  async getConnectOnboardingLink(): Promise<{ url: string }> {
+    const response = await this.api.post('/payments/connect/create-onboarding-link');
+    return response.data;
+  }
+
+  async getConnectStatus(): Promise<{
+    hasAccount: boolean;
+    accountId?: string;
+    status?: 'PENDING' | 'ACTIVE' | 'RESTRICTED' | null;
+    chargesEnabled?: boolean;
+    payoutsEnabled?: boolean;
+  }> {
+    const response = await this.api.get('/payments/connect/status');
+    return response.data;
+  }
+
   // === Reviews ===
   async createReview(data: { parcelId: string; rating: number; comment?: string }) {
     const response = await this.api.post('/reviews', data);
