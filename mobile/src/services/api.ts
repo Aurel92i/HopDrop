@@ -688,8 +688,18 @@ class ApiService {
   }
 
   // === Tips (Pourboires) ===
-  async createTip(parcelId: string, amount: number, message?: string) {
+  async createTip(parcelId: string, amount: number, message?: string): Promise<{
+    success: boolean;
+    clientSecret: string;
+    paymentIntentId: string;
+    tip: { id: string; carrier: { firstName: string } };
+  }> {
     const response = await this.api.post('/tips', { parcelId, amount, message });
+    return response.data;
+  }
+
+  async confirmTip(tipId: string): Promise<{ success: boolean }> {
+    const response = await this.api.post('/tips/confirm', { tipId });
     return response.data;
   }
 

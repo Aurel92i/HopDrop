@@ -32,6 +32,9 @@
       },
       "entitlements": {
         "aps-environment": "production"
+      },
+      "config": {
+        "googleMapsApiKey": "AIzaSyBTy91M7jD7AYWWZFh1pDIXDJyhF0NtdnY"
       }
     },
     "android": {

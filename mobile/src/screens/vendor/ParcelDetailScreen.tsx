@@ -4,6 +4,7 @@ import { Text, Card, Button, Chip, Divider, Avatar, Portal, Modal, TextInput, Pr
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp, useFocusEffect } from '@react-navigation/native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useStripe } from '@stripe/stripe-react-native';
 
 import { LoadingScreen } from '../../components/common/LoadingScreen';
 import { PackagingStatusBadge } from '../../components/common/PackagingStatusBadge';
@@ -39,6 +40,7 @@ export function ParcelDetailScreen({ navigation, route }: ParcelDetailScreenProp
   const { parcelId } = route.params;
   const { currentParcel, isLoading, fetchParcel, cancelParcel } = useParcelStore();
   const { t } = useTranslation();
+  const { initPaymentSheet, presentPaymentSheet } = useStripe();
 
   // Statuts de base du colis (moved inside component for translation)
   const statusConfig = useMemo<Record<ParcelStatus, { label: string; color: string; icon: string }>>(() => ({
@@ -277,7 +279,7 @@ export function ParcelDetailScreen({ navigation, route }: ParcelDetailScreenProp
     );
   };
 
-  // Envoyer un pourboire
+  // Envoyer un pourboire via Stripe Payment Sheet
   const handleSendTip = async () => {
     const amount = parseFloat(tipAmount);
     if (isNaN(amount) || amount <= 0) {
@@ -292,13 +294,44 @@ export function ParcelDetailScreen({ navigation, route }: ParcelDetailScreenProp
 
     setIsSendingTip(true);
     try {
-      await api.createTip(parcelId, amount, tipMessage || undefined);
+      // 1. Creer le tip + PaymentIntent backend
+      const { clientSecret, tip } = await api.createTip(parcelId, amount, tipMessage || undefined);
+
+      // 2. Initialiser le Payment Sheet
+      const { error: initError } = await initPaymentSheet({
+        paymentIntentClientSecret: clientSecret,
+        merchantDisplayName: 'HopDrop',
+        style: 'automatic',
+      });
+
+      if (initError) {
+        throw new Error(initError.message);
+      }
+
+      // 3. Presenter le Payment Sheet
+      const { error: payError } = await presentPaymentSheet();
+
+      if (payError) {
+        if (payError.code === 'Canceled') {
+          return; // User canceled
+        }
+        throw new Error(payError.message);
+      }
+
+      // 4. Confirmer et transferer au livreur
+      try {
+        await api.confirmTip(tip.id);
+      } catch (e) {
+        console.log('Tip confirm fallback:', e);
+      }
+
+      const carrierName = tip.carrier?.firstName || currentParcel?.assignedCarrier?.firstName || t('vendor.parcelDetail.carrier');
 
       Alert.alert(
         t('vendor.parcelDetail.tipSentTitle'),
         t('vendor.parcelDetail.tipSentMessage')
           .replace('{amount}', amount.toFixed(2))
-          .replace('{carrierName}', currentParcel?.assignedCarrier?.firstName || t('vendor.parcelDetail.carrier')),
+          .replace('{carrierName}', carrierName),
         [{ text: t('common.ok') }]
       );
 

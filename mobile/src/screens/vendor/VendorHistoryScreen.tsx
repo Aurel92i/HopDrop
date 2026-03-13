@@ -4,6 +4,7 @@ import { Text, Card, Chip, Portal, Modal, TextInput, Button } from 'react-native
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useStripe } from '@stripe/stripe-react-native';
 
 import { LoadingScreen } from '../../components/common/LoadingScreen';
 import { EmptyState } from '../../components/common/EmptyState';
@@ -24,6 +25,7 @@ interface HistoryParcel extends Parcel {
 
 export function VendorHistoryScreen({ navigation }: VendorHistoryScreenProps) {
   const { t } = useTranslation();
+  const { initPaymentSheet, presentPaymentSheet } = useStripe();
   const [parcels, setParcels] = useState<HistoryParcel[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -121,7 +123,36 @@ export function VendorHistoryScreen({ navigation }: VendorHistoryScreenProps) {
 
     setIsSendingTip(true);
     try {
-      await api.createTip(selectedParcelForTip.id, amount, tipMessage || undefined);
+      // 1. Créer le tip + PaymentIntent backend
+      const { clientSecret, tip } = await api.createTip(selectedParcelForTip.id, amount, tipMessage || undefined);
+
+      // 2. Initialiser le Payment Sheet
+      const { error: initError } = await initPaymentSheet({
+        paymentIntentClientSecret: clientSecret,
+        merchantDisplayName: 'HopDrop',
+        style: 'automatic',
+      });
+
+      if (initError) {
+        throw new Error(initError.message);
+      }
+
+      // 3. Présenter le Payment Sheet
+      const { error: payError } = await presentPaymentSheet();
+
+      if (payError) {
+        if (payError.code === 'Canceled') {
+          return; // Utilisateur a annulé
+        }
+        throw new Error(payError.message);
+      }
+
+      // 4. Confirmer et transférer au livreur
+      try {
+        await api.confirmTip(tip.id);
+      } catch (e) {
+        console.log('Tip confirm fallback:', e);
+      }
 
       Alert.alert(
         t('vendor.history.tipSent'),
