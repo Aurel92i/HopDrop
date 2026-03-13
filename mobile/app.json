@@ -85,6 +85,13 @@
           "merchantIdentifier": "merchant.com.hopdrop.app",
           "enableGooglePay": true
         }
+      ],
+      "expo-apple-authentication",
+      [
+        "@react-native-google-signin/google-signin",
+        {
+          "iosUrlScheme": "com.googleusercontent.apps.992927964172-lqh6pe0ic1ekl4pmbeb3bfel5ck6tj83"
+        }
       ]
     ],
     "owner": "aurelien.herbin",

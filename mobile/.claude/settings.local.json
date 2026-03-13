@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find /c/Users/Admin/projets/HopDrop/backend/src -type f \\\\\\( -name \"*.ts\" \\\\\\) | xargs grep -l \"oauth\\\\|google\\\\|github\\\\|facebook\\\\|social\" 2>/dev/null | head -20)",
+      "Bash(cd C:/Users/Admin/projets/HopDrop/backend && npm install google-auth-library jsonwebtoken jwks-rsa && npm install -D @types/jsonwebtoken)",
+      "Bash(cd C:/Users/Admin/projets/HopDrop/backend && npx prisma generate)",
+      "Bash(cd C:/Users/Admin/projets/HopDrop/backend && npx tsc --noEmit 2>&1 | head -30)",
+      "Bash(cd C:/Users/Admin/projets/HopDrop/backend && npx tsc --noEmit 2>&1 | grep -i \"social-auth\\\\|auth.service\\\\|auth.controller\\\\|auth.routes\\\\|auth.schemas\\\\|auth.types\" || echo \"No errors in auth files\")",
+      "Bash(cd C:/Users/Admin/projets/HopDrop/backend && npx prisma migrate dev --name add_social_auth)",
+      "Bash(find /c/Users/Admin/projets/HopDrop/mobile/src -type f \\\\\\( -name \"*.ts\" -o -name \"*.tsx\" -o -name \"*.json\" \\\\\\) 2>/dev/null | grep -v node_modules)",
+      "Bash(cd C:/Users/Admin/projets/HopDrop/mobile && npx expo install @react-native-google-signin/google-signin expo-apple-authentication)",
+      "Bash(cd C:/Users/Admin/projets/HopDrop/mobile && npx expo install expo-apple-authentication)",
+      "Bash(cd C:/Users/Admin/projets/HopDrop/mobile && npx tsc --noEmit 2>&1 | grep -E \"LoginScreen|RegisterScreen|socialAuth|authStore|api\\\\.ts\" | head -20)",
+      "Bash(cd C:/Users/Admin/projets/HopDrop/mobile && npx tsc --noEmit 2>&1 | grep -E \"socialAuth\" | head -10)"
+    ]
+  }
+}

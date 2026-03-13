@@ -268,6 +268,16 @@ class ApiService {
     return response.data;
   }
 
+  async socialLogin(provider: 'google' | 'apple', token: string, role?: string) {
+    const response = await this.api.post('/auth/social', { provider, token, role });
+    const { accessToken, refreshToken, user, isNewUser } = response.data;
+
+    await SecureStore.setItemAsync('accessToken', accessToken);
+    await SecureStore.setItemAsync('refreshToken', refreshToken);
+
+    return { user, accessToken, refreshToken, isNewUser };
+  }
+
   // === Users ===
   async updateProfile(data: { firstName?: string; lastName?: string; phone?: string; avatarUrl?: string }) {
     const response = await this.api.put('/users/me', data);

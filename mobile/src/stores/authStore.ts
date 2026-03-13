@@ -9,7 +9,7 @@ interface AuthState {
   isAuthenticated: boolean;
   isLoading: boolean;
   error: string | null;
-  
+
   // Actions
   login: (email: string, password: string) => Promise<void>;
   register: (data: {
@@ -19,6 +19,7 @@ interface AuthState {
     lastName: string;
     role: string;
   }) => Promise<void>;
+  socialLogin: (provider: 'google' | 'apple', token: string, role?: string) => Promise<void>;
   logout: () => Promise<void>;
   checkAuth: () => Promise<void>;
   clearError: () => void;
@@ -54,6 +55,21 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       await get().login(data.email, data.password);
     } catch (error: any) {
       const message = error.response?.data?.error || "Erreur d'inscription";
+      set({ error: message, isLoading: false });
+      throw new Error(message);
+    }
+  },
+
+  socialLogin: async (provider, token, role) => {
+    set({ isLoading: true, error: null });
+    try {
+      const { user } = await api.socialLogin(provider, token, role);
+      set({ user, isAuthenticated: true, isLoading: false });
+
+      // Enregistrer le token push après connexion
+      notificationService.registerToken();
+    } catch (error: any) {
+      const message = error.response?.data?.error || 'Erreur de connexion sociale';
       set({ error: message, isLoading: false });
       throw new Error(message);
     }

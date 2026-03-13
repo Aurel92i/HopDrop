@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, TouchableOpacity, Modal } from 'react-native';
 import { Text, Button, Snackbar, SegmentedButtons, Checkbox } from 'react-native-paper';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { Logo } from '../../components/common/Logo';
 import { FormInput } from '../../components/forms/FormInput';
@@ -12,6 +13,7 @@ import { useAuthStore } from '../../stores/authStore';
 import { AuthStackParamList } from '../../navigation/AppNavigator';
 import { colors, spacing } from '../../theme';
 import { useTranslation } from '../../i18n/i18nContext';
+import { signInWithGoogle, signInWithApple, isAppleAuthAvailable } from '../../services/socialAuth';
 
 const registerSchema = z.object({
   email: z.string().email('Email invalide'),
@@ -33,9 +35,12 @@ type RegisterScreenProps = {
 
 export function RegisterScreen({ navigation }: RegisterScreenProps) {
   const { t } = useTranslation();
-  const { register, isLoading, error, clearError } = useAuthStore();
+  const { register, socialLogin, isLoading, error, clearError } = useAuthStore();
   const [showPassword, setShowPassword] = useState(false);
   const [cguAccepted, setCguAccepted] = useState(false);
+  const [socialLoading, setSocialLoading] = useState<'google' | 'apple' | null>(null);
+  const [roleModalVisible, setRoleModalVisible] = useState(false);
+  const [pendingSocialProvider, setPendingSocialProvider] = useState<'google' | 'apple' | null>(null);
 
   const {
     control,
@@ -66,6 +71,38 @@ export function RegisterScreen({ navigation }: RegisterScreenProps) {
       // Error handled by store
     }
   };
+
+  const handleSocialSignUp = (provider: 'google' | 'apple') => {
+    setPendingSocialProvider(provider);
+    setRoleModalVisible(true);
+  };
+
+  const handleRoleSelected = async (role: 'VENDOR' | 'CARRIER') => {
+    setRoleModalVisible(false);
+    const provider = pendingSocialProvider;
+    setPendingSocialProvider(null);
+
+    if (!provider) return;
+
+    setSocialLoading(provider);
+    try {
+      const token = provider === 'google'
+        ? await signInWithGoogle()
+        : await signInWithApple();
+      await socialLogin(provider, token, role);
+    } catch (e: any) {
+      const isCancelled = provider === 'google'
+        ? e?.code === 'SIGN_IN_CANCELLED'
+        : e?.code === 'ERR_REQUEST_CANCELED';
+      if (!isCancelled) {
+        useAuthStore.setState({ error: e?.message || t('auth.register.socialError') });
+      }
+    } finally {
+      setSocialLoading(null);
+    }
+  };
+
+  const isBusy = isLoading || socialLoading !== null;
 
   return (
     <KeyboardAvoidingView
@@ -168,12 +205,49 @@ export function RegisterScreen({ navigation }: RegisterScreenProps) {
             mode="contained"
             onPress={handleSubmit(onSubmit)}
             loading={isLoading}
-            disabled={isLoading || !cguAccepted}
+            disabled={isBusy || !cguAccepted}
             style={styles.submitButton}
             contentStyle={styles.submitButtonContent}
           >
             {t('auth.register.submit')}
           </Button>
+
+          {/* Séparateur */}
+          <View style={styles.divider}>
+            <View style={styles.dividerLine} />
+            <Text variant="bodySmall" style={styles.dividerText}>
+              {t('auth.register.orDivider')}
+            </Text>
+            <View style={styles.dividerLine} />
+          </View>
+
+          {/* Bouton Apple (iOS uniquement) */}
+          {isAppleAuthAvailable() && (
+            <TouchableOpacity
+              style={styles.appleButton}
+              onPress={() => handleSocialSignUp('apple')}
+              disabled={isBusy}
+              activeOpacity={0.8}
+            >
+              <MaterialCommunityIcons name="apple" size={20} color="#FFFFFF" />
+              <Text style={styles.appleButtonText}>
+                {socialLoading === 'apple' ? '...' : t('auth.register.continueWithApple')}
+              </Text>
+            </TouchableOpacity>
+          )}
+
+          {/* Bouton Google */}
+          <TouchableOpacity
+            style={styles.googleButton}
+            onPress={() => handleSocialSignUp('google')}
+            disabled={isBusy}
+            activeOpacity={0.8}
+          >
+            <MaterialCommunityIcons name="google" size={20} color="#4285F4" />
+            <Text style={styles.googleButtonText}>
+              {socialLoading === 'google' ? '...' : t('auth.register.continueWithGoogle')}
+            </Text>
+          </TouchableOpacity>
         </View>
 
         <View style={styles.footer}>
@@ -185,6 +259,63 @@ export function RegisterScreen({ navigation }: RegisterScreenProps) {
           </Button>
         </View>
       </ScrollView>
+
+      {/* Modal de sélection du rôle */}
+      <Modal
+        visible={roleModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setRoleModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text variant="titleLarge" style={styles.modalTitle}>
+              {t('auth.register.selectRoleTitle')}
+            </Text>
+
+            <TouchableOpacity
+              style={styles.roleOption}
+              onPress={() => handleRoleSelected('VENDOR')}
+              activeOpacity={0.7}
+            >
+              <MaterialCommunityIcons name="package-variant" size={28} color={colors.primary} />
+              <View style={styles.roleOptionText}>
+                <Text variant="titleMedium">{t('auth.register.selectRoleVendor')}</Text>
+                <Text variant="bodySmall" style={{ color: colors.onSurfaceVariant }}>
+                  {t('auth.register.roleVendor')}
+                </Text>
+              </View>
+              <MaterialCommunityIcons name="chevron-right" size={24} color={colors.onSurfaceVariant} />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.roleOption}
+              onPress={() => handleRoleSelected('CARRIER')}
+              activeOpacity={0.7}
+            >
+              <MaterialCommunityIcons name="bike" size={28} color={colors.secondary} />
+              <View style={styles.roleOptionText}>
+                <Text variant="titleMedium">{t('auth.register.selectRoleCarrier')}</Text>
+                <Text variant="bodySmall" style={{ color: colors.onSurfaceVariant }}>
+                  {t('auth.register.roleCarrier')}
+                </Text>
+              </View>
+              <MaterialCommunityIcons name="chevron-right" size={24} color={colors.onSurfaceVariant} />
+            </TouchableOpacity>
+
+            <Button
+              mode="text"
+              onPress={() => {
+                setRoleModalVisible(false);
+                setPendingSocialProvider(null);
+              }}
+              style={styles.modalCancel}
+            >
+              {t('common.cancel')}
+            </Button>
+          </View>
+        </View>
+      </Modal>
 
       <Snackbar
         visible={!!error}
@@ -244,6 +375,51 @@ const styles = StyleSheet.create({
   submitButtonContent: {
     paddingVertical: spacing.sm,
   },
+  divider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: spacing.lg,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: colors.outline,
+  },
+  dividerText: {
+    marginHorizontal: spacing.md,
+    color: colors.onSurfaceVariant,
+  },
+  appleButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#000000',
+    borderRadius: 12,
+    paddingVertical: 14,
+    marginBottom: spacing.sm,
+    gap: spacing.sm,
+  },
+  appleButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  googleButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    paddingVertical: 14,
+    borderWidth: 1,
+    borderColor: colors.outline,
+    gap: spacing.sm,
+  },
+  googleButtonText: {
+    color: '#1F1F1F',
+    fontSize: 16,
+    fontWeight: '600',
+  },
   footer: {
     flexDirection: 'row',
     justifyContent: 'center',
@@ -262,5 +438,40 @@ const styles = StyleSheet.create({
   cguText: {
     flex: 1,
     color: colors.onSurfaceVariant,
+  },
+  // Modal
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: spacing.lg,
+  },
+  modalContent: {
+    backgroundColor: colors.surface,
+    borderRadius: 16,
+    padding: spacing.lg,
+    width: '100%',
+    maxWidth: 360,
+  },
+  modalTitle: {
+    textAlign: 'center',
+    marginBottom: spacing.lg,
+    fontWeight: '600',
+  },
+  roleOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: spacing.md,
+    borderRadius: 12,
+    backgroundColor: colors.surfaceVariant,
+    marginBottom: spacing.sm,
+    gap: spacing.md,
+  },
+  roleOptionText: {
+    flex: 1,
+  },
+  modalCancel: {
+    marginTop: spacing.sm,
   },
 });
