@@ -10,6 +10,7 @@ export async function authRoutes(app: FastifyInstance) {
   app.post('/auth/register', authController.register.bind(authController));
   app.post('/auth/login', authController.login.bind(authController));
   app.post('/auth/refresh', authController.refresh.bind(authController));
+  app.post('/auth/social', authController.socialLogin.bind(authController));
   app.post('/auth/forgot-password', authController.forgotPassword.bind(authController));
   app.post('/auth/reset-password', authController.resetPassword.bind(authController));
 

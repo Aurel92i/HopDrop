@@ -1,9 +1,10 @@
 import bcrypt from 'bcrypt';
 import { nanoid } from 'nanoid';
 import { prisma } from '../../shared/prisma.js';
-import { RegisterInput, LoginInput } from './auth.schemas.js';
+import { RegisterInput, LoginInput, SocialAuthInput } from './auth.schemas.js';
 import { AuthTokens, sanitizeUser, SafeUser } from './auth.types.js';
 import { FastifyInstance } from 'fastify';
+import { verifyGoogleToken, verifyAppleToken } from './social-auth.service.js';
 
 const SALT_ROUNDS = 10;
 const ACCESS_TOKEN_EXPIRY = '15m';
@@ -62,6 +63,11 @@ export class AuthService {
 
     if (!user) {
       throw new Error('Email ou mot de passe incorrect');
+    }
+
+    // Si l'utilisateur s'est inscrit via social auth et n'a pas de mot de passe
+    if (!user.passwordHash) {
+      throw new Error('Ce compte utilise la connexion ' + (user.authProvider || 'sociale') + '. Veuillez vous connecter avec ' + (user.authProvider || 'votre provider social') + '.');
     }
 
     // Vérifier le mot de passe
@@ -208,6 +214,66 @@ export class AuthService {
       where: { id: userId },
       data: { passwordHash },
     });
+  }
+
+  async socialLogin(input: SocialAuthInput): Promise<{ user: SafeUser; tokens: AuthTokens; isNewUser: boolean }> {
+    // Vérifier le token selon le provider
+    const socialUser = input.provider === 'google'
+      ? await verifyGoogleToken(input.token)
+      : await verifyAppleToken(input.token);
+
+    // Chercher un utilisateur existant par email
+    let user = await prisma.user.findUnique({
+      where: { email: socialUser.email },
+    });
+
+    let isNewUser = false;
+
+    if (user) {
+      // Mettre à jour le provider si pas déjà défini
+      if (!user.authProvider) {
+        await prisma.user.update({
+          where: { id: user.id },
+          data: {
+            authProvider: input.provider,
+            authProviderId: socialUser.providerId,
+          },
+        });
+      }
+    } else {
+      // Créer l'utilisateur
+      const role = input.role || 'VENDOR';
+      user = await prisma.user.create({
+        data: {
+          email: socialUser.email,
+          firstName: socialUser.firstName || 'Utilisateur',
+          lastName: socialUser.lastName || '',
+          role,
+          avatarUrl: socialUser.avatarUrl,
+          authProvider: input.provider,
+          authProviderId: socialUser.providerId,
+          emailVerified: true, // Email vérifié par le provider
+        },
+      });
+
+      // Si le rôle est CARRIER ou BOTH, créer le profil carrier
+      if (role === 'CARRIER' || role === 'BOTH') {
+        await prisma.carrierProfile.create({
+          data: { userId: user.id },
+        });
+      }
+
+      isNewUser = true;
+    }
+
+    // Générer les tokens
+    const tokens = await this.generateTokens(user.id, user.email, user.role);
+
+    return {
+      user: sanitizeUser(user),
+      tokens,
+      isNewUser,
+    };
   }
 
   private async generateTokens(userId: string, email: string, role: string): Promise<AuthTokens> {

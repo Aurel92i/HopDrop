@@ -6,11 +6,13 @@ import {
   refreshTokenSchema,
   forgotPasswordSchema,
   resetPasswordSchema,
+  socialAuthSchema,
   RegisterInput,
   LoginInput,
   RefreshTokenInput,
   ForgotPasswordInput,
   ResetPasswordInput,
+  SocialAuthInput,
 } from './auth.schemas.js';
 
 export class AuthController {
@@ -42,6 +44,25 @@ export class AuthController {
         user: result.user,
         accessToken: result.tokens.accessToken,
         refreshToken: result.tokens.refreshToken,
+      });
+    } catch (error: any) {
+      if (error.name === 'ZodError') {
+        return reply.status(400).send({ error: 'Données invalides', details: error.errors });
+      }
+      return reply.status(401).send({ error: error.message });
+    }
+  }
+
+  async socialLogin(request: FastifyRequest<{ Body: SocialAuthInput }>, reply: FastifyReply) {
+    try {
+      const input = socialAuthSchema.parse(request.body);
+      const result = await this.authService.socialLogin(input);
+
+      return reply.send({
+        user: result.user,
+        accessToken: result.tokens.accessToken,
+        refreshToken: result.tokens.refreshToken,
+        isNewUser: result.isNewUser,
       });
     } catch (error: any) {
       if (error.name === 'ZodError') {

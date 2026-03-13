@@ -102,7 +102,7 @@ enum VehicleType {
 model User {
   id                     String    @id @default(uuid())
   email                  String    @unique
-  passwordHash           String
+  passwordHash           String?
   firstName              String
   lastName               String
   phone                  String?
@@ -113,6 +113,8 @@ model User {
   passwordResetToken     String?
   passwordResetExpires   DateTime?
   fcmToken               String?
+  authProvider           String?   // 'google' | 'apple' | null (email/password)
+  authProviderId         String?   // sub Google ou Apple user ID
   createdAt              DateTime  @default(now())
   updatedAt              DateTime  @updatedAt
 

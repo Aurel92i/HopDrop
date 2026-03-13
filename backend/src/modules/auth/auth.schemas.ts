@@ -26,8 +26,15 @@ export const resetPasswordSchema = z.object({
   newPassword: z.string().min(8, 'Le mot de passe doit contenir au moins 8 caractères'),
 });
 
+export const socialAuthSchema = z.object({
+  provider: z.enum(['google', 'apple']),
+  token: z.string().min(1, 'Le token est requis'),
+  role: z.enum(['VENDOR', 'CARRIER', 'BOTH']).optional(),
+});
+
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 export type RefreshTokenInput = z.infer<typeof refreshTokenSchema>;
 export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
+export type SocialAuthInput = z.infer<typeof socialAuthSchema>;
