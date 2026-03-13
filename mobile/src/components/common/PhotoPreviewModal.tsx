@@ -204,8 +204,7 @@ export function PhotoPreviewModal({
   if (!photoUri) return null;
 
   return (
-    <Portal>
-      <Modal visible={visible} onDismiss={onRetake} contentContainerStyle={styles.container}>
+    <Modal visible={visible} onDismiss={onRetake} contentContainerStyle={styles.container}>
         <Text variant="titleMedium" style={styles.title}>
           {t('common.photoPreviewTitle')}
         </Text>
@@ -261,7 +260,6 @@ export function PhotoPreviewModal({
           </Button>
         </View>
       </Modal>
-    </Portal>
   );
 }
 

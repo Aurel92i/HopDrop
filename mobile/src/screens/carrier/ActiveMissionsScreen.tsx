@@ -128,7 +128,7 @@ export function ActiveMissionsScreen({ navigation }: ActiveMissionsScreenProps) 
     }
 
     const result = await ImagePicker.launchCameraAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ['images'],
       allowsEditing: false,
       quality: 0.8,
     });
@@ -172,7 +172,7 @@ export function ActiveMissionsScreen({ navigation }: ActiveMissionsScreenProps) 
     }
 
     const result = await ImagePicker.launchCameraAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ['images'],
       allowsEditing: false,
       quality: 0.8,
     });

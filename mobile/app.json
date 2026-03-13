@@ -34,7 +34,8 @@
         "aps-environment": "production"
       },
       "config": {
-        "googleMapsApiKey": "AIzaSyBTy91M7jD7AYWWZFh1pDIXDJyhF0NtdnY"
+        "googleMapsApiKey": "AIzaSyDPGWjWiTpS52Td4gIWedEPOXqoWqQVwpA"
+"
       }
     },
     "android": {

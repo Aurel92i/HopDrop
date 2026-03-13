@@ -65,7 +65,7 @@ export const sizes = {
 };
 
 export const carriers = {
-  VINTED: { label: 'Vinted', icon: 'shopping' },
+  VINTED: { label: 'Vinted', icon: 'hanger' },
   MONDIAL_RELAY: { label: 'Mondial Relay', icon: 'store' },
   COLISSIMO: { label: 'Colissimo (La Poste)', icon: 'email' },
   CHRONOPOST: { label: 'Chronopost', icon: 'lightning-bolt' },

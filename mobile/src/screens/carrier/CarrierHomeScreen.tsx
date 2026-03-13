@@ -1,11 +1,24 @@
 import React, { useCallback, useState, useRef, useEffect, useMemo } from 'react';
-import { View, StyleSheet, Dimensions, Alert, Animated, TouchableOpacity, ScrollView, TextInput, Modal, Platform } from 'react-native';
+import {
+  View,
+  StyleSheet,
+  Dimensions,
+  Alert,
+  Animated,
+  TouchableOpacity,
+  ScrollView,
+  TextInput,
+  Modal,
+  Platform,
+  Linking,
+} from 'react-native';
 import { Text, Switch, IconButton, Divider } from 'react-native-paper';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import MapView, { Marker, PROVIDER_GOOGLE, Region } from 'react-native-maps';
 import * as Location from 'expo-location';
+
 import { LoadingScreen } from '../../components/common/LoadingScreen';
 import { useMissionStore } from '../../stores/missionStore';
 import { api } from '../../services/api';
@@ -23,12 +36,12 @@ const { width, height } = Dimensions.get('window');
 const BOTTOM_SHEET_MAX_HEIGHT = height * 0.55;
 const BOTTOM_SHEET_MIN_HEIGHT = 0;
 
-// Types affichés par défaut (MR + Vinted lockers uniquement)
 const DEFAULT_VISIBLE_TYPES: PickupPointType[] = ['VINTED_LOCKER', 'MONDIAL_RELAY_LOCKER'];
 
 export function CarrierHomeScreen({ navigation }: CarrierHomeScreenProps) {
   const { t, language, setLanguage } = useTranslation();
   const { currentMissions, fetchCurrentMissions } = useMissionStore();
+
   const [isAvailable, setIsAvailable] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [availableParcels, setAvailableParcels] = useState<Parcel[]>([]);
@@ -37,14 +50,15 @@ export function CarrierHomeScreen({ navigation }: CarrierHomeScreenProps) {
   const [isAccepting, setIsAccepting] = useState(false);
   const mapRef = useRef<MapView>(null);
 
-  // Cagnotte (connectée à l'API)
+  // Cagnotte
   const [earnings, setEarnings] = useState({ today: 0, week: 0, total: 0 });
-  const [stripeConfigured, setStripeConfigured] = useState(true); // default true to avoid flash
+  const [stripeConfigured, setStripeConfigured] = useState(true);
 
-  // Points visibles (toujours MR + Vinted lockers)
+  // État pour le hint Stripe
+  const [stripeHintShown, setStripeHintShown] = useState(false);
+
   const visibleTypes = useMemo(() => new Set(DEFAULT_VISIBLE_TYPES), []);
 
-  // Recherche
   const [showSearchModal, setShowSearchModal] = useState(false);
   const [showLanguageModal, setShowLanguageModal] = useState(false);
   const [showEarnings, setShowEarnings] = useState(true);
@@ -53,13 +67,11 @@ export function CarrierHomeScreen({ navigation }: CarrierHomeScreenProps) {
   const [filteredSearchPoints, setFilteredSearchPoints] = useState<PickupPoint[]>(PICKUP_POINTS);
   const [searchSelectedPoints, setSearchSelectedPoints] = useState<PickupPoint[]>([]);
 
-  // Thème jour/nuit
   const [isDarkMode, setIsDarkMode] = useState(() => {
     const hour = new Date().getHours();
     return hour >= 20 || hour < 7;
   });
 
-  // Animations
   const bottomSheetAnim = useRef(new Animated.Value(BOTTOM_SHEET_MIN_HEIGHT)).current;
   const backdropAnim = useRef(new Animated.Value(0)).current;
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -71,7 +83,6 @@ export function CarrierHomeScreen({ navigation }: CarrierHomeScreenProps) {
     longitudeDelta: 0.08,
   });
 
-  // Module-level constants moved inside component with useMemo for i18n
   const SEARCH_FILTERS = useMemo(() => [
     { type: 'ALL' as const, label: t('carrier.home.all'), icon: 'map-marker-multiple', color: colors.primary },
     { type: 'LOCKERS' as const, label: t('carrier.home.lockers'), icon: 'locker', color: '#10B981' },
@@ -92,16 +103,11 @@ export function CarrierHomeScreen({ navigation }: CarrierHomeScreenProps) {
     XL: t('carrier.home.sizeXL'), XLARGE: t('carrier.home.sizeXL'),
   }), [t]);
 
-  // Locale mapping for date/time formatting
   const LOCALE_MAP: Record<string, string> = { fr: 'fr-FR', en: 'en-US', es: 'es-ES', ar: 'ar-SA', pt: 'pt-PT' };
   const currentLocale = LOCALE_MAP[language] || 'fr-FR';
 
-  // Language picker
-  const showLanguagePicker = () => {
-    setShowLanguageModal(true);
-  };
+  const showLanguagePicker = () => setShowLanguageModal(true);
 
-  // Points visibles sur la carte
   const mapPoints = useMemo(() => {
     const defaultPoints = PICKUP_POINTS.filter(p => visibleTypes.has(p.type));
     const searchPointIds = new Set(searchSelectedPoints.map(p => p.id));
@@ -111,7 +117,6 @@ export function CarrierHomeScreen({ navigation }: CarrierHomeScreenProps) {
     ];
   }, [visibleTypes, searchSelectedPoints]);
 
-  // Animation pulse pour le bouton en ligne
   useEffect(() => {
     if (isAvailable) {
       const pulse = Animated.loop(
@@ -196,27 +201,17 @@ export function CarrierHomeScreen({ navigation }: CarrierHomeScreenProps) {
       const profile = await api.getCarrierProfile();
       setIsAvailable(profile.isAvailable ?? false);
 
-      // Charger les gains depuis l'API
-      try {
-        const balance = await api.getCarrierBalance();
-        setEarnings({
-          today: balance.today || 0,
-          week: balance.week || 0,
-          total: balance.total || 0,
-        });
-      } catch (balanceError) {
-        console.log('Erreur chargement balance:', balanceError);
-      }
+      const balance = await api.getCarrierBalance();
+      setEarnings({
+        today: balance.today || 0,
+        week: balance.week || 0,
+        total: balance.total || 0,
+      });
 
-      // Vérifier le statut Stripe Connect
-      try {
-        const connectStatus = await api.getConnectStatus();
-        setStripeConfigured(connectStatus.hasAccount && connectStatus.status === 'ACTIVE');
-      } catch {
-        // Silently ignore - banner won't show
-      }
+      const connectStatus = await api.getConnectStatus();
+      setStripeConfigured(connectStatus.hasAccount && connectStatus.status === 'ACTIVE');
     } catch (e) {
-      console.log('Pas de profil carrier');
+      console.log('Erreur chargement profil/balance/stripe:', e);
     }
     setIsLoading(false);
   };
@@ -236,7 +231,7 @@ export function CarrierHomeScreen({ navigation }: CarrierHomeScreenProps) {
       await api.updateAvailability(newValue);
       setIsAvailable(newValue);
     } catch (e) {
-      console.error('Erreur:', e);
+      console.error('Erreur toggle availability:', e);
     }
   };
 
@@ -296,7 +291,6 @@ export function CarrierHomeScreen({ navigation }: CarrierHomeScreenProps) {
     return new Date(dateString).toLocaleTimeString(currentLocale, { hour: '2-digit', minute: '2-digit' });
   };
 
-  // Recherche
   const handleSearch = (query: string) => {
     setSearchQuery(query);
     applySearchFilters(query, searchFilter);
@@ -337,15 +331,33 @@ export function CarrierHomeScreen({ navigation }: CarrierHomeScreenProps) {
       [
         { text: t('common.ok'), style: 'cancel' },
         { text: t('carrier.home.goThere'), onPress: () => {
-          import('react-native').then(({ Linking }) => {
-            Linking.openURL(`https://www.google.com/maps/dir/?api=1&destination=${point.latitude},${point.longitude}`);
-          });
+          Linking.openURL(`https://www.google.com/maps/dir/?api=1&destination=${point.latitude},${point.longitude}`);
         }},
       ]
     );
   };
 
   const clearSearchPoints = () => setSearchSelectedPoints([]);
+
+  // Gestion du petit indicateur Stripe
+  const handleStripeTap = () => {
+    if (stripeHintShown) {
+      navigation.navigate('CarrierDocuments'); // ← change ici si tu as un lien direct Stripe
+    } else {
+      setStripeHintShown(true);
+      Alert.alert(
+        'Configurer Stripe',
+        'Pour recevoir vos paiements, vous devez compléter votre compte Stripe Connect.\n\nCela prend seulement quelques minutes.',
+        [
+          { text: 'Plus tard', style: 'cancel' },
+          {
+            text: 'Configurer maintenant',
+            onPress: () => navigation.navigate('CarrierDocuments'),
+          },
+        ]
+      );
+    }
+  };
 
   if (isLoading) return <LoadingScreen message={t('common.loading')} />;
 
@@ -383,8 +395,9 @@ export function CarrierHomeScreen({ navigation }: CarrierHomeScreenProps) {
         onRegionChangeComplete={setRegion}
         customMapStyle={isDarkMode ? darkMapStyle : undefined}
         onPress={() => selectedParcel && closeBottomSheet()}
+AIzaSyDPGWjWiTpS52Td4gIWedEPOXqoWqQVwpA
+        APIKey=""
       >
-        {/* Colis disponibles */}
         {availableParcels.map((parcel: any) => (
           parcel.pickupAddress && (
             <Marker
@@ -399,7 +412,6 @@ export function CarrierHomeScreen({ navigation }: CarrierHomeScreenProps) {
           )
         ))}
 
-        {/* Points de collecte (MR + Vinted lockers) */}
         {mapPoints.map((point) => {
           const config = PICKUP_POINT_CONFIG[point.type];
           if (!config) return null;
@@ -417,7 +429,6 @@ export function CarrierHomeScreen({ navigation }: CarrierHomeScreenProps) {
           );
         })}
 
-        {/* Missions en cours */}
         {currentMissions.map((mission) => (
           mission.parcel?.pickupAddress && (
             <Marker
@@ -458,45 +469,46 @@ export function CarrierHomeScreen({ navigation }: CarrierHomeScreenProps) {
           />
         </View>
 
-        {/* Cagnotte style Uber */}
-        <View style={styles.earningsPill}>
-          <TouchableOpacity
-            style={styles.earningsPillLeft}
-            activeOpacity={0.7}
-            onPress={() => navigation.navigate('TransactionHistory')}
-          >
-            <Text style={styles.earningsPillAmount}>
-              {showEarnings ? `${earnings.total.toFixed(2)} €` : '••••'}
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => setShowEarnings(!showEarnings)}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            style={styles.earningsPillEye}
-          >
-            <MaterialCommunityIcons
-              name={showEarnings ? 'eye-outline' : 'eye-off-outline'}
-              size={20}
-              color={showEarnings ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.5)'}
-            />
-          </TouchableOpacity>
+        {/* Conteneur pour aligner pill + indicateur Stripe à droite */}
+        <View style={styles.balanceRow}>
+          {/* Pill cagnotte (solde + œil) */}
+          <View style={styles.earningsPill}>
+            <TouchableOpacity
+              style={styles.earningsPillLeft}
+              activeOpacity={0.7}
+              onPress={() => navigation.navigate('TransactionHistory')}
+            >
+              <Text style={styles.earningsPillAmount}>
+                {showEarnings ? `${earnings.total.toFixed(2)} €` : '••••'}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => setShowEarnings(!showEarnings)}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              style={styles.earningsPillEye}
+            >
+              <MaterialCommunityIcons
+                name={showEarnings ? 'eye-outline' : 'eye-off-outline'}
+                size={20}
+                color={showEarnings ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.5)'}
+              />
+            </TouchableOpacity>
+          </View>
+
+          {/* Indicateur Stripe aligné à droite du cadre pill (pas dedans) */}
+          {!stripeConfigured && (
+            <TouchableOpacity
+              style={styles.stripeSideIndicator}
+              onPress={handleStripeTap}
+              activeOpacity={0.7}
+            >
+              <MaterialCommunityIcons name="information-outline" size={20} color="#f59e0b" />
+              <Text style={styles.stripeSideText}>Stripe</Text>
+            </TouchableOpacity>
+          )}
         </View>
       </View>
-
-      {/* Bandeau Stripe non configuré */}
-      {!stripeConfigured && (
-        <TouchableOpacity
-          style={styles.stripeBanner}
-          onPress={() => navigation.navigate('CarrierDocuments')}
-          activeOpacity={0.8}
-        >
-          <MaterialCommunityIcons name="alert-circle-outline" size={18} color="#fff" />
-          <Text style={styles.stripeBannerText}>
-            Configurez Stripe pour recevoir vos paiements
-          </Text>
-          <MaterialCommunityIcons name="chevron-right" size={18} color="#fff" />
-        </TouchableOpacity>
-      )}
 
       {/* Indicateur points recherchés */}
       {searchSelectedPoints.length > 0 && (
@@ -511,7 +523,7 @@ export function CarrierHomeScreen({ navigation }: CarrierHomeScreenProps) {
         </TouchableOpacity>
       )}
 
-{/* Modal sélection de langue */}
+      {/* Modal langue */}
       <Modal visible={showLanguageModal} transparent animationType="fade" onRequestClose={() => setShowLanguageModal(false)}>
         <TouchableOpacity style={styles.langModalOverlay} activeOpacity={1} onPress={() => setShowLanguageModal(false)}>
           <View style={styles.langModalContent}>
@@ -531,7 +543,7 @@ export function CarrierHomeScreen({ navigation }: CarrierHomeScreenProps) {
         </TouchableOpacity>
       </Modal>
 
-      {/* ===== BARRE DU BAS ===== */}
+      {/* Barre du bas */}
       <View style={styles.bottomBar}>
         <View style={styles.bottomBarInner}>
           <TouchableOpacity
@@ -592,11 +604,10 @@ export function CarrierHomeScreen({ navigation }: CarrierHomeScreenProps) {
         </View>
       </View>
 
-      {/* ===== MODAL RECHERCHE ===== */}
+      {/* Modal recherche */}
       <Modal visible={showSearchModal} animationType="slide" transparent onRequestClose={() => setShowSearchModal(false)}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            {/* Handle */}
             <View style={styles.modalHandle}><View style={styles.modalHandleBar} /></View>
 
             <View style={styles.modalHeader}>
@@ -682,7 +693,7 @@ export function CarrierHomeScreen({ navigation }: CarrierHomeScreenProps) {
         </Animated.View>
       )}
 
-      {/* Bottom Sheet Colis */}
+      {/* Bottom Sheet */}
       <Animated.View style={[styles.bottomSheet, { height: bottomSheetAnim }]}>
         {selectedParcel && (
           <>
@@ -765,10 +776,8 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F9FAFB' },
   map: { width, height },
 
-  // Header
   headerContainer: { position: 'absolute', top: 12, left: 16, right: 16, gap: 12 },
 
-  // Card En ligne
   onlineCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -789,15 +798,20 @@ const styles = StyleSheet.create({
   onlineSubtitle: { fontSize: 12, color: '#6B7280', marginTop: 2 },
   onlineSwitch: { transform: [{ scaleX: 1.1 }, { scaleY: 1.1 }] },
 
-  // Cagnotte pill style Uber
+  // NOUVEAU : conteneur qui aligne pill + Stripe à droite
+  balanceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+
   earningsPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    alignSelf: 'flex-start',
     backgroundColor: '#1a1a1a',
     borderRadius: 28,
     paddingLeft: 20,
-    paddingRight: 6,
+    paddingRight: 12,
     paddingVertical: 10,
     ...Platform.select({
       ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8 },
@@ -819,31 +833,23 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
 
-  // Indicateur recherche
-  stripeBanner: {
-    position: 'absolute',
-    top: 170,
-    left: 16,
-    right: 16,
+  // Indicateur Stripe aligné à droite du pill (en dehors du cadre)
+  stripeSideIndicator: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    backgroundColor: '#F59E0B',
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderRadius: 10,
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: '#fef3c7',
+    borderRadius: 20,
+    marginLeft: 12, // espace par rapport au pill
   },
-  stripeBannerText: {
-    flex: 1,
-    color: '#fff',
+  stripeSideText: {
+    fontSize: 14,
     fontWeight: '600',
-    fontSize: 13,
+    color: '#d97706',
   },
+
   searchIndicator: {
     position: 'absolute',
     top: 200,
@@ -862,7 +868,6 @@ const styles = StyleSheet.create({
   },
   searchIndicatorText: { fontSize: 13, fontWeight: '500', color: '#10B981' },
 
-  // Barre du bas
   bottomBar: {
     position: 'absolute',
     bottom: 0,
@@ -926,7 +931,6 @@ const styles = StyleSheet.create({
   },
   barDivider: { width: 1, height: 32, backgroundColor: '#E5E7EB' },
 
-  // Markers
   parcelMarker: {
     backgroundColor: colors.primary,
     padding: 10,
@@ -965,7 +969,6 @@ const styles = StyleSheet.create({
     }),
   },
 
-  // Modal
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   modalContent: {
     backgroundColor: 'white',
@@ -1021,7 +1024,6 @@ const styles = StyleSheet.create({
   badge24Text: { fontSize: 10, fontWeight: '700', color: '#10B981' },
   resultArrow: { padding: 4 },
 
-  // Backdrop & Sheet
   backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: '#000' },
   bottomSheet: {
     position: 'absolute',
@@ -1065,11 +1067,6 @@ const styles = StyleSheet.create({
     marginVertical: 12,
     gap: 14,
   },
-  langModalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center' },
-  langModalContent: { backgroundColor: 'white', borderRadius: 16, padding: 20, width: '80%', maxWidth: 320 },
-  langModalTitle: { fontSize: 18, fontWeight: '700', color: '#1F2937', marginBottom: 16, textAlign: 'center' },
-  langModalOption: { paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#F3F4F6' },
-  langModalOptionText: { fontSize: 16, color: '#374151', textAlign: 'center' },
   slotScheduled: { backgroundColor: colors.primary },
   slotImmediate: { backgroundColor: '#F59E0B' },
   slotContent: { flex: 1 },
@@ -1104,5 +1101,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#2563EB',
     borderRadius: 16,
   },
-  acceptBtnText: { fontSize: 17, fontWeight: '700', color: 'white' }
+  acceptBtnText: { fontSize: 17, fontWeight: '700', color: 'white' },
+
+  langModalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center' },
+  langModalContent: { backgroundColor: 'white', borderRadius: 16, padding: 20, width: '80%', maxWidth: 320 },
+  langModalTitle: { fontSize: 18, fontWeight: '700', color: '#1F2937', marginBottom: 16, textAlign: 'center' },
+  langModalOption: { paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#F3F4F6' },
+  langModalOptionText: { fontSize: 16, color: '#374151', textAlign: 'center' },
 });

@@ -39,7 +39,7 @@ export default function ArticleAnalysisModal({ visible, onClose, onAnalysisCompl
     }
 
     const pickerResult = await ImagePicker.launchCameraAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ['images'],
       quality: 0.8,
       allowsEditing: false,
     });
@@ -57,7 +57,7 @@ export default function ArticleAnalysisModal({ visible, onClose, onAnalysisCompl
     }
 
     const pickerResult = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ['images'],
       quality: 0.8,
       allowsEditing: false,
     });

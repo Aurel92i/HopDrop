@@ -8,7 +8,6 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
-
 import { FormInput } from '../../components/forms/FormInput';
 import { useParcelStore } from '../../stores/parcelStore';
 import { api, AnalysisResult, PRICING } from '../../services/api';
@@ -37,7 +36,6 @@ const createParcelSchema = z.object({
   itemPhotoUrl: z.string().optional(),
   itemCategory: z.string().optional(),
 }).refine((data) => {
-  // Si mode planifié, les champs de date/heure sont requis
   if (data.pickupMode === 'SCHEDULED') {
     return data.pickupDate && data.pickupTimeStart && data.pickupTimeEnd;
   }
@@ -76,8 +74,6 @@ const generateTimeSlots = () => {
   return slots;
 };
 
-// generateAvailableDates is now inside the component (needs t() for translations)
-
 export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
   const { t } = useTranslation();
   const { createParcel, isLoading, error, clearError } = useParcelStore();
@@ -96,13 +92,12 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
     latitude: 0,
     longitude: 0,
   });
-  
+ 
   // États pour l'analyse IA
   const [showAnalysisModal, setShowAnalysisModal] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
   const [articleImageUri, setArticleImageUri] = useState<string | null>(null);
   const [timeSlotPreset, setTimeSlotPreset] = useState<'morning' | 'afternoon' | 'evening' | 'custom' | null>(null);
-
   const timeSlots = generateTimeSlots();
 
   // BUG 3: Intercept back button to navigate to previous step
@@ -242,18 +237,17 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
     setItemPhoto(imageUri);
     setValue('itemPhotoUrl', imageUri);
     setValue('itemCategory', result.articleName);
-    
-    // Mapper la taille IA (XS/S/M/L) vers Prisma (SMALL/MEDIUM/LARGE)
+   
     const sizeMapping: Record<string, 'SMALL' | 'MEDIUM' | 'LARGE' | 'XLARGE'> = {
       'XS': 'SMALL',
       'S': 'SMALL',
       'M': 'MEDIUM',
       'L': 'LARGE',
     };
-    
+   
     if (result.isCompatible && result.packageSize !== 'NON_COMPATIBLE') {
       setValue('size', sizeMapping[result.packageSize] || 'MEDIUM');
-      setDetectedCategory('other'); // Pour afficher le résultat
+      setDetectedCategory('other');
     }
   };
 
@@ -264,13 +258,11 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
       Alert.alert(t('common.permissionDenied'), t('common.cameraPermission'));
       return;
     }
-
     const result = await ImagePicker.launchCameraAsync({
       mediaTypes: ['images'],
       allowsEditing: false,
       quality: 0.8,
     });
-
     if (!result.canceled && result.assets[0]) {
       setRawItemPhotoUri(result.assets[0].uri);
     }
@@ -283,13 +275,11 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
       Alert.alert(t('common.permissionDenied'), t('common.galleryPermission'));
       return;
     }
-
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       allowsEditing: false,
       quality: 0.8,
     });
-
     if (!result.canceled && result.assets[0]) {
       setRawItemPhotoUri(result.assets[0].uri);
     }
@@ -301,13 +291,12 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
       Alert.alert(t('common.error'), t('vendor.createParcel.fillAllFields'));
       return;
     }
-
     try {
       const { address } = await api.createAddress({
         ...tempAddress,
         isTemporary: true,
       });
-      
+     
       setAddresses([...addresses, address]);
       setValue('pickupAddressId', address.id);
       setShowTempAddressModal(false);
@@ -340,7 +329,6 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
         type: ['application/pdf', 'image/*'],
         copyToCacheDirectory: true,
       });
-
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const file = result.assets[0];
         setValue('shippingLabelUrl', file.uri);
@@ -356,7 +344,6 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
         type: ['application/pdf', 'image/*'],
         copyToCacheDirectory: true,
       });
-
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const file = result.assets[0];
         setValue('qrCodeUrl', file.uri);
@@ -368,10 +355,8 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
 
   const onSubmit = async (data: CreateParcelFormData) => {
     try {
-      // 1. Preparer les creneaux
       let pickupSlotStart: string;
       let pickupSlotEnd: string;
-
       if (data.pickupMode === 'IMMEDIATE') {
         const now = new Date();
         pickupSlotStart = now.toISOString();
@@ -384,7 +369,6 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
         pickupSlotEnd = endDate.toISOString();
       }
 
-      // 2. Creer le colis d'abord
       const parcel = await createParcel({
         pickupAddressId: data.pickupAddressId,
         size: data.size,
@@ -404,7 +388,6 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
         itemCategory: data.itemCategory || undefined,
       });
 
-      // 3. Creer le PaymentIntent avec le parcelId
       let clientSecret: string | undefined;
       let paymentIntentId: string | undefined;
       try {
@@ -415,7 +398,6 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
         console.log('PaymentIntent creation failed, will use simulation:', paymentError);
       }
 
-      // 4. Naviguer vers l'ecran de paiement
       navigation.replace('Payment', {
         parcelId: parcel.id,
         amount: 10,
@@ -436,7 +418,6 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
       <Text variant="bodySmall" style={styles.stepSubtitle}>
         Où le livreur doit-il venir chercher votre colis ?
       </Text>
-
       <Controller
         control={control}
         name="pickupAddressId"
@@ -481,8 +462,6 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
                 </Card>
               ))
             )}
-
-            {/* Bouton ajouter adresse temporaire */}
             <TouchableOpacity
               style={styles.addTempAddressButton}
               onPress={() => setShowTempAddressModal(true)}
@@ -496,8 +475,6 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
       {errors.pickupAddressId && (
         <Text style={styles.errorText}>{errors.pickupAddressId.message}</Text>
       )}
-
-      {/* Informations complémentaires */}
       {watch('pickupAddressId') && (
         <Controller
           control={control}
@@ -516,7 +493,6 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
           )}
         />
       )}
-
       <Button
         mode="contained"
         onPress={() => setStep(2)}
@@ -537,8 +513,6 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
       <Text variant="bodySmall" style={styles.stepSubtitle}>
         Prenez une photo de votre article pour que notre IA détermine automatiquement la taille de colis optimale
       </Text>
-
-      {/* BOUTON UNIQUE DE PRISE DE PHOTO */}
       {!analysisResult && (
         <TouchableOpacity
           style={styles.mainPhotoButton}
@@ -554,37 +528,24 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
           <Ionicons name="chevron-forward" size={24} color="#999" />
         </TouchableOpacity>
       )}
-
-      {/* Résultat de l'analyse IA */}
       {analysisResult && (
         <View style={styles.analysisResultContainer}>
-          {/* En-tête succès */}
           <View style={styles.analysisSuccessHeader}>
-            <Ionicons
-              name="checkmark-circle"
-              size={48}
-              color="#4CAF50"
-            />
+            <Ionicons name="checkmark-circle" size={48} color="#4CAF50" />
             <Text style={styles.analysisSuccessTitle}>Article analysé</Text>
           </View>
-
-          {/* Photo de l'article */}
           {articleImageUri && (
             <View style={styles.analyzedImageContainer}>
               <Image source={{ uri: articleImageUri }} style={styles.analyzedImage} />
             </View>
           )}
-
-          {/* Carte résumé */}
           <View style={styles.analysisSummaryCard}>
             <View style={styles.analysisSummaryRow}>
               <Ionicons name="cube-outline" size={20} color="#007AFF" />
               <Text style={styles.analysisSummaryLabel}>Article</Text>
               <Text style={styles.analysisSummaryValue}>{analysisResult.articleName}</Text>
             </View>
-
             <View style={styles.analysisSummaryDivider} />
-
             <View style={styles.analysisSummaryRow}>
               <Ionicons name="resize-outline" size={20} color="#007AFF" />
               <Text style={styles.analysisSummaryLabel}>Taille</Text>
@@ -592,17 +553,13 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
                 <Text style={styles.analysisSizeBadgeText}>{analysisResult.packageSize}</Text>
               </View>
             </View>
-
             <View style={styles.analysisSummaryDivider} />
-
             <View style={styles.analysisSummaryRow}>
               <Ionicons name="pricetag-outline" size={20} color="#2196F3" />
               <Text style={styles.analysisSummaryLabel}>Prix</Text>
               <Text style={styles.analysisPriceValue}>{PRICING?.FIXED_PRICE || 10}€</Text>
             </View>
           </View>
-
-          {/* Bouton refaire */}
           <TouchableOpacity
             style={styles.retakePhotoButton}
             onPress={() => {
@@ -616,8 +573,6 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
           </TouchableOpacity>
         </View>
       )}
-
-      {/* Information de sécurité */}
       <View style={styles.securityInfoBox}>
         <Ionicons name="shield-checkmark-outline" size={24} color="#4CAF50" />
         <View style={styles.securityInfoText}>
@@ -627,7 +582,6 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
           </Text>
         </View>
       </View>
-
       <View style={styles.buttonRow}>
         <Button mode="outlined" onPress={() => setStep(1)} style={styles.halfButton}>
           Retour
@@ -644,7 +598,6 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
     </View>
   );
 
-  // Helper pour la couleur des tailles
   const getSizeColor = (size: string) => {
     switch (size) {
       case 'XS': return '#4CAF50';
@@ -655,7 +608,7 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
     }
   };
 
-  // ========== STEP 3: Transporteur + Bordereau ==========
+  // ========== STEP 3: Transporteur + Bordereau (MODIFIÉ) ==========
   const renderStep3 = () => (
     <View>
       <Text variant="titleMedium" style={styles.stepTitle}>
@@ -665,6 +618,7 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
         Quel transporteur est indiqué sur votre bordereau ?
       </Text>
 
+      {/* GRILLE TRANSPORTeurs – FIX VINTED (plus de débordement) */}
       <Controller
         control={control}
         name="carrier"
@@ -673,7 +627,6 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
             {(Object.keys(carriers) as Carrier[]).map((carrierKey) => {
               const carrierInfo = carriers[carrierKey];
               const isSelected = value === carrierKey;
-
               return (
                 <Card
                   key={carrierKey}
@@ -701,7 +654,7 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
         )}
       />
 
-      {/* Bordereau */}
+      {/* BOUTON "J'imprime moi-même" – refait en Card (plus beau et cohérent) */}
       <View style={{ marginTop: spacing.lg }}>
         <Text variant="titleMedium" style={styles.stepTitle}>
           🏷️ Bordereau d'envoi
@@ -711,17 +664,40 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
           control={control}
           name="willPrintLabel"
           render={({ field: { onChange, value } }) => (
-            <TouchableOpacity
-              style={styles.checkboxRow}
+            <Card
+              style={[styles.printOptionCard, value && styles.printOptionCardSelected]}
               onPress={() => onChange(!value)}
             >
-              <Checkbox status={value ? 'checked' : 'unchecked'} onPress={() => onChange(!value)} />
-              <Text variant="bodyMedium">J'imprime moi-même le bordereau</Text>
-            </TouchableOpacity>
+              <Card.Content style={styles.printOptionContent}>
+                <View style={styles.printOptionRow}>
+                  <MaterialCommunityIcons
+                    name="printer"
+                    size={32}
+                    color={value ? colors.primary : colors.onSurfaceVariant}
+                  />
+                  <View style={styles.printOptionTextContainer}>
+                    <Text
+                      variant="bodyMedium"
+                      style={{ fontWeight: value ? '700' : '400', color: value ? colors.primary : undefined }}
+                    >
+                      J'imprime moi-même le bordereau
+                    </Text>
+                    <Text variant="bodySmall" style={{ color: colors.onSurfaceVariant, marginTop: 2 }}>
+                      Je dispose déjà du bordereau et je l'imprimerai avant la remise
+                    </Text>
+                  </View>
+                  <Checkbox
+                    status={value ? 'checked' : 'unchecked'}
+                    onPress={() => onChange(!value)}
+                    color={colors.primary}
+                  />
+                </View>
+              </Card.Content>
+            </Card>
           )}
         />
 
-        {/* Bordereau Upload Box - hidden when willPrintLabel is checked */}
+        {/* Uploads label + QR (cachés quand on imprime soi-même) */}
         {!watch('willPrintLabel') && (
           <>
             <View style={styles.uploadSection}>
@@ -755,7 +731,6 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
               </TouchableOpacity>
             </View>
 
-            {/* QR Code Upload Box */}
             <View style={styles.uploadSection}>
               <Text style={styles.uploadLabel}>{t('vendor.createParcel.addQrCode')}</Text>
               <TouchableOpacity
@@ -810,7 +785,6 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
       <Text variant="bodySmall" style={styles.stepSubtitle}>
         Quand souhaitez-vous que le livreur vienne ?
       </Text>
-
       <Controller
         control={control}
         name="pickupMode"
@@ -845,7 +819,6 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
                 </View>
               </Card.Content>
             </Card>
-
             <Card
               style={[styles.modeCard, value === 'IMMEDIATE' && styles.modeCardSelected]}
               onPress={() => onChange('IMMEDIATE')}
@@ -878,12 +851,10 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
           </View>
         )}
       />
-
       {pickupMode === 'SCHEDULED' && (
         <Card style={styles.slotCard}>
           <Card.Content>
             <Text variant="titleSmall" style={styles.slotTitle}>{t('vendor.createParcel.chooseYourSlot')}</Text>
-
             <Text variant="bodySmall" style={styles.slotLabel}>{t('vendor.createParcel.day')}</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.dateScroll}>
               <View style={styles.dateGrid}>
@@ -901,7 +872,6 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
                 ))}
               </View>
             </ScrollView>
-
             <Text variant="bodySmall" style={[styles.slotLabel, { marginTop: spacing.md }]}>{t('vendor.createParcel.chooseSlot')}</Text>
             <View style={styles.presetGrid}>
               <TouchableOpacity
@@ -918,7 +888,6 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
                 </Text>
                 <Text style={styles.presetTime}>8h - 12h</Text>
               </TouchableOpacity>
-
               <TouchableOpacity
                 style={[styles.presetCard, timeSlotPreset === 'afternoon' && styles.presetCardSelected]}
                 onPress={() => {
@@ -933,7 +902,6 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
                 </Text>
                 <Text style={styles.presetTime}>12h - 17h</Text>
               </TouchableOpacity>
-
               <TouchableOpacity
                 style={[styles.presetCard, timeSlotPreset === 'evening' && styles.presetCardSelected]}
                 onPress={() => {
@@ -948,7 +916,6 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
                 </Text>
                 <Text style={styles.presetTime}>17h - 20h</Text>
               </TouchableOpacity>
-
               <TouchableOpacity
                 style={[styles.presetCard, timeSlotPreset === 'custom' && styles.presetCardSelected]}
                 onPress={() => setTimeSlotPreset('custom')}
@@ -959,7 +926,6 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
                 </Text>
               </TouchableOpacity>
             </View>
-
             {timeSlotPreset === 'custom' && (
               <>
                 <Text variant="bodySmall" style={styles.slotLabel}>{t('vendor.createParcel.startTime')}</Text>
@@ -978,7 +944,6 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
                     ))}
                   </View>
                 </ScrollView>
-
                 <Text variant="bodySmall" style={styles.slotLabel}>{t('vendor.createParcel.endTime')}</Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.timeScroll}>
                   <View style={styles.timeGrid}>
@@ -1000,7 +965,6 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
           </Card.Content>
         </Card>
       )}
-
       <View style={styles.buttonRow}>
         <Button mode="outlined" onPress={() => setStep(3)} style={styles.halfButton}>
           Retour
@@ -1017,7 +981,6 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
     const selectedAddress = addresses.find((a) => a.id === watch('pickupAddressId'));
     const carrierInfo = carriers[selectedCarrier];
     const sizeInfo = sizes.parcel[selectedSize];
-
     return (
       <View>
         <Text variant="titleMedium" style={styles.stepTitle}>
@@ -1026,10 +989,8 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
         <Text variant="bodySmall" style={styles.stepSubtitle}>
           Vérifiez les informations avant de créer le colis
         </Text>
-
         <Card style={styles.summaryCard}>
           <Card.Content>
-            {/* Photo et catégorie */}
             {itemPhoto && (
               <View style={styles.summaryPhotoRow}>
                 <Image source={{ uri: itemPhoto }} style={styles.summaryPhoto} />
@@ -1039,24 +1000,17 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
                 </View>
               </View>
             )}
-
             <View style={styles.divider} />
-
-            {/* Adresse */}
             <View style={styles.summaryRow}>
               <Text variant="bodySmall" style={styles.summaryLabel}>Adresse</Text>
               <Text variant="bodyMedium" style={styles.summaryValue}>
                 {selectedAddress?.street}, {selectedAddress?.city}
               </Text>
             </View>
-
-            {/* Transporteur */}
             <View style={styles.summaryRow}>
               <Text variant="bodySmall" style={styles.summaryLabel}>Transporteur</Text>
               <Text variant="bodyMedium" style={styles.summaryValue}>{carrierInfo?.label}</Text>
             </View>
-
-            {/* Créneau */}
             <View style={styles.summaryRow}>
               <Text variant="bodySmall" style={styles.summaryLabel}>Créneau</Text>
               <View style={styles.timeSlotContainer}>
@@ -1081,8 +1035,6 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
                 )}
               </View>
             </View>
-
-            {/* Prix */}
             <View style={styles.divider} />
             <View style={styles.summaryRow}>
               <Text variant="titleSmall">Prix total</Text>
@@ -1092,7 +1044,6 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
             </View>
           </Card.Content>
         </Card>
-
         <FormInput
           control={control}
           name="description"
@@ -1101,22 +1052,18 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
           multiline
           numberOfLines={2}
         />
-
         <View style={styles.infoBox}>
           <MaterialCommunityIcons name="information" size={20} color={colors.primary} />
           <Text variant="bodySmall" style={styles.infoText}>
             Le livreur viendra récupérer votre colis, l'emballera avec vous, et le déposera au point relais.
           </Text>
         </View>
-
-        {/* Fictional Credit Card Form */}
         <Card style={styles.paymentCard}>
           <Card.Content>
             <View style={styles.paymentHeader}>
               <MaterialCommunityIcons name="credit-card" size={24} color={colors.primary} />
               <Text variant="titleMedium" style={styles.paymentTitle}>Paiement</Text>
             </View>
-
             <View style={styles.paymentForm}>
               <View style={styles.cardNumberContainer}>
                 <Text style={styles.inputLabel}>Numéro de carte</Text>
@@ -1125,7 +1072,6 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
                   <Text style={styles.fakeInputText}>•••• •••• •••• ••••</Text>
                 </View>
               </View>
-
               <View style={styles.cardDetailsRow}>
                 <View style={styles.cardDetailHalf}>
                   <Text style={styles.inputLabel}>Expiration</Text>
@@ -1140,7 +1086,6 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
                   </View>
                 </View>
               </View>
-
               <View style={styles.paymentNotice}>
                 <Ionicons name="shield-checkmark" size={16} color="#4CAF50" />
                 <Text style={styles.paymentNoticeText}>
@@ -1150,21 +1095,29 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
             </View>
           </Card.Content>
         </Card>
-
         <View style={styles.buttonRow}>
           <Button mode="outlined" onPress={() => setStep(4)} style={styles.halfButton}>
             Retour
           </Button>
           <Button
             mode="contained"
-            onPress={handleSubmit(onSubmit)}
+            onPress={() => {
+              Alert.alert(
+                t('vendor.payment.confirmTitle') || 'Confirmer le paiement',
+                t('vendor.payment.confirmMessage') || 'Vous allez être débité de 10€. Le montant ne sera capturé qu\'après la livraison.',
+                [
+                  { text: t('common.cancel'), style: 'cancel' },
+                  { text: t('vendor.payment.confirmButton') || 'Confirmer', onPress: handleSubmit(onSubmit) },
+                ]
+              );
+            }}
             loading={isLoading}
             disabled={isLoading}
             style={styles.halfButton}
             icon="lock"
             buttonColor="#10B981"
           >
-            Confirmer et payer
+            {t('vendor.payment.confirmAndPay') || 'Confirmer et payer'}
           </Button>
         </View>
       </View>
@@ -1185,7 +1138,6 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
         <Text variant="bodySmall" style={styles.modalSubtitle}>
           Cette adresse sera utilisée uniquement pour ce colis
         </Text>
-
         <View style={styles.autocompleteWrapper}>
           <AddressAutocomplete
             value={tempAddress.street}
@@ -1194,7 +1146,6 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
             placeholder="Tapez une adresse..."
           />
         </View>
-
         {tempAddress.street && tempAddress.city && (
           <View style={styles.selectedTempAddress}>
             <MaterialCommunityIcons name="check-circle" size={20} color={colors.primary} />
@@ -1206,11 +1157,11 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
                 {tempAddress.postalCode} {tempAddress.city}
               </Text>
             </View>
-            <TouchableOpacity 
-              onPress={() => setTempAddress({ 
-                label: 'Adresse temporaire', 
-                street: '', 
-                city: '', 
+            <TouchableOpacity
+              onPress={() => setTempAddress({
+                label: 'Adresse temporaire',
+                street: '',
+                city: '',
                 postalCode: '',
                 latitude: 0,
                 longitude: 0,
@@ -1220,18 +1171,17 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
             </TouchableOpacity>
           </View>
         )}
-
         <View style={styles.modalButtons}>
-          <Button 
-            mode="outlined" 
-            onPress={() => setShowTempAddressModal(false)} 
+          <Button
+            mode="outlined"
+            onPress={() => setShowTempAddressModal(false)}
             style={styles.modalButton}
           >
             Annuler
           </Button>
-          <Button 
-            mode="contained" 
-            onPress={handleCreateTempAddress} 
+          <Button
+            mode="contained"
+            onPress={handleCreateTempAddress}
             style={styles.modalButton}
             disabled={!tempAddress.street || !tempAddress.city || !tempAddress.postalCode}
           >
@@ -1269,23 +1219,18 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
             </View>
           ))}
         </View>
-
         {step === 1 && renderStep1()}
         {step === 2 && renderStep2()}
         {step === 3 && renderStep3()}
         {step === 4 && renderStep4()}
         {step === 5 && renderStep5()}
       </ScrollView>
-
       {renderTempAddressModal()}
-
-      {/* 🆕 Modal Analyse IA */}
       <ArticleAnalysisModal
         visible={showAnalysisModal}
         onClose={() => setShowAnalysisModal(false)}
         onAnalysisComplete={handleAnalysisComplete}
       />
-
       <PhotoPreviewModal
         visible={!!rawItemPhotoUri}
         photoUri={rawItemPhotoUri}
@@ -1298,7 +1243,6 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
         }}
         onRetake={() => setRawItemPhotoUri(null)}
       />
-
       <Snackbar visible={!!error} onDismiss={clearError} duration={3000}>
         {error}
       </Snackbar>
@@ -1351,7 +1295,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
     color: colors.onSurfaceVariant,
   },
-  
+
   // Main Photo Button
   mainPhotoButton: {
     flexDirection: 'row',
@@ -1488,7 +1432,7 @@ const styles = StyleSheet.create({
     color: '#558B2F',
     lineHeight: 18,
   },
-  
+
   // Address styles
   addressList: {
     gap: spacing.sm,
@@ -1548,44 +1492,8 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
     backgroundColor: colors.surface,
   },
-  
-  // Photo styles
-  photoCard: {
-    backgroundColor: colors.surface,
-    marginBottom: spacing.md,
-  },
-  photoContent: {
-    alignItems: 'center',
-    padding: spacing.xl,
-  },
-  photoHint: {
-    color: colors.onSurfaceVariant,
-    textAlign: 'center',
-    marginVertical: spacing.md,
-  },
-  photoButtons: {
-    flexDirection: 'row',
-    gap: spacing.md,
-  },
-  photoButton: {
-    flex: 1,
-  },
-  photoPreviewCard: {
-    marginBottom: spacing.md,
-    overflow: 'hidden',
-  },
-  photoPreview: {
-    width: '100%',
-    height: 200,
-    borderRadius: 8,
-  },
-  removePhotoButton: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-  },
-  
-  // Carrier styles
+
+  // Carrier styles (FIX VINTED)
   carrierGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -1596,10 +1504,13 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderWidth: 2,
     borderColor: 'transparent',
+    minHeight: 110,                    // ← FIX principal : uniformité + plus de débordement
   },
   carrierContent: {
     alignItems: 'center',
     padding: spacing.sm,
+    justifyContent: 'center',          // ← centré verticalement
+    flex: 1,
   },
   carrierLabel: {
     textAlign: 'center',
@@ -1610,12 +1521,45 @@ const styles = StyleSheet.create({
     color: colors.primary,
     fontWeight: '600',
   },
+
+  // NOUVEAU : Bouton "J'imprime moi-même" refait en Card
+  printOptionCard: {
+    backgroundColor: colors.surface,
+    borderWidth: 2,
+    borderColor: 'transparent',
+    marginBottom: spacing.md,
+  },
+  printOptionCardSelected: {
+    borderColor: colors.primary,
+  },
+  printOptionContent: {
+    padding: spacing.md,
+  },
+  printOptionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  printOptionTextContainer: {
+    flex: 1,
+  },
+
+  // Checkbox (ancien style conservé pour compatibilité)
   checkboxRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: spacing.sm,
+    padding: 12,
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    gap: 8,
   },
-  
+  checkboxRowActive: {
+    borderColor: colors.primary,
+    backgroundColor: '#EFF6FF',
+  },
+
   // Mode styles
   modeOptions: {
     gap: spacing.md,
@@ -1646,7 +1590,7 @@ const styles = StyleSheet.create({
   modeDescription: {
     color: colors.onSurfaceVariant,
   },
-  
+
   // Slot styles
   slotCard: {
     backgroundColor: colors.surface,
@@ -1754,7 +1698,7 @@ const styles = StyleSheet.create({
     color: colors.primary,
     fontWeight: '600',
   },
-  
+
   // Summary styles
   summaryCard: {
     backgroundColor: colors.surface,
@@ -1797,7 +1741,7 @@ const styles = StyleSheet.create({
     color: colors.primary,
     fontWeight: 'bold',
   },
-  
+
   // Info boxes
   infoBox: {
     flexDirection: 'row',
@@ -1812,7 +1756,7 @@ const styles = StyleSheet.create({
     flex: 1,
     color: colors.onSurface,
   },
-  
+
   // Modal styles
   modalContainer: {
     backgroundColor: colors.surface,
@@ -1858,7 +1802,7 @@ const styles = StyleSheet.create({
   selectedTempAddressCity: {
     color: colors.onSurfaceVariant,
   },
-  
+
   // Upload Boxes
   uploadSection: {
     marginTop: spacing.md,
