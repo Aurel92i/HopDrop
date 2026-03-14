@@ -95,8 +95,13 @@
       ]
     ],
     "owner": "aurelien.herbin",
+    "eas": {
+      "projectId": "a3d82f02-4c36-488f-ae9a-6eda4e05cfdf"
+    },
+    "extra": {
       "eas": {
         "projectId": "a3d82f02-4c36-488f-ae9a-6eda4e05cfdf"
       }
+    }
   }
 }
