@@ -127,6 +127,18 @@ export interface Mission {
   departedAt?: string | null;
   arrivedAt?: string | null;
   estimatedArrival?: string | null;
+  // Delivery
+  deliveryProofUrl?: string | null;
+  deliveryConfirmationDeadline?: string | null;
+  clientConfirmedDeliveryAt?: string | null;
+  clientContestedAt?: string | null;
+  contestReason?: string | null;
+  autoConfirmed?: boolean;
+  // Litige
+  carrierDisputeResponse?: string | null;
+  carrierDisputeProofUrl?: string | null;
+  disputeResolvedAt?: string | null;
+  disputeResolution?: string | null;
   
   // Relation
   parcel?: Parcel;

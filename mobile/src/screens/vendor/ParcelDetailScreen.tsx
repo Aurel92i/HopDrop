@@ -602,9 +602,16 @@ export function ParcelDetailScreen({ navigation, route }: ParcelDetailScreenProp
 
           {/* Note */}
           <View style={styles.modalNote}>
-            <MaterialCommunityIcons name="shield-check" size={16} color={colors.secondary} />
+            <MaterialCommunityIcons 
+              name={showContestForm ? "alert-circle" : "shield-check"} 
+              size={16} 
+              color={showContestForm ? colors.error : colors.secondary} 
+            />
             <Text variant="bodySmall" style={styles.modalNoteText}>
-              {t('vendor.parcelDetail.confirmNote')}
+              {showContestForm 
+                ? 'En contestant, vous déclarez que le colis n\'a pas été correctement déposé ou que vous n\'avez pas reçu la confirmation du transporteur. Un litige sera ouvert.'
+                : t('vendor.parcelDetail.confirmNote')
+              }
             </Text>
           </View>
           </ScrollView>

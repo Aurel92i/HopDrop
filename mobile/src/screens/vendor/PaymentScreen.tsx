@@ -42,17 +42,25 @@ export function PaymentScreen({ navigation, route }: PaymentScreenProps) {
       const data = await api.getParcel(parcelId);
       setParcel(data);
 
+      console.log('=== PAYMENT SCREEN ===', { clientSecret: !!clientSecret, sheetReady });
       if (clientSecret) {
         const { error } = await initPaymentSheet({
           paymentIntentClientSecret: clientSecret,
           merchantDisplayName: 'HopDrop',
           style: 'automatic',
+          applePay: {
+            merchantCountryCode: 'FR',
+          },
+          googlePay: {
+            merchantCountryCode: 'FR',
+            testEnv: true,
+          },
         });
 
         if (!error) {
           setSheetReady(true);
         } else {
-          console.error('Erreur init PaymentSheet:', error);
+          console.error('Erreur init PaymentSheet:', JSON.stringify(error));
         }
       }
     } catch (error) {

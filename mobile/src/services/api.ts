@@ -517,6 +517,16 @@ class ApiService {
     return response.data;
   }
 
+  async getAdminDisputes() {
+    const response = await this.api.get('/admin/disputes');
+    return response.data;
+  }
+
+  async resolveAdminDispute(missionId: string, resolution: string) {
+    const response = await this.api.post(`/admin/disputes/${missionId}/resolve`, { resolution });
+    return response.data;
+  }
+
   // === Payments ===
   async createPaymentIntent(parcelId: string): Promise<{ clientSecret: string; paymentIntentId: string }> {
     const response = await this.api.post('/payments/create-intent', { parcelId });
@@ -696,6 +706,20 @@ class ApiService {
     const response = await this.api.get(`/delivery/status/${parcelId}`);
     return response.data;
   }
+
+  async carrierRespondToDispute(missionId: string, response: string, proofUri?: string) {
+    let proofUrl: string | undefined;
+    if (proofUri) {
+      proofUrl = await this.uploadImage(proofUri);
+    }
+    const res = await this.api.post('/delivery/carrier-dispute-response', {
+      missionId,
+      response,
+      proofUrl,
+    });
+    return res.data;
+  }
+  
 
   // === Tips (Pourboires) ===
   async createTip(parcelId: string, amount: number, message?: string): Promise<{

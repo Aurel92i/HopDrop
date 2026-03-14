@@ -20,12 +20,18 @@ interface ClientContestBody {
   reason: string;
 }
 
+interface CarrierDisputeBody {
+  missionId: string;
+  response: string;
+  proofUrl?: string;
+}
+
 interface StatusParams {
   parcelId: string;
 }
 
 export async function deliveryRoutes(app: FastifyInstance) {
-  
+
   // ===== POST /delivery/confirm =====
   // Livreur confirme le dépôt avec preuve
   app.post<{ Body: ConfirmDeliveryBody }>(
@@ -57,7 +63,7 @@ export async function deliveryRoutes(app: FastifyInstance) {
   );
 
   // ===== POST /delivery/client-confirm =====
-  // Client confirme la réception
+  // Client confirme la réception (fonctionne aussi après contestation)
   app.post<{ Body: ClientConfirmBody }>(
     '/delivery/client-confirm',
     { onRequest: [app.authenticate] },
@@ -74,7 +80,6 @@ export async function deliveryRoutes(app: FastifyInstance) {
           });
         }
 
-        // Validation du rating si fourni
         if (rating !== undefined && (rating < 1 || rating > 5)) {
           return reply.status(400).send({
             error: 'Données invalides',
@@ -124,6 +129,36 @@ export async function deliveryRoutes(app: FastifyInstance) {
     }
   );
 
+  // ===== POST /delivery/carrier-dispute-response =====
+  // Livreur répond à une contestation
+  app.post<{ Body: CarrierDisputeBody }>(
+    '/delivery/carrier-dispute-response',
+    { onRequest: [app.authenticate] },
+    async (request: FastifyRequest<{ Body: CarrierDisputeBody }>, reply: FastifyReply) => {
+      try {
+        const { missionId, response, proofUrl } = request.body;
+        const user = request.user as any;
+        const carrierId = user?.userId || user?.id;
+
+        if (!missionId || !response) {
+          return reply.status(400).send({
+            error: 'Données manquantes',
+            message: 'missionId et response sont requis',
+          });
+        }
+
+        const result = await deliveryService.carrierRespondToDispute(missionId, carrierId, response, proofUrl);
+        return reply.send(result);
+      } catch (error: any) {
+        console.error('Erreur réponse litige:', error);
+        return reply.status(400).send({
+          error: 'Erreur',
+          message: error.message,
+        });
+      }
+    }
+  );
+
   // ===== GET /delivery/status/:parcelId =====
   // Récupérer le statut de livraison
   app.get<{ Params: StatusParams }>(
@@ -133,7 +168,6 @@ export async function deliveryRoutes(app: FastifyInstance) {
       try {
         const { parcelId } = request.params;
         const user = request.user as any;
-        // Support both userId (current JWT) and id (legacy)
         const userId = user?.userId || user?.id;
         console.log('🆔 userId extrait:', userId);
 
@@ -157,12 +191,10 @@ export async function deliveryRoutes(app: FastifyInstance) {
   );
 
   // ===== POST /delivery/auto-confirm (Admin/Cron) =====
-  // Endpoint pour déclencher l'auto-confirmation (appelé par un cron job)
   app.post(
     '/delivery/auto-confirm',
     async (request: FastifyRequest, reply: FastifyReply) => {
       try {
-        // TODO: Ajouter une vérification (clé API admin ou cron secret)
         const cronSecret = request.headers['x-cron-secret'];
         if (cronSecret !== process.env.CRON_SECRET) {
           return reply.status(401).send({ error: 'Non autorisé' });

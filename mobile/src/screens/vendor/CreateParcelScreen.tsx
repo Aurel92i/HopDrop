@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, TouchableOpacity, Image, Alert, BackHandler } from 'react-native';
 import { Text, Button, Card, RadioButton, Snackbar, ActivityIndicator, Chip, Modal, Portal, TextInput, Checkbox } from 'react-native-paper';
 import { useForm, Controller } from 'react-hook-form';
@@ -98,11 +98,13 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
   const [articleImageUri, setArticleImageUri] = useState<string | null>(null);
   const [timeSlotPreset, setTimeSlotPreset] = useState<'morning' | 'afternoon' | 'evening' | 'custom' | null>(null);
+  const isSubmittingRef = useRef(false);
   const timeSlots = generateTimeSlots();
 
   // BUG 3: Intercept back button to navigate to previous step
   useEffect(() => {
     const unsubscribe = navigation.addListener('beforeRemove', (e) => {
+      if (isSubmittingRef.current) return;
       if (step > 1) {
         e.preventDefault();
         setStep(step - 1);
@@ -398,6 +400,8 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
         console.log('PaymentIntent creation failed, will use simulation:', paymentError);
       }
 
+      console.log('=== PAYMENT NAV ===', { clientSecret: !!clientSecret, paymentIntentId });
+      isSubmittingRef.current = true;
       navigation.replace('Payment', {
         parcelId: parcel.id,
         amount: 10,
@@ -405,7 +409,10 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
         paymentIntentId,
       });
     } catch (e: any) {
-      Alert.alert(t('common.error'), e.message || t('vendor.createParcel.errorGeneric'));
+      isSubmittingRef.current = false;
+      const msg = e.response?.data?.message || e.response?.data?.error || e.message || 'Erreur lors de la création';
+      console.error('Erreur création colis:', JSON.stringify(e.response?.data));
+      Alert.alert('Erreur', msg);
     }
   };
 
@@ -1064,34 +1071,17 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
               <MaterialCommunityIcons name="credit-card" size={24} color={colors.primary} />
               <Text variant="titleMedium" style={styles.paymentTitle}>Paiement</Text>
             </View>
-            <View style={styles.paymentForm}>
-              <View style={styles.cardNumberContainer}>
-                <Text style={styles.inputLabel}>Numéro de carte</Text>
-                <View style={styles.fakeInput}>
-                  <MaterialCommunityIcons name="credit-card-outline" size={20} color="#999" />
-                  <Text style={styles.fakeInputText}>•••• •••• •••• ••••</Text>
-                </View>
-              </View>
-              <View style={styles.cardDetailsRow}>
-                <View style={styles.cardDetailHalf}>
-                  <Text style={styles.inputLabel}>Expiration</Text>
-                  <View style={styles.fakeInput}>
-                    <Text style={styles.fakeInputText}>MM/AA</Text>
-                  </View>
-                </View>
-                <View style={styles.cardDetailHalf}>
-                  <Text style={styles.inputLabel}>CVV</Text>
-                  <View style={styles.fakeInput}>
-                    <Text style={styles.fakeInputText}>•••</Text>
-                  </View>
-                </View>
-              </View>
-              <View style={styles.paymentNotice}>
-                <Ionicons name="shield-checkmark" size={16} color="#4CAF50" />
-                <Text style={styles.paymentNoticeText}>
-                  Paiement pré-autorisé - débité uniquement à la livraison
-                </Text>
-              </View>
+            <View style={{ alignItems: 'center', paddingVertical: spacing.lg }}>
+              <Text style={{ fontSize: 36, fontWeight: '800', color: colors.primary }}>10,00 €</Text>
+              <Text style={{ fontSize: 14, color: '#6B7280', marginTop: 8, textAlign: 'center' }}>
+                Tarif unique — pré-autorisé maintenant, débité uniquement après livraison
+              </Text>
+            </View>
+            <View style={styles.paymentNotice}>
+              <Ionicons name="shield-checkmark" size={16} color="#4CAF50" />
+              <Text style={styles.paymentNoticeText}>
+                Paiement sécurisé par Stripe
+              </Text>
             </View>
           </Card.Content>
         </Card>
@@ -1099,25 +1089,16 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
           <Button mode="outlined" onPress={() => setStep(4)} style={styles.halfButton}>
             Retour
           </Button>
-          <Button
+         <Button
             mode="contained"
-            onPress={() => {
-              Alert.alert(
-                t('vendor.payment.confirmTitle') || 'Confirmer le paiement',
-                t('vendor.payment.confirmMessage') || 'Vous allez être débité de 10€. Le montant ne sera capturé qu\'après la livraison.',
-                [
-                  { text: t('common.cancel'), style: 'cancel' },
-                  { text: t('vendor.payment.confirmButton') || 'Confirmer', onPress: handleSubmit(onSubmit) },
-                ]
-              );
-            }}
+            onPress={handleSubmit(onSubmit)}
             loading={isLoading}
             disabled={isLoading}
             style={styles.halfButton}
             icon="lock"
             buttonColor="#10B981"
           >
-            {t('vendor.payment.confirmAndPay') || 'Confirmer et payer'}
+            Confirmer et payer
           </Button>
         </View>
       </View>

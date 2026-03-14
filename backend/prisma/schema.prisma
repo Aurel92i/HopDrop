@@ -237,6 +237,12 @@ model Mission {
   clientContestedAt             DateTime?    // Si contestation
   contestReason                 String?      // Raison de la contestation
   autoConfirmed                 Boolean      @default(false) // Si auto-confirmé après 24H
+  // === LITIGE ===
+  carrierDisputeResponse    String?
+  carrierDisputeProofUrl    String?
+  disputeResolvedAt         DateTime?
+  disputeResolution         String?      // CARRIER_WINS, CLIENT_WINS, REFUND
+  disputeResolvedBy         String?
 
   parcel  Parcel @relation(fields: [parcelId], references: [id])
   carrier User   @relation(fields: [carrierId], references: [id])

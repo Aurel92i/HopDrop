@@ -16,7 +16,7 @@ import { Text, Switch, IconButton, Divider } from 'react-native-paper';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import MapView, { Marker, PROVIDER_GOOGLE, Region } from 'react-native-maps';
+import MapView, { Marker, PROVIDER_GOOGLE, PROVIDER_DEFAULT, Region } from 'react-native-maps';
 import * as Location from 'expo-location';
 
 import { LoadingScreen } from '../../components/common/LoadingScreen';
@@ -388,7 +388,7 @@ export function CarrierHomeScreen({ navigation }: CarrierHomeScreenProps) {
       <MapView
         ref={mapRef}
         style={styles.map}
-        provider={PROVIDER_GOOGLE}
+        provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : PROVIDER_DEFAULT}
         initialRegion={region}
         showsUserLocation
         showsMyLocationButton={false}

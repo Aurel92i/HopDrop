@@ -36,7 +36,7 @@ export class DeliveryService {
     const updatedMission = await prisma.mission.update({
       where: { id: missionId },
       data: {
-        status: MissionStatus.PICKED_UP, // ⚠️ Reste PICKED_UP, pas DELIVERED
+        status: MissionStatus.PICKED_UP, // Reste PICKED_UP, pas DELIVERED
         deliveredAt: new Date(),
         deliveryProofUrl: proofUrl,
         deliveryConfirmationDeadline: deadline,
@@ -53,9 +53,6 @@ export class DeliveryService {
         },
       },
     });
-
-    // Mettre à jour le statut du colis (reste en PICKED_UP jusqu'à confirmation)
-    // On le passera en DELIVERED après confirmation client ou auto-confirmation
 
     // Notifier le client
     if (mission.parcel.vendor.fcmToken) {
@@ -81,6 +78,7 @@ export class DeliveryService {
   }
 
   // ===== CLIENT CONFIRME LA LIVRAISON =====
+  // Fonctionne AUSSI après une contestation (le client change d'avis)
   async clientConfirmDelivery(parcelId: string, vendorId: string, rating?: number, comment?: string) {
     const parcel = await prisma.parcel.findFirst({
       where: { id: parcelId, vendorId },
@@ -103,16 +101,26 @@ export class DeliveryService {
       throw new Error('Le colis n\'a pas encore été déposé');
     }
 
-    if (parcel.mission.clientConfirmedDeliveryAt) {
+    // Si déjà confirmé ET pas contesté entre temps → bloquer
+    if (parcel.mission.clientConfirmedDeliveryAt && !parcel.mission.clientContestedAt) {
       throw new Error('Vous avez déjà confirmé la livraison');
     }
 
+    // Si le litige est déjà résolu par un admin → bloquer
+    if (parcel.mission.disputeResolvedAt) {
+      throw new Error('Ce litige a déjà été résolu par un administrateur');
+    }
+
     // Mettre à jour la mission avec la confirmation client
+    // Si c'était contesté, on annule la contestation
     await prisma.mission.update({
       where: { id: parcel.mission.id },
       data: {
-        status: MissionStatus.DELIVERED, // ✅ Passe à DELIVERED lors de la confirmation
+        status: MissionStatus.DELIVERED,
         clientConfirmedDeliveryAt: new Date(),
+        // Annuler la contestation si elle existait
+        clientContestedAt: null,
+        contestReason: null,
       },
     });
 
@@ -132,16 +140,11 @@ export class DeliveryService {
 
     // Créer une review si rating fourni
     if (rating !== undefined && parcel.assignedCarrierId) {
-      // Vérifier qu'il n'y a pas déjà une review
       const existingReview = await prisma.review.findFirst({
-        where: {
-          parcelId,
-          reviewerId: vendorId,
-        },
+        where: { parcelId, reviewerId: vendorId },
       });
 
       if (!existingReview) {
-        // Créer la review
         await prisma.review.create({
           data: {
             parcelId,
@@ -212,25 +215,23 @@ export class DeliveryService {
       throw new Error('Aucune mission associée');
     }
 
-    // Vérifier que le colis a été déposé (deliveredAt existe)
     if (!parcel.mission.deliveredAt) {
       throw new Error('Le colis n\'a pas encore été déposé');
     }
 
-    if (parcel.mission.clientConfirmedDeliveryAt) {
-      throw new Error('Vous avez déjà confirmé la livraison');
+    // Si le litige est déjà résolu par un admin → bloquer
+    if (parcel.mission.disputeResolvedAt) {
+      throw new Error('Ce litige a déjà été résolu par un administrateur');
     }
 
-    if (parcel.mission.clientContestedAt) {
-      throw new Error('Vous avez déjà contesté cette livraison');
-    }
-
-    // Enregistrer la contestation
+    // Enregistrer la contestation (écrase une éventuelle contestation précédente)
     await prisma.mission.update({
       where: { id: parcel.mission.id },
       data: {
         clientContestedAt: new Date(),
         contestReason: reason,
+        // Annuler une éventuelle confirmation précédente
+        clientConfirmedDeliveryAt: null,
       },
     });
 
@@ -249,11 +250,276 @@ export class DeliveryService {
       );
     }
 
-    // TODO: Créer un ticket de support / médiation
+    return {
+      success: true,
+      message: 'Contestation enregistrée. Le livreur sera notifié.',
+    };
+  }
+
+  // ===== LIVREUR RÉPOND À UNE CONTESTATION =====
+  async carrierRespondToDispute(
+    missionId: string,
+    carrierId: string,
+    response: string,
+    proofUrl?: string
+  ) {
+    const mission = await prisma.mission.findFirst({
+      where: { id: missionId, carrierId },
+      include: {
+        parcel: {
+          include: { vendor: true },
+        },
+      },
+    });
+
+    if (!mission) {
+      throw new Error('Mission non trouvée');
+    }
+
+    if (!mission.clientContestedAt) {
+      throw new Error('Aucune contestation en cours pour cette mission');
+    }
+
+    if (mission.disputeResolvedAt) {
+      throw new Error('Ce litige a déjà été résolu');
+    }
+
+    const updateData: any = {
+      carrierDisputeResponse: response,
+    };
+
+    // Si nouvelle preuve fournie, mettre à jour
+    if (proofUrl) {
+      updateData.carrierDisputeProofUrl = proofUrl;
+    }
+
+    const updatedMission = await prisma.mission.update({
+      where: { id: missionId },
+      data: updateData,
+      include: {
+        parcel: {
+          include: { vendor: true },
+        },
+      },
+    });
+
+    // Notifier le client
+    if (mission.parcel.vendor.fcmToken) {
+      await this.notificationService.send(
+        mission.parcel.vendor.fcmToken,
+        '📝 Réponse du livreur',
+        'Le livreur a répondu à votre contestation.',
+        {
+          type: 'dispute_response',
+          parcelId: mission.parcelId,
+          missionId,
+        }
+      );
+    }
 
     return {
       success: true,
-      message: 'Contestation enregistrée. Notre équipe va examiner le dossier.',
+      message: 'Votre réponse a été envoyée.',
+      mission: updatedMission,
+    };
+  }
+
+  // ===== ADMIN : RÉCUPÉRER TOUS LES LITIGES =====
+  async getDisputes() {
+    const disputes = await prisma.mission.findMany({
+      where: {
+        clientContestedAt: { not: null },
+      },
+      include: {
+        parcel: {
+          include: {
+            vendor: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                email: true,
+                phone: true,
+              },
+            },
+            assignedCarrier: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                email: true,
+                phone: true,
+              },
+            },
+            pickupAddress: true,
+          },
+        },
+        carrier: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+          },
+        },
+      },
+      orderBy: { clientContestedAt: 'desc' },
+    });
+
+    return disputes.map((d) => ({
+      id: d.id,
+      parcelId: d.parcelId,
+      status: d.disputeResolvedAt
+        ? 'RESOLVED'
+        : d.clientConfirmedDeliveryAt
+          ? 'CONFIRMED_AFTER_CONTEST'
+          : 'OPEN',
+      // Infos contestation
+      contestedAt: d.clientContestedAt,
+      contestReason: d.contestReason,
+      // Réponse livreur
+      carrierResponse: d.carrierDisputeResponse,
+      carrierDisputeProofUrl: d.carrierDisputeProofUrl,
+      // Preuves
+      deliveryProofUrl: d.deliveryProofUrl,
+      deliveredAt: d.deliveredAt,
+      // Résolution
+      resolvedAt: d.disputeResolvedAt,
+      resolution: d.disputeResolution,
+      resolvedBy: d.disputeResolvedBy,
+      // Acteurs
+      vendor: d.parcel.vendor,
+      carrier: d.parcel.assignedCarrier,
+      // Colis
+      parcel: {
+        id: d.parcel.id,
+        size: d.parcel.size,
+        dropoffName: d.parcel.dropoffName,
+        dropoffAddress: d.parcel.dropoffAddress,
+        price: d.parcel.price,
+        description: d.parcel.description,
+      },
+    }));
+  }
+
+  // ===== ADMIN : RÉSOUDRE UN LITIGE =====
+  async resolveDispute(
+    missionId: string,
+    adminId: string,
+    resolution: 'CARRIER_WINS' | 'CLIENT_WINS' | 'REFUND'
+  ) {
+    const mission = await prisma.mission.findUnique({
+      where: { id: missionId },
+      include: {
+        parcel: {
+          include: {
+            vendor: true,
+            assignedCarrier: true,
+          },
+        },
+      },
+    });
+
+    if (!mission) {
+      throw new Error('Mission non trouvée');
+    }
+
+    if (!mission.clientContestedAt) {
+      throw new Error('Aucune contestation sur cette mission');
+    }
+
+    if (mission.disputeResolvedAt) {
+      throw new Error('Ce litige est déjà résolu');
+    }
+
+    // Résoudre le litige
+    const updateData: any = {
+      disputeResolvedAt: new Date(),
+      disputeResolution: resolution,
+      disputeResolvedBy: adminId,
+    };
+
+    if (resolution === 'CARRIER_WINS') {
+      // Le livreur a raison → confirmer la livraison + déclencher paiement
+      updateData.status = MissionStatus.DELIVERED;
+      updateData.clientConfirmedDeliveryAt = new Date();
+
+      await prisma.parcel.update({
+        where: { id: mission.parcelId },
+        data: { status: ParcelStatus.DELIVERED },
+      });
+
+      // Incrémenter les stats du livreur
+      if (mission.parcel.assignedCarrierId) {
+        await prisma.carrierProfile.update({
+          where: { userId: mission.parcel.assignedCarrierId },
+          data: { totalDeliveries: { increment: 1 } },
+        });
+      }
+
+      // Déclencher le paiement
+      try {
+        await this.paymentsService.captureAndTransfer(mission.parcelId);
+      } catch (e) {
+        console.error('Erreur paiement après résolution litige:', e);
+      }
+    } else if (resolution === 'CLIENT_WINS' || resolution === 'REFUND') {
+      // Le client a raison → annuler la mission
+      updateData.status = MissionStatus.CANCELLED;
+
+      await prisma.parcel.update({
+        where: { id: mission.parcelId },
+        data: { status: ParcelStatus.CANCELLED },
+      });
+
+      // TODO: Déclencher le remboursement via Stripe
+      // await this.paymentsService.refund(mission.parcelId);
+    }
+
+    await prisma.mission.update({
+      where: { id: missionId },
+      data: updateData,
+    });
+
+    // Notifier les deux parties
+    const resolutionMessages: Record<string, { vendor: string; carrier: string }> = {
+      CARRIER_WINS: {
+        vendor: 'Le litige a été résolu en faveur du livreur. La livraison est confirmée.',
+        carrier: 'Le litige a été résolu en votre faveur. Paiement en cours.',
+      },
+      CLIENT_WINS: {
+        vendor: 'Le litige a été résolu en votre faveur. Un remboursement sera effectué.',
+        carrier: 'Le litige a été résolu en faveur du client.',
+      },
+      REFUND: {
+        vendor: 'Le litige a été résolu. Un remboursement sera effectué.',
+        carrier: 'Le litige a été résolu avec remboursement du client.',
+      },
+    };
+
+    const messages = resolutionMessages[resolution];
+
+    if (mission.parcel.vendor?.fcmToken) {
+      await this.notificationService.send(
+        mission.parcel.vendor.fcmToken,
+        '⚖️ Litige résolu',
+        messages.vendor,
+        { type: 'dispute_resolved', parcelId: mission.parcelId, missionId, resolution }
+      );
+    }
+
+    if (mission.parcel.assignedCarrier?.fcmToken) {
+      await this.notificationService.send(
+        mission.parcel.assignedCarrier.fcmToken,
+        '⚖️ Litige résolu',
+        messages.carrier,
+        { type: 'dispute_resolved', parcelId: mission.parcelId, missionId, resolution }
+      );
+    }
+
+    return {
+      success: true,
+      message: `Litige résolu : ${resolution}`,
     };
   }
 
@@ -261,15 +527,15 @@ export class DeliveryService {
   async autoConfirmExpiredDeliveries() {
     const now = new Date();
 
-    // Trouver toutes les missions en attente de confirmation dont le délai est dépassé
-    // Status reste PICKED_UP tant que le vendeur n'a pas confirmé
+    // Trouver toutes les missions déposées dont le délai est dépassé
+    // EXCLURE les missions contestées (litige en cours)
     const expiredMissions = await prisma.mission.findMany({
       where: {
-        status: MissionStatus.PICKED_UP, // ⚠️ Cherche les missions PICKED_UP (déposées mais pas validées)
-        deliveredAt: { not: null }, // Qui ont bien été déposées
+        status: MissionStatus.PICKED_UP,
+        deliveredAt: { not: null },
         deliveryConfirmationDeadline: { lt: now },
         clientConfirmedDeliveryAt: null,
-        clientContestedAt: null,
+        clientContestedAt: null, // Pas de contestation en cours
         autoConfirmed: false,
       },
       include: {
@@ -286,33 +552,27 @@ export class DeliveryService {
 
     for (const mission of expiredMissions) {
       try {
-        // Auto-confirmer - passe la mission à DELIVERED
         await prisma.mission.update({
           where: { id: mission.id },
           data: {
-            status: MissionStatus.DELIVERED, // ✅ Passe à DELIVERED lors de l'auto-confirmation
+            status: MissionStatus.DELIVERED,
             autoConfirmed: true,
             clientConfirmedDeliveryAt: now,
           },
         });
 
-        // Mettre à jour le statut du colis
         await prisma.parcel.update({
           where: { id: mission.parcelId },
           data: { status: ParcelStatus.DELIVERED },
         });
 
-        // Incrémenter les stats du livreur
         if (mission.parcel.assignedCarrierId) {
           await prisma.carrierProfile.update({
             where: { userId: mission.parcel.assignedCarrierId },
-            data: {
-              totalDeliveries: { increment: 1 },
-            },
+            data: { totalDeliveries: { increment: 1 } },
           });
         }
 
-        // Capturer le paiement et transférer au livreur
         try {
           await this.paymentsService.captureAndTransfer(mission.parcelId);
         } catch (paymentError) {
@@ -325,11 +585,7 @@ export class DeliveryService {
             mission.parcel.vendor.fcmToken,
             '✅ Livraison auto-confirmée',
             'Le délai de 12h est écoulé. La livraison a été validée automatiquement.',
-            {
-              type: 'delivery_auto_confirmed',
-              parcelId: mission.parcelId,
-              missionId: mission.id,
-            }
+            { type: 'delivery_auto_confirmed', parcelId: mission.parcelId, missionId: mission.id }
           );
         }
 
@@ -338,11 +594,7 @@ export class DeliveryService {
             mission.parcel.assignedCarrier.fcmToken,
             '✅ Livraison validée !',
             'Le délai de confirmation est écoulé. Paiement en cours.',
-            {
-              type: 'delivery_auto_confirmed',
-              parcelId: mission.parcelId,
-              missionId: mission.id,
-            }
+            { type: 'delivery_auto_confirmed', parcelId: mission.parcelId, missionId: mission.id }
           );
         }
 
@@ -353,10 +605,7 @@ export class DeliveryService {
       }
     }
 
-    return {
-      processed: expiredMissions.length,
-      results,
-    };
+    return { processed: expiredMissions.length, results };
   }
 
   // ===== RÉCUPÉRER LE STATUT DE LIVRAISON =====
@@ -383,13 +632,14 @@ export class DeliveryService {
             clientContestedAt: true,
             contestReason: true,
             autoConfirmed: true,
+            carrierDisputeResponse: true,
+            carrierDisputeProofUrl: true,
+            disputeResolvedAt: true,
+            disputeResolution: true,
           },
         },
       },
     });
-
-    console.log(`📦 Parcel trouvé:`, parcel ? 'Oui' : 'Non');
-    console.log(`📦 Mission trouvée:`, parcel?.mission ? 'Oui' : 'Non');
 
     if (!parcel) {
       throw new Error('Colis non trouvé ou vous n\'êtes pas autorisé à y accéder');
@@ -399,24 +649,22 @@ export class DeliveryService {
       throw new Error('Ce colis n\'a pas encore de mission assignée');
     }
 
-    console.log(`📦 Mission status:`, parcel.mission.status);
-    console.log(`📦 deliveryProofUrl:`, parcel.mission.deliveryProofUrl ? 'Oui' : 'Non');
-    console.log(`📦 deliveredAt:`, parcel.mission.deliveredAt ? 'Oui' : 'Non');
-
     const mission = parcel.mission;
     const now = new Date();
-    
-    let status: 'PENDING' | 'AWAITING_CONFIRMATION' | 'CONFIRMED' | 'CONTESTED' | 'AUTO_CONFIRMED';
+
+    let status: 'PENDING' | 'AWAITING_CONFIRMATION' | 'CONFIRMED' | 'CONTESTED' | 'AUTO_CONFIRMED' | 'DISPUTE_RESOLVED';
     let hoursRemaining: number | null = null;
 
-    if (mission.clientContestedAt) {
+    if (mission.disputeResolvedAt) {
+      status = 'DISPUTE_RESOLVED';
+    } else if (mission.clientContestedAt && !mission.clientConfirmedDeliveryAt) {
+      // Contesté ET pas (re)confirmé depuis
       status = 'CONTESTED';
     } else if (mission.autoConfirmed) {
       status = 'AUTO_CONFIRMED';
     } else if (mission.clientConfirmedDeliveryAt && mission.status === 'DELIVERED') {
       status = 'CONFIRMED';
     } else if (mission.deliveredAt && mission.deliveryConfirmationDeadline) {
-      // Le colis a été déposé, en attente de validation vendeur
       status = 'AWAITING_CONFIRMATION';
       const msRemaining = mission.deliveryConfirmationDeadline.getTime() - now.getTime();
       hoursRemaining = Math.max(0, Math.ceil(msRemaining / (1000 * 60 * 60)));
@@ -434,6 +682,11 @@ export class DeliveryService {
       contestedAt: mission.clientContestedAt,
       contestReason: mission.contestReason,
       autoConfirmed: mission.autoConfirmed,
+      // Infos litige
+      carrierDisputeResponse: mission.carrierDisputeResponse,
+      carrierDisputeProofUrl: mission.carrierDisputeProofUrl,
+      disputeResolvedAt: mission.disputeResolvedAt,
+      disputeResolution: mission.disputeResolution,
     };
   }
 }

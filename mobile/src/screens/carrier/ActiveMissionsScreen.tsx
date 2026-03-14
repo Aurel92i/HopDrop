@@ -331,6 +331,18 @@ export function ActiveMissionsScreen({ navigation }: ActiveMissionsScreenProps) 
     const hasArrived = !!mission.arrivedAt;
     const packagingConfirmed = !!parcel?.packagingConfirmedAt;
     const vendorConfirmed = !!parcel?.vendorPackagingConfirmedAt;
+    // Statut dynamique selon l'état du dépôt
+    const isDeposited = mission.status === 'PICKED_UP' && !!mission.deliveredAt;
+    const isContested = !!(mission as any).clientContestedAt;
+    
+    let displayStatus = status;
+    if (isDeposited && isContested) {
+      displayStatus = { label: 'Contesté — Litige ouvert', color: '#EF4444', icon: 'alert-circle' };
+    } else if (isDeposited) {
+      displayStatus = { label: 'Déposé — Confirmation client requise', color: '#8B5CF6', icon: 'store-check' };
+    } else if (mission.status === 'PICKED_UP' && !mission.deliveredAt) {
+      displayStatus = { label: 'Récupéré — En route vers le dépôt', color: colors.secondary, icon: 'package-variant-closed' };
+    }
     
     // Infos transporteur
     const carrierInfo = parcel?.carrier ? carriers[parcel.carrier as Carrier] : null;
@@ -346,8 +358,8 @@ export function ActiveMissionsScreen({ navigation }: ActiveMissionsScreenProps) 
           {/* Header avec statut et ETA */}
           <View style={styles.missionHeader}>
             <View style={styles.statusBadge}>
-              <MaterialCommunityIcons name={status.icon as any} size={20} color={status.color} />
-              <Text style={[styles.statusText, { color: status.color }]}>{status.label}</Text>
+              <MaterialCommunityIcons name={displayStatus.icon as any} size={20} color={displayStatus.color} />
+              <Text style={[styles.statusText, { color: displayStatus.color }]}>{displayStatus.label}</Text>
             </View>
             
             {mission.status === 'IN_PROGRESS' && mission.estimatedArrival && (
@@ -578,28 +590,46 @@ export function ActiveMissionsScreen({ navigation }: ActiveMissionsScreenProps) 
             </>
           )}
 
-          {/* 🆕 MESSAGE VALIDATION EN COURS (colis déposé, attente validation vendeur) */}
+          {/* MESSAGE DÉPOSÉ / CONTESTÉ */}
           {mission.status === 'PICKED_UP' && mission.deliveredAt && (
             <>
               <Divider style={styles.divider} />
-              <View style={styles.validationPendingCard}>
-                <View style={styles.validationHeader}>
-                  <MaterialCommunityIcons name="clock-check-outline" size={24} color="#8B5CF6" />
-                  <Text variant="titleSmall" style={styles.validationTitle}>
-                    En attente de validation
+              {isContested ? (
+                <View style={[styles.validationPendingCard, { backgroundColor: '#FEE2E2', borderLeftColor: '#EF4444' }]}>
+                  <View style={styles.validationHeader}>
+                    <MaterialCommunityIcons name="alert-circle" size={24} color="#EF4444" />
+                    <Text variant="titleSmall" style={[styles.validationTitle, { color: '#EF4444' }]}>
+                      Litige ouvert — Contestation client
+                    </Text>
+                  </View>
+                  <Text variant="bodySmall" style={styles.validationText}>
+                    Le client a contesté le dépôt. Motif : {(mission as any).contestReason || 'Non précisé'}
+                  </Text>
+                  <Text variant="bodySmall" style={styles.validationText}>
+                    Vous pouvez répondre à la contestation via le chat ou attendre la décision d'un administrateur.
+                    Votre paiement est suspendu jusqu'à résolution.
                   </Text>
                 </View>
-                <Text variant="bodySmall" style={styles.validationText}>
-                  Le colis a été déposé avec succès. Le vendeur a 12 heures pour confirmer la réception de la notification du transporteur.
-                  Si aucune action n'est effectuée, la livraison sera validée automatiquement et votre paiement sera déclenché.
-                </Text>
-                <View style={styles.validationInfoBox}>
-                  <MaterialCommunityIcons name="information-outline" size={16} color="#8B5CF6" />
-                  <Text variant="bodySmall" style={styles.validationInfoText}>
-                    Vous pouvez fermer cette mission. Vous serez notifié de la validation.
+              ) : (
+                <View style={styles.validationPendingCard}>
+                  <View style={styles.validationHeader}>
+                    <MaterialCommunityIcons name="clock-check-outline" size={24} color="#8B5CF6" />
+                    <Text variant="titleSmall" style={styles.validationTitle}>
+                      Déposé — En attente de confirmation
+                    </Text>
+                  </View>
+                  <Text variant="bodySmall" style={styles.validationText}>
+                    Le colis a été déposé avec succès. Le client doit confirmer la réception pour déclencher votre paiement.
+                    Si aucune action sous 12 heures, la livraison sera validée automatiquement.
                   </Text>
+                  <View style={styles.validationInfoBox}>
+                    <MaterialCommunityIcons name="information-outline" size={16} color="#8B5CF6" />
+                    <Text variant="bodySmall" style={styles.validationInfoText}>
+                      Vous serez notifié de la confirmation ou d'une éventuelle contestation.
+                    </Text>
+                  </View>
                 </View>
-              </View>
+              )}
             </>
           )}
 

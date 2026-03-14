@@ -38,7 +38,10 @@ export default function App() {
 
   return (
     <I18nProvider>
-      <StripeProvider publishableKey={STRIPE_PUBLISHABLE_KEY}>
+      <StripeProvider
+        publishableKey={STRIPE_PUBLISHABLE_KEY}
+        merchantIdentifier="merchant.com.hopdrop.app"
+      >
         <SafeAreaProvider>
           <PaperProvider theme={theme}>
             <StatusBar style="auto" />
