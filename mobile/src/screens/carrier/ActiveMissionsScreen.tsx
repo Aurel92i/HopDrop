@@ -16,6 +16,7 @@ import { colors, spacing, sizes, carriers } from '../../theme';
 import { Mission, MissionStatus, Carrier } from '../../types';
 import { useTranslation } from '../../i18n/i18nContext';
 import { PhotoPreviewModal } from '../../components/common/PhotoPreviewModal';
+import { locationService } from '../../services/location';
 
 type ActiveMissionsScreenProps = {
   navigation: NativeStackNavigationProp<CarrierStackParamList, 'ActiveMissions'>;
@@ -53,6 +54,27 @@ export function ActiveMissionsScreen({ navigation }: ActiveMissionsScreenProps) 
   useFocusEffect(
     useCallback(() => {
       loadMissions();
+
+      // Auto-démarrer le tracking si une mission est en cours de trajet
+      const autoStartTracking = async () => {
+        const { missions: currentData } = await api.getCurrentMissions();
+        const hasActiveJourney = currentData.some(
+          (m: Mission) => m.status === 'IN_PROGRESS' || (m.status === 'PICKED_UP' && !m.deliveredAt)
+        );
+        if (hasActiveJourney && !locationService.isTrackingActive()) {
+          console.log('🔄 Auto-restart tracking GPS');
+          await locationService.startForegroundTracking((loc) => {
+            console.log('📍 Position mise à jour:', loc.coords.latitude.toFixed(4), loc.coords.longitude.toFixed(4));
+          }, 10000);
+        }
+      };
+      autoStartTracking().catch(console.error);
+
+      // Cleanup : arrêter le tracking quand on quitte l'écran
+      return () => {
+        // Ne pas arrêter ici si une mission est toujours en cours
+        // Le tracking s'arrêtera au dépôt du colis
+      };
     }, [])
   );
 
@@ -92,6 +114,10 @@ export function ActiveMissionsScreen({ navigation }: ActiveMissionsScreenProps) 
       );
 
       await loadMissions();
+    // Démarrer le tracking GPS continu
+      await locationService.startForegroundTracking((loc) => {
+        console.log('📍 Position livreur:', loc.coords.latitude.toFixed(4), loc.coords.longitude.toFixed(4));
+      }, 10000);
     } catch (e: any) {
       Alert.alert(t('common.error'), e.message || t('carrier.activeMissions.departError'));
     } finally {
@@ -200,6 +226,8 @@ export function ActiveMissionsScreen({ navigation }: ActiveMissionsScreenProps) 
       );
 
       await loadMissions();
+      // Arrêter le tracking GPS — le colis est déposé
+      await locationService.stopTracking();
     } catch (e: any) {
       Alert.alert(t('common.error'), e.message || t('carrier.activeMissions.depositError'));
     } finally {
@@ -221,6 +249,7 @@ export function ActiveMissionsScreen({ navigation }: ActiveMissionsScreenProps) 
             try {
               await api.cancelMission(mission.id, t('carrier.activeMissions.cancelReason'));
               await loadMissions();
+              await locationService.stopTracking();
               if (missions.length <= 1) {
                 navigation.goBack();
               }
@@ -253,7 +282,7 @@ export function ActiveMissionsScreen({ navigation }: ActiveMissionsScreenProps) 
                 [{ text: t('carrier.activeMissions.pickupSuccessBtn') }]
               );
 
-              await loadMissions();
+              await loadMissions();  
             } catch (e: any) {
               Alert.alert(t('common.error'), e.message);
             } finally {
