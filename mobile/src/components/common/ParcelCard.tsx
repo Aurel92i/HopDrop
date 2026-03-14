@@ -25,7 +25,23 @@ export function ParcelCard({ parcel, onPress, showCarrier = true }: ParcelCardPr
     EXPIRED: { label: t('status.EXPIRED'), color: colors.onSurfaceVariant, icon: 'timer-off-outline' },
   }), [t]);
 
-  const status = statusConfig[parcel.status];
+  // Déterminer le statut affiché (peut différer du statut en base)
+  const getDisplayStatus = () => {
+    const mission = (parcel as any).mission;
+    const baseStatus = statusConfig[parcel.status];
+
+    // Si le colis est PICKED_UP et que la mission a un deliveredAt → Déposé
+    if (parcel.status === 'PICKED_UP' && mission?.deliveredAt) {
+      if (mission.clientContestedAt && !mission.clientConfirmedDeliveryAt) {
+        return { label: 'Contesté', color: '#EF4444', icon: 'alert-circle' };
+      }
+      return { label: 'Déposé — À confirmer', color: '#8B5CF6', icon: 'store-check' };
+    }
+
+    return baseStatus;
+  };
+
+  const status = getDisplayStatus();
   const sizeInfo = sizes.parcel[parcel.size];
 
   const formatDate = (dateString: string) => {
@@ -93,11 +109,11 @@ export function ParcelCard({ parcel, onPress, showCarrier = true }: ParcelCardPr
               {Number(parcel.price).toFixed(2)} €
             </Text>
 
-            {showCarrier && parcel.carrier && (
+            {showCarrier && parcel.assignedCarrier && (
               <View style={styles.carrierInfo}>
                 <MaterialCommunityIcons name="account" size={16} color={colors.primary} />
                 <Text variant="bodySmall" style={styles.carrierName}>
-                  {parcel.carrier.firstName}
+                  {parcel.assignedCarrier.firstName}
                 </Text>
               </View>
             )}

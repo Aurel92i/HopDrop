@@ -131,6 +131,16 @@ export class ParcelsService {
               phone: true,
             },
           },
+          mission: {
+            select: {
+              id: true,
+              status: true,
+              deliveredAt: true,
+              clientContestedAt: true,
+              clientConfirmedDeliveryAt: true,
+              autoConfirmed: true,
+            },
+          },
         },
         orderBy: { createdAt: 'desc' },
         skip,
