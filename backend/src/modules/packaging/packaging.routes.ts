@@ -29,7 +29,8 @@ export async function packagingRoutes(app: FastifyInstance) {
     async (request: FastifyRequest<{ Body: CarrierConfirmBody }>, reply: FastifyReply) => {
       try {
         const { missionId, photoUrl } = request.body;
-        const carrierId = (request.user as any).id;
+        const user = request.user as any;
+        const carrierId = user?.userId || user?.id;
 
         if (!missionId || !photoUrl) {
           return reply.status(400).send({
@@ -63,7 +64,8 @@ export async function packagingRoutes(app: FastifyInstance) {
     async (request: FastifyRequest<{ Body: VendorConfirmBody }>, reply: FastifyReply) => {
       try {
         const { parcelId } = request.body;
-        const vendorId = (request.user as any).id;
+        const user = request.user as any;
+        const vendorId = user?.userId || user?.id;
 
         if (!parcelId) {
           return reply.status(400).send({
@@ -96,7 +98,8 @@ export async function packagingRoutes(app: FastifyInstance) {
     async (request: FastifyRequest<{ Body: VendorRejectBody }>, reply: FastifyReply) => {
       try {
         const { parcelId, reason } = request.body;
-        const vendorId = (request.user as any).id;
+        const user = request.user as any;
+        const vendorId = user?.userId || user?.id;
 
         if (!parcelId || !reason) {
           return reply.status(400).send({
@@ -130,7 +133,8 @@ export async function packagingRoutes(app: FastifyInstance) {
     async (request: FastifyRequest<{ Params: StatusParams }>, reply: FastifyReply) => {
       try {
         const { parcelId } = request.params;
-        const userId = (request.user as any).id;
+        const user = request.user as any;
+        const userId = user?.userId || user?.id;
 
         const result = await packagingService.getPackagingStatus(parcelId, userId);
 

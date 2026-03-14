@@ -715,7 +715,7 @@ export function ActiveMissionsScreen({ navigation }: ActiveMissionsScreenProps) 
   const renderPackagingModal = () => (
     <Portal>
       <Modal
-        visible={showPackagingModal}
+        visible={showPackagingModal && !rawPackagingPhoto}
         onDismiss={() => {
           setShowPackagingModal(false);
           setPackagingPhoto(null);
@@ -774,7 +774,7 @@ export function ActiveMissionsScreen({ navigation }: ActiveMissionsScreenProps) 
   const renderDeliveryProofModal = () => (
     <Portal>
       <Modal
-        visible={showDeliveryModal}
+        visible={showDeliveryModal && !rawDeliveryPhoto}
         onDismiss={() => {
           setShowDeliveryModal(false);
           setDeliveryProofPhoto(null);

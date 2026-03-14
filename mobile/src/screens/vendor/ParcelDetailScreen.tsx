@@ -86,6 +86,19 @@ export function ParcelDetailScreen({ navigation, route }: ParcelDetailScreenProp
   // ET rafraîchir régulièrement pour détecter le dépôt
   useFocusEffect(
     useCallback(() => {
+      // Polling pour statut ACCEPTED (attente confirmation emballage)
+      if (currentParcel && currentParcel.status === 'ACCEPTED') {
+        console.log('🔄 Polling emballage - Status colis:', currentParcel.status);
+        
+        const interval = setInterval(() => {
+          console.log('🔄 Rafraîchissement auto pour emballage');
+          fetchParcel(parcelId);
+        }, 10000); // Toutes les 10 secondes
+
+        return () => clearInterval(interval);
+      }
+
+      // Polling pour statuts PICKED_UP / DELIVERED (attente confirmation dépôt)
       if (currentParcel && (currentParcel.status === 'PICKED_UP' || currentParcel.status === 'DELIVERED')) {
         console.log('🔍 Écran focus - Status colis:', currentParcel.status);
         fetchDeliveryStatus();
