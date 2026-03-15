@@ -1,6 +1,7 @@
 import { prisma } from '../../shared/prisma.js';
 import { stripe } from '../../config/stripe.js';
 import { paymentsConfig } from '../payments/payments.config.js';
+import { pushService } from '../notifications/push.service.js';
 
 export class TipsService {
   // Créer un pourboire — retourne un clientSecret pour le paiement
@@ -84,6 +85,7 @@ export class TipsService {
       where: { id: tipId },
       include: {
         carrier: { include: { carrierProfile: true } },
+        vendor: { select: { firstName: true } },
       },
     });
 
@@ -107,10 +109,26 @@ export class TipsService {
         data: { stripeTransferId: transfer.id },
       });
 
+      // Notifier le livreur qu'il a reçu un pourboire
+      await pushService.sendToUser({
+        userId: tip.carrierId,
+        title: '🎉 Pourboire reçu !',
+        body: `${tip.vendor?.firstName || 'Un client'} vous a envoyé ${tip.amount.toFixed(2)} €${tip.message ? ' — "' + tip.message + '"' : ''}`,
+        data: { type: 'TIP_RECEIVED', amount: tip.amount.toString(), parcelId: tip.parcelId },
+      });
+
       return { success: true, transferId: transfer.id };
     }
 
-    // Pas de compte Stripe — le transfer sera fait plus tard
+    // Pas de compte Stripe — notifier quand même le livreur
+    await pushService.sendToUser({
+      userId: tip.carrierId,
+      title: '🎉 Pourboire reçu !',
+      body: `${tip.vendor?.firstName || 'Un client'} vous a envoyé ${tip.amount.toFixed(2)} €${tip.message ? ' — "' + tip.message + '"' : ''}`,
+      data: { type: 'TIP_RECEIVED', amount: tip.amount.toString(), parcelId: tip.parcelId },
+    });
+
+    // Le transfer sera fait plus tard
     return { success: true, pendingTransfer: true };
   }
 

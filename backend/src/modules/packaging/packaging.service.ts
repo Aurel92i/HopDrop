@@ -1,5 +1,6 @@
 import { prisma } from '../../shared/prisma.js';
 import { ParcelStatus, MissionStatus } from '@prisma/client';
+import { pushService } from '../notifications/push.service.js';
 
 // ===== LIVREUR CONFIRME L'EMBALLAGE =====
 export async function carrierConfirmPackaging(
@@ -44,8 +45,8 @@ export async function carrierConfirmPackaging(
     },
   });
 
-  // TODO: Envoyer notification push au vendeur
-  // if (updatedParcel.vendor?.fcmToken) { ... }
+  // Notifier le vendeur que l'emballage est à valider
+  await pushService.notifyPackagingToValidate(updatedParcel.vendorId);
 
   return {
     success: true,
@@ -113,8 +114,10 @@ export async function vendorConfirmPackaging(
 
   const [updatedParcel, updatedMission] = await prisma.$transaction(transactionPromises);
 
-  // TODO: Envoyer notification push au livreur
-  // if (updatedParcel.assignedCarrier?.fcmToken) { ... }
+  // Notifier le livreur que l'emballage est validé
+  if (parcel.assignedCarrierId) {
+    await pushService.notifyPackagingValidated(parcel.assignedCarrierId);
+  }
 
   return {
     success: true,
@@ -155,8 +158,10 @@ export async function vendorRejectPackaging(
     },
   });
 
-  // TODO: Notifier le livreur
-  // if (parcel.assignedCarrier?.fcmToken) { ... }
+  // Notifier le livreur que l'emballage est refusé
+  if (parcel.assignedCarrierId) {
+    await pushService.notifyPackagingRejected(parcel.assignedCarrierId, reason);
+  }
 
   return {
     success: true,
