@@ -26,4 +26,38 @@ export async function authRoutes(app: FastifyInstance) {
   app.post('/auth/change-password', {
     preHandler: [app.authenticate],
   }, authController.changePassword.bind(authController));
+
+  // ===== VÉRIFICATION EMAIL =====
+
+  // POST /auth/send-verification-code — Envoyer/renvoyer le code
+  app.post('/auth/send-verification-code', {
+    preHandler: [app.authenticate],
+  }, async (request, reply) => {
+    try {
+      const userId = (request.user as any).userId;
+      await authService.sendVerificationCode(userId);
+      return reply.send({ message: 'Code de vérification envoyé par email' });
+    } catch (error: any) {
+      return reply.status(400).send({ error: error.message });
+    }
+  });
+
+  // POST /auth/verify-email — Vérifier le code
+  app.post('/auth/verify-email', {
+    preHandler: [app.authenticate],
+  }, async (request, reply) => {
+    try {
+      const userId = (request.user as any).userId;
+      const { code } = request.body as { code: string };
+
+      if (!code || code.length !== 6) {
+        return reply.status(400).send({ error: 'Code à 6 chiffres requis' });
+      }
+
+      await authService.verifyEmail(userId, code);
+      return reply.send({ message: 'Email vérifié avec succès', verified: true });
+    } catch (error: any) {
+      return reply.status(400).send({ error: error.message });
+    }
+  });
 }

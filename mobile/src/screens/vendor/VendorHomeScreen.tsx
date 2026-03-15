@@ -3,7 +3,7 @@ import { View, StyleSheet, FlatList, RefreshControl, Alert, Modal, TouchableOpac
 import { FAB, SegmentedButtons, Text, IconButton } from 'react-native-paper';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
-
+import { useAuthStore } from '../../stores/authStore';
 import { ParcelCard } from '../../components/common/ParcelCard';
 import { EmptyState } from '../../components/common/EmptyState';
 import { LoadingScreen } from '../../components/common/LoadingScreen';
@@ -11,6 +11,7 @@ import { useParcelStore } from '../../stores/parcelStore';
 import { VendorStackParamList } from '../../navigation/types';
 import { colors, spacing } from '../../theme';
 import { useTranslation, languageLabels, Language } from '../../i18n/i18nContext';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 type VendorHomeScreenProps = {
   navigation: NativeStackNavigationProp<VendorStackParamList, 'VendorHome'>;
@@ -22,6 +23,7 @@ export function VendorHomeScreen({ navigation }: VendorHomeScreenProps) {
   const [refreshing, setRefreshing] = React.useState(false);
   const { t, language, setLanguage } = useTranslation();
   const [showLanguageModal, setShowLanguageModal] = React.useState(false);
+  const { user } = useAuthStore();
 
   const showLanguagePicker = () => {
     setShowLanguageModal(true);
@@ -91,7 +93,19 @@ export function VendorHomeScreen({ navigation }: VendorHomeScreenProps) {
           style={styles.segmentedButtons}
         />
       </View>
-
+    {/* Bandeau vérification email */}
+      {user && !user.emailVerified && (
+        <TouchableOpacity
+          style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#FEF3C7', padding: 12, gap: 8, borderRadius: 8, margin: 12, marginBottom: 0 }}
+          onPress={() => navigation.navigate('EmailVerification')}
+        >
+          <MaterialCommunityIcons name="email-alert" size={20} color="#92400E" />
+          <Text style={{ flex: 1, color: '#92400E', fontSize: 13 }}>
+            Vérifiez votre email pour créer des colis
+          </Text>
+          <MaterialCommunityIcons name="chevron-right" size={20} color="#92400E" />
+        </TouchableOpacity>
+      )}
       <FlatList
         data={filteredParcels}
         keyExtractor={(item) => item.id}
@@ -119,7 +133,20 @@ export function VendorHomeScreen({ navigation }: VendorHomeScreenProps) {
       <FAB
         icon="plus"
         style={styles.fab}
-        onPress={() => navigation.navigate('CreateParcel')}
+        onPress={() => {
+  if (user && !user.emailVerified) {
+    Alert.alert(
+      'Email non vérifié',
+      'Vous devez vérifier votre adresse email avant de créer un colis.',
+      [
+        { text: 'Plus tard', style: 'cancel' },
+        { text: 'Vérifier', onPress: () => navigation.navigate('EmailVerification') },
+      ]
+    );
+    return;
+  }
+  navigation.navigate('CreateParcel');
+}}
         color={colors.onPrimary}
       />
 

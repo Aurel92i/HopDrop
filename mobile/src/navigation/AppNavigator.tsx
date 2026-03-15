@@ -24,6 +24,7 @@ import {
 import { LoginScreen } from '../screens/auth/LoginScreen';
 import { RegisterScreen } from '../screens/auth/RegisterScreen';
 import { ForgotPasswordScreen } from '../screens/auth/ForgotPasswordScreen';
+import { EmailVerificationScreen } from '../screens/auth/EmailVerificationScreen';
 
 // Vendor Screens
 import { VendorHomeScreen } from '../screens/vendor/VendorHomeScreen';
@@ -126,6 +127,11 @@ function VendorNavigator() {
         component={PaymentScreen}
         options={{ title: t('nav.payment') }}
       />
+      <VendorStack.Screen
+        name="EmailVerification"
+        component={EmailVerificationScreen}
+        options={{ title: 'Vérification email' }}
+      />
     </VendorStack.Navigator>
   );
 }
@@ -184,6 +190,11 @@ function CarrierNavigator() {
         name="TransactionHistory"
         component={TransactionHistoryScreen}
         options={{ title: t('nav.transactionHistory') }}
+      />
+      <CarrierStack.Screen
+        name="EmailVerification"
+        component={EmailVerificationScreen}
+        options={{ title: 'Vérification email' }}
       />
     </CarrierStack.Navigator>
   );

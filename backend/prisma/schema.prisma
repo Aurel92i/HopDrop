@@ -110,6 +110,8 @@ model User {
   avatarUrl              String?
   emailVerified          Boolean   @default(false)
   emailVerificationToken String?
+  emailVerificationCode    String?
+  emailVerificationCodeExp DateTime?
   passwordResetToken     String?
   passwordResetExpires   DateTime?
   fcmToken               String?

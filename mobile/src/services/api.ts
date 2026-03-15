@@ -268,6 +268,16 @@ class ApiService {
     return response.data;
   }
 
+  async sendVerificationCode() {
+    const response = await this.api.post('/auth/send-verification-code');
+    return response.data;
+  }
+
+  async verifyEmail(code: string) {
+    const response = await this.api.post('/auth/verify-email', { code });
+    return response.data;
+  }
+
   async socialLogin(provider: 'google' | 'apple', token: string, role?: string) {
     const response = await this.api.post('/auth/social', { provider, token, role });
     const { accessToken, refreshToken, user, isNewUser } = response.data;

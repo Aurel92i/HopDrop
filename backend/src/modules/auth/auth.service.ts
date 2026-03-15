@@ -5,10 +5,16 @@ import { RegisterInput, LoginInput, SocialAuthInput } from './auth.schemas.js';
 import { AuthTokens, sanitizeUser, SafeUser } from './auth.types.js';
 import { FastifyInstance } from 'fastify';
 import { verifyGoogleToken, verifyAppleToken } from './social-auth.service.js';
+import { emailService } from '../../shared/services/email.service.js';
 
 const SALT_ROUNDS = 10;
 const ACCESS_TOKEN_EXPIRY = '15m';
 const REFRESH_TOKEN_EXPIRY_DAYS = 7;
+const VERIFICATION_CODE_EXPIRY_MINUTES = 15;
+
+function generateVerificationCode(): string {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+}
 
 export class AuthService {
   constructor(private app: FastifyInstance) {}
@@ -26,8 +32,9 @@ export class AuthService {
     // Hasher le mot de passe
     const passwordHash = await bcrypt.hash(input.password, SALT_ROUNDS);
 
-    // Générer un token de vérification email
-    const emailVerificationToken = nanoid(32);
+    // Générer un code de vérification à 6 chiffres
+    const verificationCode = generateVerificationCode();
+    const codeExpiry = new Date(Date.now() + VERIFICATION_CODE_EXPIRY_MINUTES * 60 * 1000);
 
     // Créer l'utilisateur
     const user = await prisma.user.create({
@@ -37,7 +44,8 @@ export class AuthService {
         firstName: input.firstName,
         lastName: input.lastName,
         role: input.role,
-        emailVerificationToken,
+        emailVerificationCode: verificationCode,
+        emailVerificationCodeExp: codeExpiry,
       },
     });
 
@@ -50,7 +58,8 @@ export class AuthService {
       });
     }
 
-    // TODO: Envoyer l'email de vérification
+    // Envoyer le code par email
+    await emailService.sendVerificationCode(user.email, verificationCode, user.firstName);
 
     return sanitizeUser(user);
   }
@@ -84,6 +93,76 @@ export class AuthService {
       user: sanitizeUser(user),
       tokens,
     };
+  }
+
+  // ===== ENVOYER / RENVOYER LE CODE DE VÉRIFICATION =====
+  async sendVerificationCode(userId: string): Promise<void> {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new Error('Utilisateur non trouvé');
+    }
+
+    if (user.emailVerified) {
+      throw new Error('Votre email est déjà vérifié');
+    }
+
+    // Générer un nouveau code
+    const verificationCode = generateVerificationCode();
+    const codeExpiry = new Date(Date.now() + VERIFICATION_CODE_EXPIRY_MINUTES * 60 * 1000);
+
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        emailVerificationCode: verificationCode,
+        emailVerificationCodeExp: codeExpiry,
+      },
+    });
+
+    // Envoyer le code par email
+    await emailService.sendVerificationCode(user.email, verificationCode, user.firstName);
+  }
+
+  // ===== VÉRIFIER LE CODE =====
+  async verifyEmail(userId: string, code: string): Promise<void> {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new Error('Utilisateur non trouvé');
+    }
+
+    if (user.emailVerified) {
+      throw new Error('Votre email est déjà vérifié');
+    }
+
+    if (!user.emailVerificationCode || !user.emailVerificationCodeExp) {
+      throw new Error('Aucun code de vérification en attente. Demandez un nouveau code.');
+    }
+
+    // Vérifier l'expiration
+    if (user.emailVerificationCodeExp < new Date()) {
+      throw new Error('Le code a expiré. Demandez un nouveau code.');
+    }
+
+    // Vérifier le code
+    if (user.emailVerificationCode !== code) {
+      throw new Error('Code incorrect');
+    }
+
+    // Marquer comme vérifié
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        emailVerified: true,
+        emailVerificationCode: null,
+        emailVerificationCodeExp: null,
+        emailVerificationToken: null,
+      },
+    });
   }
 
   async refreshToken(refreshToken: string): Promise<AuthTokens> {
