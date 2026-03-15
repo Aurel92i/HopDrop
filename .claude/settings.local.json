@@ -13,7 +13,8 @@
       "Bash(wc -l \"/c/Users/Admin/projets/HopDrop/mobile/src/i18n/translations\"/*.ts)",
       "Bash(npx expo:*)",
       "Bash(xargs grep:*)",
-      "Bash(cd /c/Users/Admin/projets/HopDrop/mobile && grep -rn \"Payment\\\\|payment\" src/screens/vendor/*.tsx | grep -i \"navigate\\\\|route\\\\|screen\" | head -20)"
+      "Bash(cd /c/Users/Admin/projets/HopDrop/mobile && grep -rn \"Payment\\\\|payment\" src/screens/vendor/*.tsx | grep -i \"navigate\\\\|route\\\\|screen\" | head -20)",
+      "Bash(cp:*)"
     ]
   }
 }
