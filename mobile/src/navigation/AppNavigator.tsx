@@ -1,15 +1,12 @@
-// mobile/src/navigation/AppNavigator.tsx
-
 import React, { useState } from 'react';
-import { View, ActivityIndicator } from 'react-native';
+import { View, ActivityIndicator, TouchableOpacity, Platform, StyleSheet, Alert } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { useTheme } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { useAuthStore } from '../stores/authStore';
-import { colors } from '../theme';
+import { hdColors } from '../theme';
 import { useTranslation } from '../i18n/i18nContext';
 
 import {
@@ -20,13 +17,11 @@ import {
   AdminStackParamList,
 } from './types';
 
-// Auth Screens
 import { LoginScreen } from '../screens/auth/LoginScreen';
 import { RegisterScreen } from '../screens/auth/RegisterScreen';
 import { ForgotPasswordScreen } from '../screens/auth/ForgotPasswordScreen';
 import { EmailVerificationScreen } from '../screens/auth/EmailVerificationScreen';
 
-// Vendor Screens
 import { VendorHomeScreen } from '../screens/vendor/VendorHomeScreen';
 import { CreateParcelScreen } from '../screens/vendor/CreateParcelScreen';
 import { ParcelDetailScreen } from '../screens/vendor/ParcelDetailScreen';
@@ -34,7 +29,6 @@ import { TrackingScreen } from '../screens/vendor/TrackingScreen';
 import { VendorHistoryScreen } from '../screens/vendor/VendorHistoryScreen';
 import { PaymentScreen } from '../screens/vendor/PaymentScreen';
 
-// Carrier Screens
 import { CarrierHomeScreen } from '../screens/carrier/CarrierHomeScreen';
 import { AvailableMissionsScreen } from '../screens/carrier/AvailableMissionsScreen';
 import { MissionDetailScreen } from '../screens/carrier/MissionDetailScreen';
@@ -44,29 +38,30 @@ import { CarrierProfileScreen } from '../screens/carrier/CarrierProfileScreen';
 import { ActiveMissionsScreen } from '../screens/carrier/ActiveMissionsScreen';
 import { TransactionHistoryScreen } from '../screens/carrier/TransactionHistoryScreen';
 
-// Admin Screens
 import { AdminDashboardScreen } from '../screens/admin/AdminDashboardScreen';
 
-// Shared Screens
 import { ProfileScreen } from '../screens/shared/ProfileScreen';
 import { AddressesScreen } from '../screens/shared/AddressesScreen';
 import { SettingsScreen } from '../screens/shared/SettingsScreen';
 import { ReviewScreen } from '../screens/shared/ReviewScreen';
 import { SplashScreen } from '../screens/shared/SplashScreen';
-
-// Chat Screens
 import { ChatScreen } from '../screens/chat/ChatScreen';
+import { ConversationsScreen } from '../screens/chat/ConversationsScreen';
 import { LegalScreen } from '../screens/shared/LegalScreen';
 
-// Navigators
 const AuthStack = createNativeStackNavigator<AuthStackParamList>();
 const VendorStack = createNativeStackNavigator<VendorStackParamList>();
 const CarrierStack = createNativeStackNavigator<CarrierStackParamList>();
 const ProfileStack = createNativeStackNavigator<ProfileStackParamList>();
 const AdminStack = createNativeStackNavigator<AdminStackParamList>();
+const SettingsStack = createNativeStackNavigator();
+const MessagesStack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
-// Auth Navigator
+function DummyScreen() {
+  return <View style={{ flex: 1, backgroundColor: '#fff' }} />;
+}
+
 function AuthNavigator() {
   return (
     <AuthStack.Navigator screenOptions={{ headerShown: false }}>
@@ -77,197 +72,131 @@ function AuthNavigator() {
   );
 }
 
-// Vendor Navigator
 function VendorNavigator() {
   const { t } = useTranslation();
   return (
     <VendorStack.Navigator
       screenOptions={{
-        headerStyle: { backgroundColor: colors.surface },
-        headerTintColor: colors.onSurface,
+        headerStyle: { backgroundColor: hdColors.surface },
+        headerTintColor: hdColors.text,
+        headerShadowVisible: false,
       }}
     >
-      <VendorStack.Screen
-        name="VendorHome"
-        component={VendorHomeScreen}
-        options={{ title: t('nav.vendorHome') }}
-      />
-      <VendorStack.Screen
-        name="CreateParcel"
-        component={CreateParcelScreen}
-        options={{ title: t('nav.createParcel') }}
-      />
-      <VendorStack.Screen
-        name="ParcelDetail"
-        component={ParcelDetailScreen}
-        options={{ title: t('nav.parcelDetail') }}
-      />
-      <VendorStack.Screen
-        name="VendorHistory"
-        component={VendorHistoryScreen}
-        options={{ title: t('nav.vendorHistory') }}
-      />
-      <VendorStack.Screen
-        name="Tracking"
-        component={TrackingScreen}
-        options={{ title: t('nav.tracking') }}
-      />
-      <VendorStack.Screen
-        name="Chat"
-        component={ChatScreen}
-        options={{ title: t('nav.chat') }}
-      />
-      <VendorStack.Screen
-        name="Review"
-        component={ReviewScreen}
-        options={{ title: t('nav.review') }}
-      />
-      <VendorStack.Screen
-        name="Payment"
-        component={PaymentScreen}
-        options={{ title: t('nav.payment') }}
-      />
-      <VendorStack.Screen
-        name="EmailVerification"
-        component={EmailVerificationScreen}
-        options={{ title: 'Vérification email' }}
-      />
+      <VendorStack.Screen name="VendorHome" component={VendorHomeScreen} options={{ title: 'Mes colis' }} />
+      <VendorStack.Screen name="CreateParcel" component={CreateParcelScreen} options={{ title: t('nav.createParcel') }} />
+      <VendorStack.Screen name="ParcelDetail" component={ParcelDetailScreen} options={{ title: t('nav.parcelDetail') }} />
+      <VendorStack.Screen name="VendorHistory" component={VendorHistoryScreen} options={{ title: t('nav.vendorHistory') }} />
+      <VendorStack.Screen name="Tracking" component={TrackingScreen} options={{ title: t('nav.tracking') }} />
+      <VendorStack.Screen name="Chat" component={ChatScreen} options={{ title: t('nav.chat') }} />
+      <VendorStack.Screen name="Review" component={ReviewScreen} options={{ title: t('nav.review') }} />
+      <VendorStack.Screen name="Payment" component={PaymentScreen} options={{ title: t('nav.payment') }} />
+      <VendorStack.Screen name="EmailVerification" component={EmailVerificationScreen} options={{ title: 'Vérification email' }} />
     </VendorStack.Navigator>
   );
 }
 
-// Carrier Navigator
 function CarrierNavigator() {
   const { t } = useTranslation();
   return (
     <CarrierStack.Navigator
       screenOptions={{
-        headerStyle: { backgroundColor: colors.surface },
-        headerTintColor: colors.onSurface,
+        headerStyle: { backgroundColor: hdColors.surface },
+        headerTintColor: hdColors.text,
+        headerShadowVisible: false,
       }}
     >
-      <CarrierStack.Screen
-        name="CarrierHome"
-        component={CarrierHomeScreen}
-        options={{ title: t('nav.carrierHome') }}
-      />
-      <CarrierStack.Screen
-        name="AvailableMissions"
-        component={AvailableMissionsScreen}
-        options={{ title: t('nav.availableMissions') }}
-      />
-      <CarrierStack.Screen
-        name="MissionDetail"
-        component={MissionDetailScreen}
-        options={{ title: t('nav.missionDetail') }}
-      />
-      <CarrierStack.Screen
-        name="CarrierDocuments"
-        component={CarrierDocumentsScreen}
-        options={{ title: t('nav.carrierDocuments') }}
-      />
-      <CarrierStack.Screen
-        name="CarrierHistory"
-        component={CarrierHistoryScreen}
-        options={{ title: t('nav.carrierHistory') }}
-      />
-      <CarrierStack.Screen
-        name="Chat"
-        component={ChatScreen}
-        options={{ title: t('nav.chat') }}
-      />
-      <CarrierStack.Screen
-        name="CarrierProfile"
-        component={CarrierProfileScreen}
-        options={{ title: t('nav.carrierProfile') }}
-      />
-      <CarrierStack.Screen
-        name="ActiveMissions"
-        component={ActiveMissionsScreen}
-        options={{ title: t('nav.activeMissions') }}
-      />
-      <CarrierStack.Screen
-        name="TransactionHistory"
-        component={TransactionHistoryScreen}
-        options={{ title: t('nav.transactionHistory') }}
-      />
-      <CarrierStack.Screen
-        name="EmailVerification"
-        component={EmailVerificationScreen}
-        options={{ title: 'Vérification email' }}
-      />
+      <CarrierStack.Screen name="CarrierHome" component={CarrierHomeScreen} options={{ title: t('nav.carrierHome') }} />
+      <CarrierStack.Screen name="AvailableMissions" component={AvailableMissionsScreen} options={{ title: t('nav.availableMissions') }} />
+      <CarrierStack.Screen name="MissionDetail" component={MissionDetailScreen} options={{ title: t('nav.missionDetail') }} />
+      <CarrierStack.Screen name="CarrierDocuments" component={CarrierDocumentsScreen} options={{ title: t('nav.carrierDocuments') }} />
+      <CarrierStack.Screen name="CarrierHistory" component={CarrierHistoryScreen} options={{ title: t('nav.carrierHistory') }} />
+      <CarrierStack.Screen name="Chat" component={ChatScreen} options={{ title: t('nav.chat') }} />
+      <CarrierStack.Screen name="CarrierProfile" component={CarrierProfileScreen} options={{ title: t('nav.carrierProfile') }} />
+      <CarrierStack.Screen name="ActiveMissions" component={ActiveMissionsScreen} options={{ title: t('nav.activeMissions') }} />
+      <CarrierStack.Screen name="TransactionHistory" component={TransactionHistoryScreen} options={{ title: t('nav.transactionHistory') }} />
+      <CarrierStack.Screen name="EmailVerification" component={EmailVerificationScreen} options={{ title: 'Vérification email' }} />
     </CarrierStack.Navigator>
   );
 }
 
-// Profile Navigator
+function MessagesNavigator() {
+  return (
+    <MessagesStack.Navigator
+      screenOptions={{
+        headerStyle: { backgroundColor: hdColors.surface },
+        headerTintColor: hdColors.text,
+        headerShadowVisible: false,
+      }}
+    >
+      <MessagesStack.Screen
+        name="MessagesList"
+        component={ConversationsScreen}
+        options={{ title: 'Messages' }}
+      />
+      <MessagesStack.Screen
+        name="Chat"
+        component={ChatScreen}
+        options={({ route }: any) => ({
+          title: route.params?.carrierName || 'Conversation',
+        })}
+      />
+    </MessagesStack.Navigator>
+  );
+}
+
 function ProfileNavigator() {
   const { t } = useTranslation();
   return (
     <ProfileStack.Navigator
       screenOptions={{
-        headerStyle: { backgroundColor: colors.surface },
-        headerTintColor: colors.onSurface,
+        headerStyle: { backgroundColor: hdColors.surface },
+        headerTintColor: hdColors.text,
+        headerShadowVisible: false,
       }}
     >
-      <ProfileStack.Screen
-        name="Profile"
-        component={ProfileScreen}
-        options={{ title: t('nav.profile') }}
-      />
-      <ProfileStack.Screen
-        name="Addresses"
-        component={AddressesScreen}
-        options={{ title: t('nav.addresses') }}
-      />
-      <ProfileStack.Screen
-        name="Settings"
-        component={SettingsScreen}
-        options={{ title: t('nav.settings') }}
-      />
-      <ProfileStack.Screen
-        name="CarrierDocuments"
-        component={CarrierDocumentsScreen}
-        options={{ title: t('nav.documents') }}
-      />
-      <ProfileStack.Screen
-        name="TransactionHistory"
-        component={TransactionHistoryScreen}
-        options={{ title: t('nav.transactions') }}
-      />
-      <ProfileStack.Screen
-        name="Legal"
-        component={LegalScreen}
-        options={{ title: t('nav.legal') }}
-      />
+      <ProfileStack.Screen name="Profile" component={ProfileScreen} options={{ title: t('nav.profile') }} />
+      <ProfileStack.Screen name="Addresses" component={AddressesScreen} options={{ title: t('nav.addresses') }} />
+      <ProfileStack.Screen name="Settings" component={SettingsScreen} options={{ title: t('nav.settings') }} />
+      <ProfileStack.Screen name="CarrierDocuments" component={CarrierDocumentsScreen} options={{ title: t('nav.documents') }} />
+      <ProfileStack.Screen name="TransactionHistory" component={TransactionHistoryScreen} options={{ title: t('nav.transactions') }} />
+      <ProfileStack.Screen name="Legal" component={LegalScreen} options={{ title: t('nav.legal') }} />
     </ProfileStack.Navigator>
   );
 }
 
-// Admin Navigator
+function SettingsNavigator() {
+  const { t } = useTranslation();
+  return (
+    <SettingsStack.Navigator
+      screenOptions={{
+        headerStyle: { backgroundColor: hdColors.surface },
+        headerTintColor: hdColors.text,
+        headerShadowVisible: false,
+      }}
+    >
+      <SettingsStack.Screen name="SettingsMain" component={SettingsScreen} options={{ title: 'Paramètres' }} />
+      <SettingsStack.Screen name="Legal" component={LegalScreen} options={{ title: t('nav.legal') }} />
+    </SettingsStack.Navigator>
+  );
+}
+
 function AdminNavigator() {
   const { t } = useTranslation();
   return (
     <AdminStack.Navigator
       screenOptions={{
-        headerStyle: { backgroundColor: colors.surface },
-        headerTintColor: colors.onSurface,
+        headerStyle: { backgroundColor: hdColors.surface },
+        headerTintColor: hdColors.text,
+        headerShadowVisible: false,
       }}
     >
-      <AdminStack.Screen
-        name="AdminDashboard"
-        component={AdminDashboardScreen}
-        options={{ title: t('nav.adminDashboard') }}
-      />
+      <AdminStack.Screen name="AdminDashboard" component={AdminDashboardScreen} options={{ title: t('nav.adminDashboard') }} />
     </AdminStack.Navigator>
   );
 }
 
-// Main Navigator
 function MainNavigator() {
-  const theme = useTheme();
   const { user } = useAuthStore();
-  const { t } = useTranslation();
   const isCarrier = user?.role === 'CARRIER' || user?.role === 'BOTH';
   const isVendor = user?.role === 'VENDOR' || user?.role === 'BOTH';
   const isAdmin = user?.role === 'ADMIN';
@@ -276,65 +205,143 @@ function MainNavigator() {
     <Tab.Navigator
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: theme.colors.primary,
-        tabBarInactiveTintColor: colors.onSurfaceVariant,
-        tabBarStyle: {
-          backgroundColor: colors.surface,
-          borderTopColor: colors.outline,
-        },
+        tabBarStyle: tabStyles.tabBar,
+        tabBarActiveTintColor: hdColors.accent,
+        tabBarInactiveTintColor: hdColors.textTertiary,
+        tabBarLabelStyle: tabStyles.tabLabel,
+        tabBarItemStyle: tabStyles.tabItem,
       }}
     >
+      {/* 1 — Colis */}
       {isVendor && (
         <Tab.Screen
           name="VendorTab"
           component={VendorNavigator}
           options={{
-            title: t('nav.tab.vendor'),
-            tabBarIcon: ({ color, size }) => (
-              <MaterialCommunityIcons name="package-variant" size={size} color={color} />
+            title: 'Colis',
+            tabBarIcon: ({ color }) => (
+              <MaterialCommunityIcons name="package-variant" size={22} color={color} />
             ),
           }}
         />
       )}
-      {isCarrier && (
+
+      {isCarrier && !isVendor && (
         <Tab.Screen
           name="CarrierTab"
           component={CarrierNavigator}
           options={{
-            title: t('nav.tab.carrier'),
-            tabBarIcon: ({ color, size }) => (
-              <MaterialCommunityIcons name="bike" size={size} color={color} />
+            title: 'Courses',
+            tabBarIcon: ({ color }) => (
+              <MaterialCommunityIcons name="bike" size={22} color={color} />
             ),
           }}
         />
       )}
+
+      {/* 2 — Messages */}
+      <Tab.Screen
+        name="MessagesTab"
+        component={MessagesNavigator}
+        options={{
+          title: 'Messages',
+          tabBarIcon: ({ color }) => (
+            <MaterialCommunityIcons name="chat-outline" size={22} color={color} />
+          ),
+        }}
+      />
+
+      {/* 3 — Bouton + central */}
+      <Tab.Screen
+        name="CreateTab"
+        component={DummyScreen}
+        options={{
+          title: '',
+          tabBarIcon: () => null,
+          tabBarButton: (props) => (
+            <View style={tabStyles.centerContainer}>
+              <TouchableOpacity
+                style={tabStyles.centerBtn}
+                activeOpacity={0.85}
+                onPress={props.onPress}
+              >
+                <MaterialCommunityIcons name="plus" size={26} color="#FFFFFF" />
+              </TouchableOpacity>
+            </View>
+          ),
+        }}
+        listeners={({ navigation }) => ({
+          tabPress: (e) => {
+            e.preventDefault();
+            if (user && !user.emailVerified) {
+              Alert.alert(
+                'Email non vérifié',
+                'Vous devez vérifier votre adresse email avant de créer un colis.',
+                [
+                  { text: 'Plus tard', style: 'cancel' },
+                  { text: 'Vérifier', onPress: () => navigation.navigate('VendorTab', { screen: 'EmailVerification' }) },
+                ]
+              );
+              return;
+            }
+            navigation.navigate('VendorTab', { screen: 'CreateParcel' });
+          },
+        })}
+      />
+
+      {/* 4 — Profil */}
+      <Tab.Screen
+        name="ProfileTab"
+        component={ProfileNavigator}
+        options={{
+          title: 'Profil',
+          tabBarIcon: ({ color }) => (
+            <MaterialCommunityIcons name="account" size={22} color={color} />
+          ),
+        }}
+      />
+
+      {/* 5 — Paramètres */}
+      <Tab.Screen
+        name="SettingsTab"
+        component={SettingsNavigator}
+        options={{
+          title: 'Réglages',
+          tabBarIcon: ({ color }) => (
+            <MaterialCommunityIcons name="cog-outline" size={22} color={color} />
+          ),
+        }}
+      />
+
       {isAdmin && (
         <Tab.Screen
           name="AdminTab"
           component={AdminNavigator}
           options={{
-            title: t('nav.tab.admin'),
-            tabBarIcon: ({ color, size }) => (
-              <MaterialCommunityIcons name="shield-crown" size={size} color={color} />
+            title: 'Admin',
+            tabBarIcon: ({ color }) => (
+              <MaterialCommunityIcons name="shield-crown" size={22} color={color} />
             ),
           }}
         />
       )}
-      <Tab.Screen
-        name="ProfileTab"
-        component={ProfileNavigator}
-        options={{
-          title: t('nav.tab.profile'),
-          tabBarIcon: ({ color, size }) => (
-            <MaterialCommunityIcons name="account" size={size} color={color} />
-          ),
-        }}
-      />
+
+      {isCarrier && isVendor && (
+        <Tab.Screen
+          name="CarrierTab"
+          component={CarrierNavigator}
+          options={{
+            title: 'Courses',
+            tabBarIcon: ({ color }) => (
+              <MaterialCommunityIcons name="bike" size={22} color={color} />
+            ),
+          }}
+        />
+      )}
     </Tab.Navigator>
   );
 }
 
-// Root Navigator
 export function AppNavigator() {
   const { isAuthenticated, isLoading, checkAuth } = useAuthStore();
   const [showSplash, setShowSplash] = useState(true);
@@ -343,22 +350,14 @@ export function AppNavigator() {
     checkAuth();
   }, []);
 
-  // Afficher le Splash Screen au démarrage
   if (showSplash) {
     return <SplashScreen onFinish={() => setShowSplash(false)} />;
   }
 
   if (isLoading) {
     return (
-      <View
-        style={{
-          flex: 1,
-          justifyContent: 'center',
-          alignItems: 'center',
-          backgroundColor: colors.background,
-        }}
-      >
-        <ActivityIndicator size="large" color={colors.primary} />
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: hdColors.background }}>
+        <ActivityIndicator size="large" color={hdColors.accent} />
       </View>
     );
   }
@@ -369,3 +368,49 @@ export function AppNavigator() {
     </NavigationContainer>
   );
 }
+
+const tabStyles = StyleSheet.create({
+  tabBar: {
+    backgroundColor: hdColors.surface,
+    borderTopWidth: 0.5,
+    borderTopColor: hdColors.border,
+    height: Platform.OS === 'ios' ? 88 : 64,
+    paddingBottom: Platform.OS === 'ios' ? 28 : 8,
+    paddingTop: 6,
+  },
+  tabLabel: {
+    fontSize: 10,
+    fontWeight: '600',
+    marginTop: 2,
+  },
+  tabItem: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  centerContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  centerBtn: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: hdColors.accent,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: -12,
+    ...Platform.select({
+      ios: {
+        shadowColor: hdColors.accent,
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.3,
+        shadowRadius: 6,
+      },
+      android: { elevation: 5 },
+    }),
+  },
+});
+
+export type { AuthStackParamList };

@@ -1,17 +1,31 @@
-import React, { useEffect, useCallback } from 'react';
-import { View, StyleSheet, FlatList, RefreshControl, Alert, Modal, TouchableOpacity } from 'react-native';
-import { FAB, SegmentedButtons, Text, IconButton } from 'react-native-paper';
+import React, { useCallback, useMemo } from 'react';
+import {
+  View,
+  StyleSheet,
+  FlatList,
+  RefreshControl,
+  Modal,
+  TouchableOpacity,
+  Platform,
+  Image,
+  Alert,
+} from 'react-native';
+import { Text } from 'react-native-paper';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { Logo } from '../../components/common/Logo';
+
 import { useAuthStore } from '../../stores/authStore';
 import { ParcelCard } from '../../components/common/ParcelCard';
 import { EmptyState } from '../../components/common/EmptyState';
 import { LoadingScreen } from '../../components/common/LoadingScreen';
 import { useParcelStore } from '../../stores/parcelStore';
 import { VendorStackParamList } from '../../navigation/types';
-import { colors, spacing } from '../../theme';
+import { hdColors, spacing, borderRadius } from '../../theme';
 import { useTranslation, languageLabels, Language } from '../../i18n/i18nContext';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
+import { api } from '../../services/api';
 
 type VendorHomeScreenProps = {
   navigation: NativeStackNavigationProp<VendorStackParamList, 'VendorHome'>;
@@ -25,87 +39,156 @@ export function VendorHomeScreen({ navigation }: VendorHomeScreenProps) {
   const [showLanguageModal, setShowLanguageModal] = React.useState(false);
   const { user } = useAuthStore();
 
-  const showLanguagePicker = () => {
-    setShowLanguageModal(true);
-  };
-
-  // Ajouter le bouton historique et le bouton langue dans le header
   React.useLayoutEffect(() => {
-    navigation.setOptions({
-      headerRight: () => (
-        <View style={{ flexDirection: 'row' }}>
-          <IconButton
-            icon="translate"
-            size={24}
-            onPress={showLanguagePicker}
-          />
-          <IconButton
-            icon="history"
-            size={24}
-            onPress={() => navigation.navigate('VendorHistory')}
-          />
-        </View>
-      ),
-    });
-  }, [navigation, language]);
+    navigation.setOptions({ headerShown: false });
+  }, [navigation]);
 
   useFocusEffect(
     useCallback(() => {
-      loadParcels();
+      fetchParcels(undefined);
     }, [filter])
   );
 
-  const loadParcels = async () => {
-    // Always fetch all parcels, filtering is done client-side
-    await fetchParcels(undefined);
-  };
-
   const onRefresh = async () => {
     setRefreshing(true);
-    await loadParcels();
+    await fetchParcels(undefined);
     setRefreshing(false);
   };
 
-  const filteredParcels = React.useMemo(() => {
+  const filteredParcels = useMemo(() => {
     if (filter === 'all') return parcels;
     if (filter === 'accepted') {
-      // Include both ACCEPTED and PICKED_UP statuses in "En cours" tab
       return parcels.filter((p) => p.status === 'ACCEPTED' || p.status === 'PICKED_UP');
     }
     return parcels.filter((p) => p.status === filter.toUpperCase());
   }, [parcels, filter]);
 
+  const initials = user
+    ? `${(user.firstName || '')[0] || ''}${(user.lastName || '')[0] || ''}`.toUpperCase()
+    : '?';
+
+  const profilePicture = (user as any)?.avatarUrl || (user as any)?.profilePicture || (user as any)?.avatar || null;
+  const handleChangePhoto = async () => {
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission requise', "Autorisez l'accès à vos photos pour changer votre photo de profil.");
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.7,
+        base64: true,
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        const asset = result.assets[0];
+        try {
+          const base64Image = `data:image/jpeg;base64,${asset.base64}`;
+          await api.updateProfile({ avatarUrl: base64Image });
+          const { checkAuth } = useAuthStore.getState();
+          await checkAuth();
+          Alert.alert('Photo mise à jour !');
+        } catch (e: any) {
+          Alert.alert('Erreur', e.message || 'Impossible de mettre à jour la photo.');
+        }
+      }
+    } catch (e) {
+      console.error('Erreur image picker:', e);
+    }
+  };
+
   if (isLoading && parcels.length === 0) {
     return <LoadingScreen message={t('vendor.home.loadingParcels')} />;
   }
 
-  return (
-    <View style={styles.container}>
-      <View style={styles.filterContainer}>
-        <SegmentedButtons
-          value={filter}
-          onValueChange={setFilter}
-          buttons={[
-            { value: 'all', label: t('vendor.home.all') },
-            { value: 'pending', label: t('vendor.home.pending') },
-            { value: 'accepted', label: t('vendor.home.inProgress') },
-          ]}
-          style={styles.segmentedButtons}
-        />
+  const tabs = [
+    { key: 'all', label: t('vendor.home.all') },
+    { key: 'pending', label: t('vendor.home.pending') },
+    { key: 'accepted', label: t('vendor.home.inProgress') },
+  ];
+
+  const renderHeader = () => (
+    <View>
+      {/* Logo centré */}
+      <View style={styles.topBar}>
+        <Logo size="medium" />
       </View>
-    {/* Bandeau vérification email */}
+
+      {/* Barre "Mes colis" avec photo de profil + crayon */}
+      <View style={styles.sectionBar}>
+        {/* Photo de profil avec crayon */}
+        <TouchableOpacity style={styles.avatarWrapper} activeOpacity={0.7} onPress={handleChangePhoto}>
+          {profilePicture ? (
+            <Image source={{ uri: profilePicture }} style={styles.avatarImage} />
+          ) : (
+            <View style={styles.avatar}>
+              <Text style={styles.avatarText}>{initials}</Text>
+            </View>
+          )}
+          <View style={styles.avatarEditBadge}>
+            <MaterialCommunityIcons name="pencil" size={10} color="#FFFFFF" />
+          </View>
+        </TouchableOpacity>
+
+        <Text style={styles.sectionTitle}>Mes colis</Text>
+
+        <View style={styles.sectionActions}>
+          <TouchableOpacity
+            style={styles.actionBtn}
+            onPress={() => setShowLanguageModal(true)}
+            activeOpacity={0.7}
+          >
+            <MaterialCommunityIcons name="translate" size={18} color={hdColors.textSecondary} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.actionBtn}
+            onPress={() => navigation.navigate('VendorHistory')}
+            activeOpacity={0.7}
+          >
+            <MaterialCommunityIcons name="history" size={18} color={hdColors.textSecondary} />
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* Tabs */}
+      <View style={styles.tabsContainer}>
+        <View style={styles.tabsRow}>
+          {tabs.map((tab) => (
+            <TouchableOpacity
+              key={tab.key}
+              style={[styles.tab, filter === tab.key ? styles.tabActive : styles.tabInactive]}
+              onPress={() => setFilter(tab.key)}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.tabText, filter === tab.key ? styles.tabTextActive : styles.tabTextInactive]}>
+                {tab.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+
+      {/* Bandeau email */}
       {user && !user.emailVerified && (
         <TouchableOpacity
-          style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#FEF3C7', padding: 12, gap: 8, borderRadius: 8, margin: 12, marginBottom: 0 }}
+          style={styles.emailBanner}
           onPress={() => navigation.navigate('EmailVerification')}
+          activeOpacity={0.7}
         >
-          <MaterialCommunityIcons name="email-alert" size={20} color="#92400E" />
-          <Text style={{ flex: 1, color: '#92400E', fontSize: 13 }}>
-            Vérifiez votre email pour créer des colis
-          </Text>
-          <MaterialCommunityIcons name="chevron-right" size={20} color="#92400E" />
+          <MaterialCommunityIcons name="email-alert" size={18} color="#92400E" />
+          <Text style={styles.emailBannerText}>Vérifiez votre email pour créer des colis</Text>
+          <MaterialCommunityIcons name="chevron-right" size={18} color="#92400E" />
         </TouchableOpacity>
       )}
+    </View>
+  );
+
+  return (
+    <View style={styles.container}>
       <FlatList
         data={filteredParcels}
         keyExtractor={(item) => item.id}
@@ -115,9 +198,15 @@ export function VendorHomeScreen({ navigation }: VendorHomeScreenProps) {
             onPress={() => navigation.navigate('ParcelDetail', { parcelId: item.id })}
           />
         )}
+        ListHeaderComponent={renderHeader}
         contentContainerStyle={styles.listContent}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} />
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[hdColors.accent]}
+            tintColor={hdColors.accent}
+          />
         }
         ListEmptyComponent={
           <EmptyState
@@ -128,47 +217,41 @@ export function VendorHomeScreen({ navigation }: VendorHomeScreenProps) {
             onAction={() => navigation.navigate('CreateParcel')}
           />
         }
+        showsVerticalScrollIndicator={false}
       />
 
-      <FAB
-        icon="plus"
-        style={styles.fab}
-        onPress={() => {
-  if (user && !user.emailVerified) {
-    Alert.alert(
-      'Email non vérifié',
-      'Vous devez vérifier votre adresse email avant de créer un colis.',
-      [
-        { text: 'Plus tard', style: 'cancel' },
-        { text: 'Vérifier', onPress: () => navigation.navigate('EmailVerification') },
-      ]
-    );
-    return;
-  }
-  navigation.navigate('CreateParcel');
-}}
-        color={colors.onPrimary}
-      />
-
-      <Modal visible={showLanguageModal} transparent animationType="fade" onRequestClose={() => setShowLanguageModal(false)}>
-        <TouchableOpacity style={styles.langModalOverlay} activeOpacity={1} onPress={() => setShowLanguageModal(false)}>
-          <View style={styles.langModalContent}>
-            <Text style={styles.langModalTitle}>{t('shared.settings.selectLanguage')}</Text>
+      {/* Modal langue */}
+      <Modal
+        visible={showLanguageModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowLanguageModal(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowLanguageModal(false)}
+        >
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>{t('shared.settings.selectLanguage')}</Text>
             {(Object.keys(languageLabels) as Language[]).map((lang) => (
               <TouchableOpacity
                 key={lang}
-                style={styles.langModalOption}
+                style={[styles.modalOption, lang === language && styles.modalOptionActive]}
                 onPress={() => { setLanguage(lang); setShowLanguageModal(false); }}
+                activeOpacity={0.7}
               >
-                <Text style={[styles.langModalOptionText, lang === language && { color: colors.primary, fontWeight: '700' }]}>
-                  {languageLabels[lang]}{lang === language ? ' ✓' : ''}
+                <Text style={[styles.modalOptionText, lang === language && styles.modalOptionTextActive]}>
+                  {languageLabels[lang]}
                 </Text>
+                {lang === language && (
+                  <MaterialCommunityIcons name="check" size={18} color={hdColors.accent} />
+                )}
               </TouchableOpacity>
             ))}
           </View>
         </TouchableOpacity>
       </Modal>
-
     </View>
   );
 }
@@ -176,31 +259,182 @@ export function VendorHomeScreen({ navigation }: VendorHomeScreenProps) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
-  },
-  filterContainer: {
-    padding: spacing.md,
-    backgroundColor: colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.outline,
-  },
-  segmentedButtons: {
-    marginBottom: 0,
+    backgroundColor: hdColors.background,
   },
   listContent: {
-    padding: spacing.md,
-    flexGrow: 1,
+    paddingHorizontal: 16,
+    paddingBottom: 100,
   },
-  fab: {
+
+  // ===== LOGO HORIZONTAL =====
+  topBar: {
+    paddingTop: Platform.OS === 'ios' ? 58 : 42,
+    paddingBottom: 10,
+  },
+
+  // ===== SECTION BAR avec avatar =====
+  sectionBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: hdColors.surface,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: borderRadius.lg,
+    borderWidth: 1,
+    borderColor: hdColors.border,
+    marginTop: 4,
+    gap: 12,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: hdColors.text,
+    flex: 1,
+  },
+  sectionActions: {
+    flexDirection: 'row',
+    gap: 4,
+  },
+  actionBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: hdColors.surfaceSecondary,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  // ===== AVATAR avec crayon =====
+  avatarWrapper: {
+    position: 'relative',
+  },
+  avatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: hdColors.accent,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  avatarText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  avatarImage: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 2,
+    borderColor: hdColors.accent,
+  },
+  avatarEditBadge: {
     position: 'absolute',
-    margin: spacing.md,
-    right: 0,
-    bottom: 0,
-    backgroundColor: colors.primary,
+    bottom: -2,
+    right: -2,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: hdColors.accent,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: hdColors.surface,
   },
-  langModalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center' },
-  langModalContent: { backgroundColor: 'white', borderRadius: 16, padding: 20, width: '80%', maxWidth: 320 },
-  langModalTitle: { fontSize: 18, fontWeight: '700', color: '#1F2937', marginBottom: 16, textAlign: 'center' },
-  langModalOption: { paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#F3F4F6' },
-  langModalOptionText: { fontSize: 16, color: '#374151', textAlign: 'center' },
+
+  // ===== TABS =====
+  tabsContainer: {
+    paddingVertical: 12,
+  },
+  tabsRow: {
+    flexDirection: 'row',
+    backgroundColor: hdColors.surfaceSecondary,
+    borderRadius: borderRadius.full,
+    padding: 3,
+  },
+  tab: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: borderRadius.full,
+    alignItems: 'center',
+  },
+  tabActive: {
+    backgroundColor: hdColors.surface,
+    ...Platform.select({
+      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.08, shadowRadius: 4 },
+      android: { elevation: 2 },
+    }),
+  },
+  tabInactive: {
+    backgroundColor: 'transparent',
+  },
+  tabText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  tabTextActive: {
+    color: hdColors.text,
+  },
+  tabTextInactive: {
+    color: hdColors.textTertiary,
+  },
+
+  // ===== EMAIL =====
+  emailBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: hdColors.warning50,
+    padding: 12,
+    borderRadius: borderRadius.md,
+    gap: 8,
+    marginBottom: 8,
+  },
+  emailBannerText: {
+    flex: 1,
+    fontSize: 13,
+    color: '#92400E',
+    fontWeight: '500',
+  },
+
+  // ===== MODAL =====
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: hdColors.surface,
+    borderRadius: borderRadius.xl,
+    padding: 24,
+    width: '85%',
+    maxWidth: 340,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: hdColors.text,
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  modalOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+    borderRadius: borderRadius.md,
+    marginBottom: 2,
+  },
+  modalOptionActive: {
+    backgroundColor: hdColors.accent50,
+  },
+  modalOptionText: {
+    fontSize: 16,
+    color: hdColors.text,
+  },
+  modalOptionTextActive: {
+    color: hdColors.accent,
+    fontWeight: '700',
+  },
 });
