@@ -8,7 +8,6 @@ import {
   TouchableOpacity,
   ScrollView,
   TextInput,
-  Image,
   Modal,
   Platform,
   Linking,
@@ -155,17 +154,11 @@ export function CarrierHomeScreen({ navigation }: CarrierHomeScreenProps) {
 
   React.useLayoutEffect(() => {
     navigation.setOptions({
-      headerLeft: () => (
-        <Text style={{ fontSize: 18, fontWeight: '800', letterSpacing: -0.5, marginLeft: 4 }}>
-          <Text style={{ color: hdColors.text }}>Hop</Text>
-          <Text style={{ color: hdColors.logoOrange }}>Drop</Text>
-        </Text>
-      ),
       headerRight: () => (
-        <View style={{ flexDirection: 'row', alignItems: 'center', marginRight: 4 }}>
-          <IconButton icon="translate" size={20} onPress={showLanguagePicker} style={{ margin: -4 }} />
-          <IconButton icon="account-circle" size={20} onPress={() => navigation.navigate('CarrierProfile')} style={{ margin: -4 }} />
-          <IconButton icon="history" size={20} onPress={() => navigation.navigate('CarrierHistory')} style={{ margin: -4 }} />
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2, marginRight: 4 }}>
+          <IconButton icon="translate" size={22} onPress={showLanguagePicker} style={{ margin: 0 }} />
+          <IconButton icon="account-circle" size={22} onPress={() => navigation.navigate('CarrierProfile')} style={{ margin: 0 }} />
+          <IconButton icon="history" size={22} onPress={() => navigation.navigate('CarrierHistory')} style={{ margin: 0 }} />
         </View>
       ),
     });

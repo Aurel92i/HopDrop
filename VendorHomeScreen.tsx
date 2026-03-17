@@ -113,12 +113,9 @@ export function VendorHomeScreen({ navigation }: VendorHomeScreenProps) {
 
   const renderHeader = () => (
     <View>
-      {/* Branding */}
+      {/* Logo centré */}
       <View style={styles.topBar}>
-        <Text style={{ fontSize: 26, fontWeight: '800', letterSpacing: -1 }}>
-          <Text style={{ color: hdColors.text }}>Hop</Text>
-          <Text style={{ color: hdColors.logoOrange }}>Drop</Text>
-        </Text>
+        <Logo size="medium" />
       </View>
 
       {/* Barre "Mes colis" avec photo de profil + crayon */}
