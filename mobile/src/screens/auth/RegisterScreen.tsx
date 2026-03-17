@@ -1,6 +1,14 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, TouchableOpacity, Modal } from 'react-native';
-import { Text, Button, Snackbar, SegmentedButtons, Checkbox } from 'react-native-paper';
+import {
+  View,
+  StyleSheet,
+  ScrollView,
+  KeyboardAvoidingView,
+  Platform,
+  TouchableOpacity,
+  Modal,
+} from 'react-native';
+import { Text, Snackbar } from 'react-native-paper';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -11,9 +19,11 @@ import { Logo } from '../../components/common/Logo';
 import { FormInput } from '../../components/forms/FormInput';
 import { useAuthStore } from '../../stores/authStore';
 import { AuthStackParamList } from '../../navigation/AppNavigator';
-import { colors, spacing } from '../../theme';
+import { hdColors, spacing, borderRadius } from '../../theme';
 import { useTranslation } from '../../i18n/i18nContext';
 import { signInWithGoogle, signInWithApple, isAppleAuthAvailable } from '../../services/socialAuth';
+
+const QS = Platform.select({ ios: 'Quicksand-Bold', android: 'Quicksand_700Bold', default: 'System' });
 
 const registerSchema = z.object({
   email: z.string().email('Email invalide'),
@@ -46,6 +56,7 @@ export function RegisterScreen({ navigation }: RegisterScreenProps) {
     control,
     handleSubmit,
     formState: { errors },
+    watch,
   } = useForm<RegisterFormData>({
     resolver: zodResolver(registerSchema),
     defaultValues: {
@@ -58,6 +69,8 @@ export function RegisterScreen({ navigation }: RegisterScreenProps) {
     },
   });
 
+  const selectedRole = watch('role');
+
   const onSubmit = async (data: RegisterFormData) => {
     try {
       await register({
@@ -67,9 +80,7 @@ export function RegisterScreen({ navigation }: RegisterScreenProps) {
         lastName: data.lastName,
         role: data.role,
       });
-    } catch (e) {
-      // Error handled by store
-    }
+    } catch (e) {}
   };
 
   const handleSocialSignUp = (provider: 'google' | 'apple') => {
@@ -81,7 +92,6 @@ export function RegisterScreen({ navigation }: RegisterScreenProps) {
     setRoleModalVisible(false);
     const provider = pendingSocialProvider;
     setPendingSocialProvider(null);
-
     if (!provider) return;
 
     setSocialLoading(provider);
@@ -112,15 +122,17 @@ export function RegisterScreen({ navigation }: RegisterScreenProps) {
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
       >
+        {/* Header */}
         <View style={styles.header}>
-          <Logo size="medium" />
-          <Text variant="headlineSmall" style={styles.subtitle}>
-            {t('auth.register.subtitle')}
-          </Text>
+          <Logo size="large" />
+          <Text style={styles.subtitle}>{t('auth.register.subtitle')}</Text>
         </View>
 
+        {/* Formulaire */}
         <View style={styles.form}>
+          {/* Prénom + Nom côte à côte */}
           <View style={styles.row}>
             <View style={styles.halfInput}>
               <FormInput
@@ -169,158 +181,182 @@ export function RegisterScreen({ navigation }: RegisterScreenProps) {
             error={errors.confirmPassword ? t('auth.register.passwordMismatch') : undefined}
           />
 
-          <View style={styles.roleSection}>
-            <Text variant="bodyLarge" style={styles.roleLabel}>
-              {t('auth.register.roleLabel')}
-            </Text>
-            <Controller
-              control={control}
-              name="role"
-              render={({ field: { onChange, value } }) => (
-                <SegmentedButtons
-                  value={value}
-                  onValueChange={onChange}
-                  buttons={[
-                    { value: 'VENDOR', label: t('auth.register.roleVendor'), icon: 'package-variant' },
-                    { value: 'CARRIER', label: t('auth.register.roleCarrier'), icon: 'bike' },
-                  ]}
-                  style={styles.segmentedButtons}
-                />
-              )}
-            />
-          </View>
+          {/* Sélecteur de rôle — style cards */}
+          <Text style={styles.roleLabel}>{t('auth.register.roleLabel')}</Text>
+          <Controller
+            control={control}
+            name="role"
+            render={({ field: { onChange, value } }) => (
+              <View style={styles.roleRow}>
+                <TouchableOpacity
+                  style={[styles.roleCard, value === 'VENDOR' && styles.roleCardActive]}
+                  onPress={() => onChange('VENDOR')}
+                  activeOpacity={0.8}
+                >
+                  <View style={[styles.roleIconCircle, value === 'VENDOR' && styles.roleIconCircleActive]}>
+                    <MaterialCommunityIcons
+                      name="package-variant"
+                      size={22}
+                      color={value === 'VENDOR' ? '#FFFFFF' : hdColors.textTertiary}
+                    />
+                  </View>
+                  <Text style={[styles.roleCardText, value === 'VENDOR' && styles.roleCardTextActive]}>
+                    {t('auth.register.roleVendor')}
+                  </Text>
+                </TouchableOpacity>
 
-          <View style={styles.cguRow}>
-            <Checkbox
-              status={cguAccepted ? 'checked' : 'unchecked'}
-              onPress={() => setCguAccepted(!cguAccepted)}
-              color={colors.primary}
-            />
-            <Text variant="bodySmall" style={styles.cguText}>
-              {t('auth.register.acceptCgu')}
-            </Text>
-          </View>
+                <TouchableOpacity
+                  style={[styles.roleCard, value === 'CARRIER' && styles.roleCardActive]}
+                  onPress={() => onChange('CARRIER')}
+                  activeOpacity={0.8}
+                >
+                  <View style={[styles.roleIconCircle, value === 'CARRIER' && styles.roleIconCircleActive]}>
+                    <MaterialCommunityIcons
+                      name="bike"
+                      size={22}
+                      color={value === 'CARRIER' ? '#FFFFFF' : hdColors.textTertiary}
+                    />
+                  </View>
+                  <Text style={[styles.roleCardText, value === 'CARRIER' && styles.roleCardTextActive]}>
+                    {t('auth.register.roleCarrier')}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          />
 
-          <Button
-            mode="contained"
-            onPress={handleSubmit(onSubmit)}
-            loading={isLoading}
-            disabled={isBusy || !cguAccepted}
-            style={styles.submitButton}
-            contentStyle={styles.submitButtonContent}
+          {/* CGU */}
+          <TouchableOpacity
+            style={styles.cguRow}
+            onPress={() => setCguAccepted(!cguAccepted)}
+            activeOpacity={0.7}
           >
-            {t('auth.register.submit')}
-          </Button>
+            <View style={[styles.cguCheck, cguAccepted && styles.cguCheckActive]}>
+              {cguAccepted && (
+                <MaterialCommunityIcons name="check" size={14} color="#FFFFFF" />
+              )}
+            </View>
+            <Text style={styles.cguText}>{t('auth.register.acceptCgu')}</Text>
+          </TouchableOpacity>
+
+          {/* Bouton S'inscrire */}
+          <TouchableOpacity
+            style={[styles.submitButton, (isBusy || !cguAccepted) && styles.submitButtonDisabled]}
+            onPress={handleSubmit(onSubmit)}
+            disabled={isBusy || !cguAccepted}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.submitButtonText}>
+              {isLoading ? '...' : t('auth.register.submit')}
+            </Text>
+          </TouchableOpacity>
 
           {/* Séparateur */}
           <View style={styles.divider}>
             <View style={styles.dividerLine} />
-            <Text variant="bodySmall" style={styles.dividerText}>
-              {t('auth.register.orDivider')}
-            </Text>
+            <Text style={styles.dividerText}>{t('auth.register.orDivider')}</Text>
             <View style={styles.dividerLine} />
           </View>
 
-          {/* Bouton Apple (iOS uniquement) */}
+          {/* Apple */}
           {isAppleAuthAvailable() && (
             <TouchableOpacity
               style={styles.appleButton}
               onPress={() => handleSocialSignUp('apple')}
               disabled={isBusy}
-              activeOpacity={0.8}
+              activeOpacity={0.85}
             >
-              <MaterialCommunityIcons name="apple" size={20} color="#FFFFFF" />
+              <MaterialCommunityIcons name="apple" size={22} color="#FFFFFF" />
               <Text style={styles.appleButtonText}>
                 {socialLoading === 'apple' ? '...' : t('auth.register.continueWithApple')}
               </Text>
             </TouchableOpacity>
           )}
 
-          {/* Bouton Google */}
+          {/* Google */}
           <TouchableOpacity
             style={styles.googleButton}
             onPress={() => handleSocialSignUp('google')}
             disabled={isBusy}
-            activeOpacity={0.8}
+            activeOpacity={0.85}
           >
-            <MaterialCommunityIcons name="google" size={20} color="#4285F4" />
+            <MaterialCommunityIcons name="google" size={22} color="#4285F4" />
             <Text style={styles.googleButtonText}>
               {socialLoading === 'google' ? '...' : t('auth.register.continueWithGoogle')}
             </Text>
           </TouchableOpacity>
         </View>
 
+        {/* Footer */}
         <View style={styles.footer}>
-          <Text variant="bodyMedium" style={styles.footerText}>
-            {t('auth.register.hasAccount')}
-          </Text>
-          <Button mode="text" onPress={() => navigation.goBack()}>
-            {t('auth.register.login')}
-          </Button>
+          <Text style={styles.footerText}>{t('auth.register.hasAccount')}</Text>
+          <TouchableOpacity onPress={() => navigation.goBack()} activeOpacity={0.7}>
+            <Text style={styles.footerLink}>{t('auth.register.login')}</Text>
+          </TouchableOpacity>
         </View>
       </ScrollView>
 
-      {/* Modal de sélection du rôle */}
+      {/* Modal rôle pour social login */}
       <Modal
         visible={roleModalVisible}
         transparent
         animationType="fade"
         onRequestClose={() => setRoleModalVisible(false)}
       >
-        <View style={styles.modalOverlay}>
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => { setRoleModalVisible(false); setPendingSocialProvider(null); }}
+        >
           <View style={styles.modalContent}>
-            <Text variant="titleLarge" style={styles.modalTitle}>
-              {t('auth.register.selectRoleTitle')}
-            </Text>
+            <Text style={styles.modalTitle}>{t('auth.register.selectRoleTitle')}</Text>
 
             <TouchableOpacity
-              style={styles.roleOption}
+              style={styles.modalRoleOption}
               onPress={() => handleRoleSelected('VENDOR')}
               activeOpacity={0.7}
             >
-              <MaterialCommunityIcons name="package-variant" size={28} color={colors.primary} />
-              <View style={styles.roleOptionText}>
-                <Text variant="titleMedium">{t('auth.register.selectRoleVendor')}</Text>
-                <Text variant="bodySmall" style={{ color: colors.onSurfaceVariant }}>
-                  {t('auth.register.roleVendor')}
-                </Text>
+              <View style={[styles.modalRoleIcon, { backgroundColor: hdColors.accent50 }]}>
+                <MaterialCommunityIcons name="package-variant" size={24} color={hdColors.accent} />
               </View>
-              <MaterialCommunityIcons name="chevron-right" size={24} color={colors.onSurfaceVariant} />
+              <View style={styles.modalRoleText}>
+                <Text style={styles.modalRoleName}>{t('auth.register.selectRoleVendor')}</Text>
+                <Text style={styles.modalRoleDesc}>{t('auth.register.roleVendor')}</Text>
+              </View>
+              <MaterialCommunityIcons name="chevron-right" size={22} color={hdColors.textTertiary} />
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={styles.roleOption}
+              style={styles.modalRoleOption}
               onPress={() => handleRoleSelected('CARRIER')}
               activeOpacity={0.7}
             >
-              <MaterialCommunityIcons name="bike" size={28} color={colors.secondary} />
-              <View style={styles.roleOptionText}>
-                <Text variant="titleMedium">{t('auth.register.selectRoleCarrier')}</Text>
-                <Text variant="bodySmall" style={{ color: colors.onSurfaceVariant }}>
-                  {t('auth.register.roleCarrier')}
-                </Text>
+              <View style={[styles.modalRoleIcon, { backgroundColor: '#E6F7F8' }]}>
+                <MaterialCommunityIcons name="bike" size={24} color={hdColors.accent} />
               </View>
-              <MaterialCommunityIcons name="chevron-right" size={24} color={colors.onSurfaceVariant} />
+              <View style={styles.modalRoleText}>
+                <Text style={styles.modalRoleName}>{t('auth.register.selectRoleCarrier')}</Text>
+                <Text style={styles.modalRoleDesc}>{t('auth.register.roleCarrier')}</Text>
+              </View>
+              <MaterialCommunityIcons name="chevron-right" size={22} color={hdColors.textTertiary} />
             </TouchableOpacity>
 
-            <Button
-              mode="text"
-              onPress={() => {
-                setRoleModalVisible(false);
-                setPendingSocialProvider(null);
-              }}
+            <TouchableOpacity
               style={styles.modalCancel}
+              onPress={() => { setRoleModalVisible(false); setPendingSocialProvider(null); }}
+              activeOpacity={0.7}
             >
-              {t('common.cancel')}
-            </Button>
+              <Text style={styles.modalCancelText}>{t('common.cancel')}</Text>
+            </TouchableOpacity>
           </View>
-        </View>
+        </TouchableOpacity>
       </Modal>
 
       <Snackbar
         visible={!!error}
         onDismiss={clearError}
         duration={3000}
+        style={styles.snackbar}
         action={{ label: t('common.ok'), onPress: clearError }}
       >
         {error}
@@ -332,72 +368,161 @@ export function RegisterScreen({ navigation }: RegisterScreenProps) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: hdColors.background,
   },
   scrollContent: {
     flexGrow: 1,
-    padding: spacing.lg,
+    padding: 24,
+    paddingTop: Platform.OS === 'ios' ? 60 : 44,
   },
+
+  // Header
   header: {
     alignItems: 'center',
-    marginBottom: spacing.lg,
-    marginTop: spacing.xl,
+    marginBottom: 28,
   },
   subtitle: {
-    marginTop: spacing.md,
-    color: colors.onSurfaceVariant,
+    marginTop: 10,
+    color: hdColors.textSecondary,
+    fontSize: 17,
     textAlign: 'center',
+    fontFamily: QS,
   },
+
+  // Form
   form: {
-    marginBottom: spacing.lg,
+    marginBottom: 24,
   },
   row: {
     flexDirection: 'row',
-    gap: spacing.md,
+    gap: 12,
   },
   halfInput: {
     flex: 1,
   },
-  roleSection: {
-    marginTop: spacing.md,
-    marginBottom: spacing.md,
-  },
+
+  // Role selector cards
   roleLabel: {
-    marginBottom: spacing.sm,
-    color: colors.onSurface,
+    fontSize: 15,
+    fontWeight: '600',
+    color: hdColors.text,
+    marginTop: 16,
+    marginBottom: 10,
   },
-  segmentedButtons: {
-    marginTop: spacing.xs,
+  roleRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 8,
   },
+  roleCard: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 18,
+    borderRadius: borderRadius.lg,
+    borderWidth: 1.5,
+    borderColor: hdColors.border,
+    backgroundColor: hdColors.surface,
+    gap: 8,
+  },
+  roleCardActive: {
+    borderColor: hdColors.accent,
+    backgroundColor: hdColors.accent50,
+  },
+  roleIconCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: hdColors.surfaceSecondary,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  roleIconCircleActive: {
+    backgroundColor: hdColors.accent,
+  },
+  roleCardText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: hdColors.textSecondary,
+  },
+  roleCardTextActive: {
+    color: hdColors.accent,
+    fontWeight: '700',
+  },
+
+  // CGU
+  cguRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  cguCheck: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    borderWidth: 1.5,
+    borderColor: hdColors.border,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: hdColors.surface,
+  },
+  cguCheckActive: {
+    backgroundColor: hdColors.accent,
+    borderColor: hdColors.accent,
+  },
+  cguText: {
+    flex: 1,
+    fontSize: 13,
+    color: hdColors.textSecondary,
+    lineHeight: 18,
+  },
+
+  // Submit
   submitButton: {
-    marginTop: spacing.lg,
+    backgroundColor: hdColors.accent,
+    borderRadius: borderRadius.lg,
+    paddingVertical: 16,
+    alignItems: 'center',
+    marginTop: 16,
   },
-  submitButtonContent: {
-    paddingVertical: spacing.sm,
+  submitButtonDisabled: {
+    opacity: 0.45,
   },
+  submitButtonText: {
+    color: '#FFFFFF',
+    fontSize: 17,
+    fontWeight: '700',
+    fontFamily: QS,
+  },
+
+  // Divider
   divider: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: spacing.lg,
+    marginVertical: 22,
   },
   dividerLine: {
     flex: 1,
-    height: 1,
-    backgroundColor: colors.outline,
+    height: 0.5,
+    backgroundColor: hdColors.border,
   },
   dividerText: {
-    marginHorizontal: spacing.md,
-    color: colors.onSurfaceVariant,
+    marginHorizontal: 16,
+    color: hdColors.textTertiary,
+    fontSize: 13,
   },
+
+  // Social buttons
   appleButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#000000',
-    borderRadius: 12,
-    paddingVertical: 14,
-    marginBottom: spacing.sm,
-    gap: spacing.sm,
+    borderRadius: borderRadius.lg,
+    paddingVertical: 15,
+    marginBottom: 10,
+    gap: 10,
   },
   appleButtonText: {
     color: '#FFFFFF',
@@ -408,70 +533,102 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    paddingVertical: 14,
+    backgroundColor: hdColors.surface,
+    borderRadius: borderRadius.lg,
+    paddingVertical: 15,
     borderWidth: 1,
-    borderColor: colors.outline,
-    gap: spacing.sm,
+    borderColor: hdColors.border,
+    gap: 10,
   },
   googleButtonText: {
-    color: '#1F1F1F',
+    color: hdColors.text,
     fontSize: 16,
     fontWeight: '600',
   },
+
+  // Footer
   footer: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: spacing.lg,
+    marginBottom: 32,
+    gap: 6,
   },
   footerText: {
-    color: colors.onSurfaceVariant,
+    color: hdColors.textSecondary,
+    fontSize: 14,
   },
-  cguRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: spacing.md,
-    marginTop: spacing.sm,
+  footerLink: {
+    color: hdColors.accent,
+    fontSize: 14,
+    fontWeight: '700',
   },
-  cguText: {
-    flex: 1,
-    color: colors.onSurfaceVariant,
-  },
+
   // Modal
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'rgba(0,0,0,0.45)',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: spacing.lg,
+    padding: 24,
   },
   modalContent: {
-    backgroundColor: colors.surface,
-    borderRadius: 16,
-    padding: spacing.lg,
+    backgroundColor: hdColors.surface,
+    borderRadius: borderRadius.xl,
+    padding: 24,
     width: '100%',
     maxWidth: 360,
   },
   modalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: hdColors.text,
     textAlign: 'center',
-    marginBottom: spacing.lg,
-    fontWeight: '600',
+    marginBottom: 20,
+    fontFamily: QS,
   },
-  roleOption: {
+  modalRoleOption: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: spacing.md,
-    borderRadius: 12,
-    backgroundColor: colors.surfaceVariant,
-    marginBottom: spacing.sm,
-    gap: spacing.md,
+    padding: 14,
+    borderRadius: borderRadius.lg,
+    backgroundColor: hdColors.surfaceSecondary,
+    marginBottom: 10,
+    gap: 14,
   },
-  roleOptionText: {
+  modalRoleIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalRoleText: {
     flex: 1,
+    gap: 2,
+  },
+  modalRoleName: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: hdColors.text,
+  },
+  modalRoleDesc: {
+    fontSize: 13,
+    color: hdColors.textSecondary,
   },
   modalCancel: {
-    marginTop: spacing.sm,
+    alignItems: 'center',
+    paddingVertical: 14,
+    marginTop: 4,
+  },
+  modalCancelText: {
+    fontSize: 15,
+    color: hdColors.textTertiary,
+    fontWeight: '600',
+  },
+
+  // Snackbar
+  snackbar: {
+    backgroundColor: '#C0392B',
   },
 });
