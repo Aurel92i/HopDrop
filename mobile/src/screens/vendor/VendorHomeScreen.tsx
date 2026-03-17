@@ -14,17 +14,17 @@ import { Text } from 'react-native-paper';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { Logo } from '../../components/common/Logo';
+import * as ImagePicker from 'expo-image-picker';
 
 import { useAuthStore } from '../../stores/authStore';
 import { ParcelCard } from '../../components/common/ParcelCard';
 import { EmptyState } from '../../components/common/EmptyState';
 import { LoadingScreen } from '../../components/common/LoadingScreen';
+import { Logo } from '../../components/common/Logo';
 import { useParcelStore } from '../../stores/parcelStore';
 import { VendorStackParamList } from '../../navigation/types';
 import { hdColors, spacing, borderRadius } from '../../theme';
 import { useTranslation, languageLabels, Language } from '../../i18n/i18nContext';
-import * as ImagePicker from 'expo-image-picker';
 import { api } from '../../services/api';
 
 type VendorHomeScreenProps = {
@@ -63,11 +63,17 @@ export function VendorHomeScreen({ navigation }: VendorHomeScreenProps) {
     return parcels.filter((p) => p.status === filter.toUpperCase());
   }, [parcels, filter]);
 
+  const stats = useMemo(() => {
+    const inProgress = parcels.filter(p => p.status === 'ACCEPTED' || p.status === 'PICKED_UP').length;
+    return { inProgress };
+  }, [parcels]);
+
   const initials = user
     ? `${(user.firstName || '')[0] || ''}${(user.lastName || '')[0] || ''}`.toUpperCase()
     : '?';
 
   const profilePicture = (user as any)?.avatarUrl || (user as any)?.profilePicture || (user as any)?.avatar || null;
+
   const handleChangePhoto = async () => {
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -75,7 +81,6 @@ export function VendorHomeScreen({ navigation }: VendorHomeScreenProps) {
         Alert.alert('Permission requise', "Autorisez l'accès à vos photos pour changer votre photo de profil.");
         return;
       }
-
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
         allowsEditing: true,
@@ -83,7 +88,6 @@ export function VendorHomeScreen({ navigation }: VendorHomeScreenProps) {
         quality: 0.7,
         base64: true,
       });
-
       if (!result.canceled && result.assets[0]) {
         const asset = result.assets[0];
         try {
@@ -106,25 +110,22 @@ export function VendorHomeScreen({ navigation }: VendorHomeScreenProps) {
   }
 
   const tabs = [
-    { key: 'all', label: t('vendor.home.all') },
-    { key: 'pending', label: t('vendor.home.pending') },
-    { key: 'accepted', label: t('vendor.home.inProgress') },
+    { key: 'all', label: 'Tous' },
+    { key: 'pending', label: 'En attente' },
+    { key: 'accepted', label: 'En cours' },
   ];
 
   const renderHeader = () => (
     <View>
-      {/* Branding */}
+      {/* HopDrop centré */}
       <View style={styles.topBar}>
-        <Text style={{ fontSize: 26, fontWeight: '800', letterSpacing: -1 }}>
-          <Text style={{ color: hdColors.text }}>Hop</Text>
-          <Text style={{ color: hdColors.logoOrange }}>Drop</Text>
-        </Text>
+        <Logo size="medium" />
       </View>
 
-      {/* Barre "Mes colis" avec photo de profil + crayon */}
-      <View style={styles.sectionBar}>
+      {/* Greeting card */}
+      <View style={styles.greetingCard}>
         {/* Photo de profil avec crayon */}
-        <TouchableOpacity style={styles.avatarWrapper} activeOpacity={0.7} onPress={handleChangePhoto}>
+        <TouchableOpacity style={styles.avatarWrapper} onPress={handleChangePhoto} activeOpacity={0.7}>
           {profilePicture ? (
             <Image source={{ uri: profilePicture }} style={styles.avatarImage} />
           ) : (
@@ -137,9 +138,20 @@ export function VendorHomeScreen({ navigation }: VendorHomeScreenProps) {
           </View>
         </TouchableOpacity>
 
-        <Text style={styles.sectionTitle}>Mes colis</Text>
+        {/* Texte */}
+        <View style={styles.greetingText}>
+          <Text style={styles.greetingHello}>
+            Salut {user?.firstName || ''} !
+          </Text>
+          <Text style={styles.greetingSummary}>
+            {stats.inProgress > 0
+              ? `${stats.inProgress} colis en cours de livraison`
+              : 'Aucun colis en cours'}
+          </Text>
+        </View>
 
-        <View style={styles.sectionActions}>
+        {/* Boutons traduction + historique HORIZONTAUX */}
+        <View style={styles.greetingActions}>
           <TouchableOpacity
             style={styles.actionBtn}
             onPress={() => setShowLanguageModal(true)}
@@ -157,7 +169,20 @@ export function VendorHomeScreen({ navigation }: VendorHomeScreenProps) {
         </View>
       </View>
 
-      {/* Tabs */}
+      {/* Bandeau email */}
+      {user && !user.emailVerified && (
+        <TouchableOpacity
+          style={styles.emailBanner}
+          onPress={() => navigation.navigate('EmailVerification')}
+          activeOpacity={0.7}
+        >
+          <MaterialCommunityIcons name="email-alert" size={18} color="#92400E" />
+          <Text style={styles.emailBannerText}>Vérifiez votre email pour créer des colis</Text>
+          <MaterialCommunityIcons name="chevron-right" size={18} color="#92400E" />
+        </TouchableOpacity>
+      )}
+
+      {/* Tabs simples Revolut */}
       <View style={styles.tabsContainer}>
         <View style={styles.tabsRow}>
           {tabs.map((tab) => (
@@ -174,19 +199,6 @@ export function VendorHomeScreen({ navigation }: VendorHomeScreenProps) {
           ))}
         </View>
       </View>
-
-      {/* Bandeau email */}
-      {user && !user.emailVerified && (
-        <TouchableOpacity
-          style={styles.emailBanner}
-          onPress={() => navigation.navigate('EmailVerification')}
-          activeOpacity={0.7}
-        >
-          <MaterialCommunityIcons name="email-alert" size={18} color="#92400E" />
-          <Text style={styles.emailBannerText}>Vérifiez votre email pour créer des colis</Text>
-          <MaterialCommunityIcons name="chevron-right" size={18} color="#92400E" />
-        </TouchableOpacity>
-      )}
     </View>
   );
 
@@ -269,65 +281,46 @@ const styles = StyleSheet.create({
     paddingBottom: 100,
   },
 
-  // ===== LOGO HORIZONTAL =====
+  // ===== TOP BAR =====
   topBar: {
     paddingTop: Platform.OS === 'ios' ? 58 : 42,
-    paddingBottom: 10,
+    paddingBottom: 8,
   },
 
-  // ===== SECTION BAR avec avatar =====
-  sectionBar: {
+  // ===== GREETING CARD =====
+  greetingCard: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: hdColors.surface,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: borderRadius.lg,
+    borderRadius: borderRadius.xl,
+    padding: 14,
+    marginTop: 8,
     borderWidth: 1,
     borderColor: hdColors.border,
-    marginTop: 4,
     gap: 12,
   },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: hdColors.text,
-    flex: 1,
-  },
-  sectionActions: {
-    flexDirection: 'row',
-    gap: 4,
-  },
-  actionBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: hdColors.surfaceSecondary,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
 
-  // ===== AVATAR avec crayon =====
+  // Avatar
   avatarWrapper: {
     position: 'relative',
   },
   avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     backgroundColor: hdColors.accent,
     justifyContent: 'center',
     alignItems: 'center',
   },
   avatarText: {
     color: '#FFFFFF',
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '700',
   },
   avatarImage: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     borderWidth: 2,
     borderColor: hdColors.accent,
   },
@@ -345,9 +338,57 @@ const styles = StyleSheet.create({
     borderColor: hdColors.surface,
   },
 
-  // ===== TABS =====
+  // Greeting text
+  greetingText: {
+    flex: 1,
+    gap: 2,
+  },
+  greetingHello: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: hdColors.text,
+    fontFamily: Platform.select({ ios: 'Quicksand-Bold', android: 'Quicksand_700Bold', default: 'System' }),
+  },
+  greetingSummary: {
+    fontSize: 12,
+    color: hdColors.textTertiary,
+  },
+
+  // Actions HORIZONTALES
+  greetingActions: {
+    flexDirection: 'row',
+    gap: 4,
+  },
+  actionBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: hdColors.surfaceSecondary,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  // ===== EMAIL =====
+  emailBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEF5E9',
+    padding: 12,
+    borderRadius: borderRadius.md,
+    gap: 8,
+    marginTop: 12,
+  },
+  emailBannerText: {
+    flex: 1,
+    fontSize: 13,
+    color: '#92400E',
+    fontWeight: '500',
+  },
+
+  // ===== TABS REVOLUT =====
   tabsContainer: {
-    paddingVertical: 12,
+    paddingTop: 16,
+    paddingBottom: 12,
   },
   tabsRow: {
     flexDirection: 'row',
@@ -382,23 +423,6 @@ const styles = StyleSheet.create({
     color: hdColors.textTertiary,
   },
 
-  // ===== EMAIL =====
-  emailBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: hdColors.warning50,
-    padding: 12,
-    borderRadius: borderRadius.md,
-    gap: 8,
-    marginBottom: 8,
-  },
-  emailBannerText: {
-    flex: 1,
-    fontSize: 13,
-    color: '#92400E',
-    fontWeight: '500',
-  },
-
   // ===== MODAL =====
   modalOverlay: {
     flex: 1,
@@ -419,6 +443,7 @@ const styles = StyleSheet.create({
     color: hdColors.text,
     marginBottom: 16,
     textAlign: 'center',
+    fontFamily: Platform.select({ ios: 'Quicksand-Bold', android: 'Quicksand_700Bold', default: 'System' }),
   },
   modalOption: {
     flexDirection: 'row',
