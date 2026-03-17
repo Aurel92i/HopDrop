@@ -85,8 +85,8 @@ export function CarrierHomeScreen({ navigation }: CarrierHomeScreenProps) {
   });
 
   const SEARCH_FILTERS = useMemo(() => [
-    { type: 'ALL' as const, label: t('carrier.home.all'), icon: 'map-marker-multiple', color: colors.primary },
-    { type: 'LOCKERS' as const, label: t('carrier.home.lockers'), icon: 'locker', color: '#10B981' },
+    { type: 'ALL' as const, label: t('carrier.home.all'), icon: 'map-marker-multiple', color: hdColors.accent },
+    { type: 'LOCKERS' as const, label: t('carrier.home.lockers'), icon: 'locker', color: 'hdColors.neonGreen' },
     { type: 'VINTED_LOCKER' as PickupPointType, label: 'Vinted Go', icon: 'locker', color: '#09B1BA' },
     { type: 'MONDIAL_RELAY_LOCKER' as PickupPointType, label: 'MR Locker', icon: 'locker-multiple', color: '#A4195C' },
     { type: 'AMAZON_LOCKER' as PickupPointType, label: 'Amazon', icon: 'locker', color: '#FF9900' },
@@ -520,7 +520,7 @@ AIzaSyDPGWjWiTpS52Td4gIWedEPOXqoWqQVwpA
       {/* Indicateur points recherchés */}
       {searchSelectedPoints.length > 0 && (
         <TouchableOpacity style={styles.searchIndicator} onPress={clearSearchPoints}>
-          <MaterialCommunityIcons name="map-marker-check" size={16} color="#10B981" />
+          <MaterialCommunityIcons name="map-marker-check" size={16} color="hdColors.neonGreen" />
           <Text style={styles.searchIndicatorText}>
             {searchSelectedPoints.length > 1
               ? t('carrier.home.pointsDisplayed').replace('{count}', String(searchSelectedPoints.length))
@@ -541,7 +541,7 @@ AIzaSyDPGWjWiTpS52Td4gIWedEPOXqoWqQVwpA
                 style={styles.langModalOption}
                 onPress={() => { setLanguage(lang); setShowLanguageModal(false); }}
               >
-                <Text style={[styles.langModalOptionText, lang === language && { color: colors.primary, fontWeight: '700' }]}>
+                <Text style={[styles.langModalOptionText, lang === language && { color: hdColors.accent, fontWeight: '700' }]}>
                   {languageLabels[lang]}{lang === language ? ' ✓' : ''}
                 </Text>
               </TouchableOpacity>
@@ -574,10 +574,10 @@ AIzaSyDPGWjWiTpS52Td4gIWedEPOXqoWqQVwpA
             onPress={() => currentMissions.length > 0 && navigation.navigate('ActiveMissions')}
             activeOpacity={0.7}
           >
-            <View style={[styles.barIconCircle, { backgroundColor: currentMissions.length > 0 ? '#D1FAE5' : '#F3F4F6' }]}>
-              <MaterialCommunityIcons name="bike" size={20} color={currentMissions.length > 0 ? '#10B981' : '#9CA3AF'} />
+            <View style={[styles.barIconCircle, { backgroundColor: currentMissions.length > 0 ? 'hdColors.neonGreen50' : '#F3F4F6' }]}>
+              <MaterialCommunityIcons name="bike" size={20} color={currentMissions.length > 0 ? 'hdColors.neonGreen' : '#9CA3AF'} />
               {currentMissions.length > 0 && (
-                <View style={[styles.barBadge, { backgroundColor: '#10B981' }]}>
+                <View style={[styles.barBadge, { backgroundColor: 'hdColors.neonGreen' }]}>
                   <Text style={styles.barBadgeText}>{currentMissions.length}</Text>
                 </View>
               )}
@@ -593,7 +593,7 @@ AIzaSyDPGWjWiTpS52Td4gIWedEPOXqoWqQVwpA
             activeOpacity={0.7}
           >
             <View style={[styles.barIconCircle, { backgroundColor: hdColors.accent50 }]}>
-              <MaterialCommunityIcons name="magnify" size={20} color={colors.primary} />
+              <MaterialCommunityIcons name="magnify" size={20} color={hdColors.accent} />
             </View>
             <Text style={styles.barItemLabel} numberOfLines={1}>Relais</Text>
           </TouchableOpacity>
@@ -604,7 +604,7 @@ AIzaSyDPGWjWiTpS52Td4gIWedEPOXqoWqQVwpA
             activeOpacity={0.7}
           >
             <View style={[styles.barIconCircle, { backgroundColor: hdColors.accent50 }]}>
-              <MaterialCommunityIcons name="crosshairs-gps" size={20} color={colors.primary} />
+              <MaterialCommunityIcons name="crosshairs-gps" size={20} color={hdColors.accent} />
             </View>
             <Text style={styles.barItemLabel} numberOfLines={1}>Position</Text>
           </TouchableOpacity>
@@ -675,7 +675,7 @@ AIzaSyDPGWjWiTpS52Td4gIWedEPOXqoWqQVwpA
                         <Text style={styles.resultCity}>{point.city}</Text>
                         {point.isLocker && (
                           <View style={styles.badge24}>
-                            <MaterialCommunityIcons name="clock-outline" size={10} color="#10B981" />
+                            <MaterialCommunityIcons name="clock-outline" size={10} color="hdColors.neonGreen" />
                             <Text style={styles.badge24Text}>24/7</Text>
                           </View>
                         )}
@@ -733,17 +733,18 @@ AIzaSyDPGWjWiTpS52Td4gIWedEPOXqoWqQVwpA
               <Divider style={styles.divider} />
 
               <View style={styles.infoRow}>
-                <View style={[styles.infoIcon, { backgroundColor: '#DBEAFE' }]}><MaterialCommunityIcons name="account" size={22} color={colors.primary} /></View>
+                <View style={[styles.infoIcon, { backgroundColor: 'hdColors.chromeLight' }]}><MaterialCommunityIcons name="account" size={22} color={hdColors.accent} /></View>
                 <View style={styles.infoText}><Text style={styles.infoLabel}>{t('carrier.home.vendorLabel')}</Text><Text style={styles.infoValue}>{selectedParcel.vendor?.firstName || t('carrier.home.vendorLabel')} {selectedParcel.vendor?.lastName?.charAt(0) || ''}.</Text></View>
               </View>
 
               <View style={styles.infoRow}>
-                <View style={[styles.infoIcon, { backgroundColor: '#D1FAE5' }]}><MaterialCommunityIcons name="map-marker" size={22} color="#10B981" /></View>
+                <View style={[styles.infoIcon, { backgroundColor: 'hdColors.neonGreen50' }]}><MaterialCommunityIcons name="map-marker" size={22} color="hdColors.neonGreen" /></View>
                 <View style={styles.infoText}><Text style={styles.infoLabel}>{t('carrier.home.pickupLabel')}</Text><Text style={styles.infoValue}>{selectedParcel.pickupAddress?.street}</Text><Text style={styles.infoValueSub}>{selectedParcel.pickupAddress?.postalCode} {selectedParcel.pickupAddress?.city}</Text></View>
               </View>
 
               <View style={styles.infoRow}>
-                <View style={[styles.infoIcon, { backgroundColor: '#FEF3C7' }]}><MaterialCommunityIcons name="store" size={22} color="#F59E0B" /></View>
+                <View style={[styles.infoIcon, { backgroundColor: hdColors.chromeLight }]}><MaterialCommunityIcons name="store"
+size={22} color={hdColors.accent} /></View>
                 <View style={styles.infoText}><Text style={styles.infoLabel}>{t('carrier.home.dropoffLabel')}</Text><Text style={styles.infoValue}>{selectedParcel.dropoffName}</Text>{selectedParcel.dropoffAddress && <Text style={styles.infoValueSub}>{selectedParcel.dropoffAddress}</Text>}</View>
               </View>
 
@@ -800,7 +801,7 @@ const styles = StyleSheet.create({
   },
   onlineLeft: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   onlineDot: { width: 12, height: 12, borderRadius: 6, backgroundColor: '#D1D5DB' },
-  onlineDotActive: { backgroundColor: '#10B981' },
+  onlineDotActive: { backgroundColor: 'hdColors.neonGreen' },
   onlineTitle: { fontSize: 16, fontWeight: '700', color: '#1F2937' },
   onlineSubtitle: { fontSize: 12, color: '#6B7280', marginTop: 2 },
   onlineSwitch: { transform: [{ scaleX: 1.1 }, { scaleY: 1.1 }] },
@@ -847,7 +848,7 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingHorizontal: 12,
     paddingVertical: 8,
-    backgroundColor: '#fef3c7',
+    backgroundColor: hdColors.chromeLight,
     borderRadius: 20,
     marginLeft: 12, // espace par rapport au pill
   },
@@ -873,7 +874,7 @@ const styles = StyleSheet.create({
       android: { elevation: 4 },
     }),
   },
-  searchIndicatorText: { fontSize: 13, fontWeight: '500', color: '#10B981' },
+  searchIndicatorText: { fontSize: 13, fontWeight: '500', color: 'hdColors.neonGreen' },
 
   bottomBar: {
     position: 'absolute',
@@ -949,7 +950,7 @@ const styles = StyleSheet.create({
       android: { elevation: 8 },
     }),
   },
-  parcelMarkerSelected: { backgroundColor: '#10B981', transform: [{ scale: 1.15 }] },
+  parcelMarkerSelected: { backgroundColor: 'hdColors.neonGreen', transform: [{ scale: 1.15 }] },
   poiMarker: {
     width: 28,
     height: 28,
@@ -963,15 +964,15 @@ const styles = StyleSheet.create({
       android: { elevation: 4 },
     }),
   },
-  poiMarkerHighlight: { borderColor: '#10B981', borderWidth: 3, transform: [{ scale: 1.25 }] },
+  poiMarkerHighlight: { borderColor: 'hdColors.neonGreen', borderWidth: 3, transform: [{ scale: 1.25 }] },
   missionMarker: {
-    backgroundColor: '#10B981',
+    backgroundColor: 'hdColors.neonGreen',
     padding: 8,
     borderRadius: 18,
     borderWidth: 2.5,
     borderColor: 'white',
     ...Platform.select({
-      ios: { shadowColor: '#10B981', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 8 },
+      ios: { shadowColor: 'hdColors.neonGreen', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 8 },
       android: { elevation: 6 },
     }),
   },
@@ -1027,8 +1028,8 @@ const styles = StyleSheet.create({
   resultAddress: { fontSize: 13, color: '#6B7280', marginTop: 3 },
   resultMeta: { flexDirection: 'row', alignItems: 'center', marginTop: 4, gap: 8 },
   resultCity: { fontSize: 12, color: '#9CA3AF' },
-  badge24: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#D1FAE5', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10, gap: 4 },
-  badge24Text: { fontSize: 10, fontWeight: '700', color: '#10B981' },
+  badge24: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'hdColors.neonGreen50', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10, gap: 4 },
+  badge24Text: { fontSize: 10, fontWeight: '700', color: 'hdColors.neonGreen' },
   resultArrow: { padding: 4 },
 
   backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: '#000' },
@@ -1054,11 +1055,11 @@ const styles = StyleSheet.create({
     width: 52,
     height: 52,
     borderRadius: 26,
-    backgroundColor: colors.primary,
+    backgroundColor: hdColors.accent,
     justifyContent: 'center',
     alignItems: 'center',
     ...Platform.select({
-      ios: { shadowColor: colors.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8 },
+      ios: { shadowColor: hdColors.accent, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8 },
       android: { elevation: 6 },
     }),
   },
@@ -1096,7 +1097,7 @@ const styles = StyleSheet.create({
     marginBottom: 18,
   },
   priceLabel: { fontSize: 15, fontWeight: '600', color: '#065F46' },
-  priceHint: { fontSize: 12, color: '#10B981', marginTop: 3 },
+  priceHint: { fontSize: 12, color: 'hdColors.neonGreen', marginTop: 3 },
   priceValue: { fontSize: 32, fontWeight: '800', color: '#065F46' },
   acceptBtn: { borderRadius: 16, overflow: 'hidden' },
   acceptBtnGradient: {

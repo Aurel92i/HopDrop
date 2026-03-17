@@ -13,7 +13,7 @@ import { useParcelStore } from '../../stores/parcelStore';
 import { api, AnalysisResult, PRICING } from '../../services/api';
 import { VendorStackParamList } from '../../navigation/types';
 import { Address, ParcelSize, Carrier, PickupMode } from '../../types';
-import { colors, spacing, sizes, carriers } from '../../theme';
+import { colors, spacing, hdColors, borderRadius, sizes, carriers } from '../../theme';
 import { AddressAutocomplete } from '../../components/forms/AddressAutocomplete';
 import ArticleAnalysisModal from '../../components/vendor/ArticleAnalysisModal';
 import { useTranslation } from '../../i18n/i18nContext';
@@ -22,7 +22,7 @@ import { PhotoPreviewModal } from '../../components/common/PhotoPreviewModal';
 const createParcelSchema = z.object({
   pickupAddressId: z.string().min(1, 'Sélectionnez une adresse'),
   size: z.enum(['SMALL', 'MEDIUM', 'LARGE', 'XLARGE']),
-  carrier: z.enum(['VINTED', 'MONDIAL_RELAY', 'COLISSIMO', 'CHRONOPOST', 'RELAIS_COLIS', 'UPS', 'OTHER']),
+  carrier: z.enum(['VINTED', 'MONDIAL_RELAY', 'COLISSIMO', 'CHRONOPOST', 'RELAIS_COLIS', 'UPS']),
   hasShippingLabel: z.boolean(),
   shippingLabelUrl: z.string().optional(),
   qrCodeUrl: z.string().optional(),
@@ -62,7 +62,6 @@ const ITEM_CATEGORY_META: Record<string, { icon: string; suggestedSize: ParcelSi
   toy: { icon: 'toy-brick', suggestedSize: 'MEDIUM' },
   home: { icon: 'home', suggestedSize: 'LARGE' },
   sport: { icon: 'basketball', suggestedSize: 'LARGE' },
-  other: { icon: 'package-variant', suggestedSize: 'MEDIUM' },
 };
 
 // Générer les créneaux horaires disponibles
@@ -97,7 +96,7 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
   const [showAnalysisModal, setShowAnalysisModal] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
   const [articleImageUri, setArticleImageUri] = useState<string | null>(null);
-  const [timeSlotPreset, setTimeSlotPreset] = useState<'morning' | 'afternoon' | 'evening' | 'custom' | null>(null);
+  const [timeSlotPreset, setTimeSlotPreset] = useState<string | null>(null);
   const isSubmittingRef = useRef(false);
   const timeSlots = generateTimeSlots();
 
@@ -135,7 +134,6 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
       toy: 'vendor.createParcel.categoryToy',
       home: 'vendor.createParcel.categoryHome',
       sport: 'vendor.createParcel.categorySport',
-      other: 'vendor.createParcel.categoryOther',
     };
     const result: Record<string, { label: string; icon: string; suggestedSize: ParcelSize }> = {};
     for (const [key, meta] of Object.entries(ITEM_CATEGORY_META)) {
@@ -706,70 +704,84 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
 
         {/* Uploads label + QR (cachés quand on imprime soi-même) */}
         {!watch('willPrintLabel') && (
-          <>
-            <View style={styles.uploadSection}>
-              <Text style={styles.uploadLabel}>{t('vendor.createParcel.addLabelPdf')}</Text>
-              <TouchableOpacity
-                style={[
-                  styles.uploadBox,
-                  watch('shippingLabelUrl') && styles.uploadBoxFilled
-                ]}
-                onPress={handlePickDocument}
-              >
-                <View style={styles.uploadBoxContent}>
-                  <MaterialCommunityIcons
-                    name={watch('shippingLabelUrl') ? 'file-check' : 'file-upload-outline'}
-                    size={40}
-                    color={watch('shippingLabelUrl') ? '#4CAF50' : '#999'}
-                  />
-                  <Text style={[
-                    styles.uploadBoxText,
-                    watch('shippingLabelUrl') && styles.uploadBoxTextFilled
-                  ]}>
-                    {watch('shippingLabelUrl') ? t('vendor.createParcel.labelAdded') : t('vendor.createParcel.clickToAdd')}
-                  </Text>
+            <>
+              {/* Upload Bordereau */}
+              <View style={styles.uploadCard}>
+                <View style={styles.uploadCardHeader}>
+                  <View style={styles.uploadCardIcon}>
+                    <MaterialCommunityIcons
+                      name={watch('shippingLabelUrl') ? 'file-check' : 'file-document-outline'}
+                      size={24}
+                      color={watch('shippingLabelUrl') ? '#27AE60' : hdColors.accent}
+                    />
+                  </View>
+                  <View style={styles.uploadCardText}>
+                    <Text style={styles.uploadCardTitle}>Bordereau d'envoi</Text>
+                    <Text style={styles.uploadCardDesc}>
+                      {watch('shippingLabelUrl') ? 'Document ajouté' : 'PDF ou photo du bordereau'}
+                    </Text>
+                  </View>
                   {watch('shippingLabelUrl') && (
-                    <View style={styles.uploadBadge}>
-                      <Ionicons name="checkmark-circle" size={20} color="#4CAF50" />
-                      <Text style={styles.uploadBadgeText}>{t('vendor.createParcel.fileAttached')}</Text>
+                    <View style={styles.uploadCardCheck}>
+                      <MaterialCommunityIcons name="check-circle" size={22} color="#27AE60" />
                     </View>
                   )}
                 </View>
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.uploadSection}>
-              <Text style={styles.uploadLabel}>{t('vendor.createParcel.addQrCode')}</Text>
-              <TouchableOpacity
-                style={[
-                  styles.uploadBox,
-                  watch('qrCodeUrl') && styles.uploadBoxFilled
-                ]}
-                onPress={handlePickQrCode}
-              >
-                <View style={styles.uploadBoxContent}>
+                <TouchableOpacity
+                  style={[styles.uploadCardButton, watch('shippingLabelUrl') && styles.uploadCardButtonDone]}
+                  onPress={handlePickDocument}
+                  activeOpacity={0.7}
+                >
                   <MaterialCommunityIcons
-                    name={watch('qrCodeUrl') ? 'qrcode-scan' : 'qrcode'}
-                    size={40}
-                    color={watch('qrCodeUrl') ? '#4CAF50' : '#999'}
+                    name={watch('shippingLabelUrl') ? 'swap-horizontal' : 'plus'}
+                    size={18}
+                    color={watch('shippingLabelUrl') ? hdColors.textSecondary : '#FFFFFF'}
                   />
-                  <Text style={[
-                    styles.uploadBoxText,
-                    watch('qrCodeUrl') && styles.uploadBoxTextFilled
-                  ]}>
-                    {watch('qrCodeUrl') ? t('vendor.createParcel.qrCodeAdded') : t('vendor.createParcel.clickToAdd')}
+                  <Text style={[styles.uploadCardButtonText, watch('shippingLabelUrl') && styles.uploadCardButtonTextDone]}>
+                    {watch('shippingLabelUrl') ? 'Remplacer' : 'Ajouter le bordereau'}
                   </Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Upload QR Code */}
+              <View style={styles.uploadCard}>
+                <View style={styles.uploadCardHeader}>
+                  <View style={[styles.uploadCardIcon, { backgroundColor: '#F3F0FF' }]}>
+                    <MaterialCommunityIcons
+                      name={watch('qrCodeUrl') ? 'qrcode-scan' : 'qrcode'}
+                      size={24}
+                      color={watch('qrCodeUrl') ? '#27AE60' : '#7C3AED'}
+                    />
+                  </View>
+                  <View style={styles.uploadCardText}>
+                    <Text style={styles.uploadCardTitle}>QR Code</Text>
+                    <Text style={styles.uploadCardDesc}>
+                      {watch('qrCodeUrl') ? 'QR Code ajouté' : 'Photo ou capture du QR code'}
+                    </Text>
+                  </View>
                   {watch('qrCodeUrl') && (
-                    <View style={styles.uploadBadge}>
-                      <Ionicons name="checkmark-circle" size={20} color="#4CAF50" />
-                      <Text style={styles.uploadBadgeText}>{t('vendor.createParcel.fileAttached')}</Text>
+                    <View style={styles.uploadCardCheck}>
+                      <MaterialCommunityIcons name="check-circle" size={22} color="#27AE60" />
                     </View>
                   )}
                 </View>
-              </TouchableOpacity>
-            </View>
-          </>
-        )}
+                <TouchableOpacity
+                  style={[styles.uploadCardButton, watch('qrCodeUrl') && styles.uploadCardButtonDone]}
+                  onPress={handlePickQrCode}
+                  activeOpacity={0.7}
+                >
+                  <MaterialCommunityIcons
+                    name={watch('qrCodeUrl') ? 'swap-horizontal' : 'plus'}
+                    size={18}
+                    color={watch('qrCodeUrl') ? hdColors.textSecondary : '#FFFFFF'}
+                  />
+                  <Text style={[styles.uploadCardButtonText, watch('qrCodeUrl') && styles.uploadCardButtonTextDone]}>
+                    {watch('qrCodeUrl') ? 'Remplacer' : 'Ajouter le QR code'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </>
+          )}
       </View>
 
       <View style={styles.buttonRow}>
@@ -881,58 +893,39 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
             </ScrollView>
             <Text variant="bodySmall" style={[styles.slotLabel, { marginTop: spacing.md }]}>{t('vendor.createParcel.chooseSlot')}</Text>
             <View style={styles.presetGrid}>
-              <TouchableOpacity
-                style={[styles.presetCard, timeSlotPreset === 'morning' && styles.presetCardSelected]}
-                onPress={() => {
-                  setTimeSlotPreset('morning');
-                  setValue('pickupTimeStart', '08:00');
-                  setValue('pickupTimeEnd', '12:00');
-                }}
-              >
-                <MaterialCommunityIcons name="weather-sunset-up" size={28} color={timeSlotPreset === 'morning' ? colors.primary : colors.onSurfaceVariant} />
-                <Text style={[styles.presetLabel, timeSlotPreset === 'morning' && styles.presetLabelSelected]}>
-                  {t('vendor.createParcel.slotMorning')}
-                </Text>
-                <Text style={styles.presetTime}>8h - 12h</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.presetCard, timeSlotPreset === 'afternoon' && styles.presetCardSelected]}
-                onPress={() => {
-                  setTimeSlotPreset('afternoon');
-                  setValue('pickupTimeStart', '12:00');
-                  setValue('pickupTimeEnd', '17:00');
-                }}
-              >
-                <MaterialCommunityIcons name="weather-sunny" size={28} color={timeSlotPreset === 'afternoon' ? colors.primary : colors.onSurfaceVariant} />
-                <Text style={[styles.presetLabel, timeSlotPreset === 'afternoon' && styles.presetLabelSelected]}>
-                  {t('vendor.createParcel.slotAfternoon')}
-                </Text>
-                <Text style={styles.presetTime}>12h - 17h</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.presetCard, timeSlotPreset === 'evening' && styles.presetCardSelected]}
-                onPress={() => {
-                  setTimeSlotPreset('evening');
-                  setValue('pickupTimeStart', '17:00');
-                  setValue('pickupTimeEnd', '20:00');
-                }}
-              >
-                <MaterialCommunityIcons name="weather-night" size={28} color={timeSlotPreset === 'evening' ? colors.primary : colors.onSurfaceVariant} />
-                <Text style={[styles.presetLabel, timeSlotPreset === 'evening' && styles.presetLabelSelected]}>
-                  {t('vendor.createParcel.slotEvening')}
-                </Text>
-                <Text style={styles.presetTime}>17h - 20h</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.presetCard, timeSlotPreset === 'custom' && styles.presetCardSelected]}
-                onPress={() => setTimeSlotPreset('custom')}
-              >
-                <MaterialCommunityIcons name="clock-edit-outline" size={28} color={timeSlotPreset === 'custom' ? colors.primary : colors.onSurfaceVariant} />
-                <Text style={[styles.presetLabel, timeSlotPreset === 'custom' && styles.presetLabelSelected]}>
-                  {t('vendor.createParcel.slotCustom')}
-                </Text>
-              </TouchableOpacity>
-            </View>
+                {[
+                  { key: '08', label: '8h - 10h', start: '08:00', end: '10:00' },
+                  { key: '10', label: '10h - 12h', start: '10:00', end: '12:00' },
+                  { key: '12', label: '12h - 14h', start: '12:00', end: '14:00' },
+                  { key: '14', label: '14h - 16h', start: '14:00', end: '16:00' },
+                  { key: '16', label: '16h - 18h', start: '16:00', end: '18:00' },
+                  { key: '18', label: '18h - 20h', start: '18:00', end: '20:00' },
+                  { key: '20', label: '20h - 22h', start: '20:00', end: '22:00' },
+                ].map((slot) => (
+                  <TouchableOpacity
+                    key={slot.key}
+                    style={[styles.presetCard, timeSlotPreset === slot.key && styles.presetCardSelected]}
+                    onPress={() => {
+                      setTimeSlotPreset(slot.key);
+                      setValue('pickupTimeStart', slot.start);
+                      setValue('pickupTimeEnd', slot.end);
+                    }}
+                  >
+                    <Text style={[styles.presetLabel, timeSlotPreset === slot.key && styles.presetLabelSelected]}>
+                      {slot.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+                <TouchableOpacity
+                  style={[styles.presetCard, timeSlotPreset === 'custom' && styles.presetCardSelected]}
+                  onPress={() => setTimeSlotPreset('custom')}
+                >
+                  <MaterialCommunityIcons name="clock-edit-outline" size={22} color={timeSlotPreset === 'custom' ? colors.primary : colors.onSurfaceVariant} />
+                  <Text style={[styles.presetLabel, timeSlotPreset === 'custom' && styles.presetLabelSelected]}>
+                    {t('vendor.createParcel.slotCustom')}
+                  </Text>
+                </TouchableOpacity>
+              </View>
             {timeSlotPreset === 'custom' && (
               <>
                 <Text variant="bodySmall" style={styles.slotLabel}>{t('vendor.createParcel.startTime')}</Text>
@@ -942,7 +935,12 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
                       <TouchableOpacity
                         key={`start-${time}`}
                         style={[styles.timeCard, pickupTimeStart === time && styles.timeCardSelected]}
-                        onPress={() => setValue('pickupTimeStart', time)}
+                        onPress={() => {
+                          setValue('pickupTimeStart', time);
+                          const startHour = parseInt(time.split(':')[0]);
+                          const endHour = Math.min(startHour + 2, 22);
+                          setValue('pickupTimeEnd', `${endHour.toString().padStart(2, '0')}:00`);
+                        }}
                       >
                         <Text style={[styles.timeLabel, pickupTimeStart === time && styles.timeLabelSelected]}>
                           {time}
@@ -954,7 +952,11 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
                 <Text variant="bodySmall" style={styles.slotLabel}>{t('vendor.createParcel.endTime')}</Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.timeScroll}>
                   <View style={styles.timeGrid}>
-                    {timeSlots.slice(2).map((time) => (
+                    {timeSlots.filter((time) => {
+                      const startHour = parseInt((pickupTimeStart || '08:00').split(':')[0]);
+                      const timeHour = parseInt(time.split(':')[0]);
+                      return timeHour > startHour && timeHour <= startHour + 2;
+                    }).map((time) => (
                       <TouchableOpacity
                         key={`end-${time}`}
                         style={[styles.timeCard, pickupTimeEnd === time && styles.timeCardSelected]}
@@ -982,7 +984,7 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
       </View>
     </View>
   );
-
+  
   // ========== STEP 5: Récapitulatif ==========
   const renderStep5 = () => {
     const selectedAddress = addresses.find((a) => a.id === watch('pickupAddressId'));
@@ -1983,5 +1985,66 @@ const styles = StyleSheet.create({
   },
   sizeChip: {
     backgroundColor: colors.primaryContainer,
+  },
+  // Upload cards
+  uploadCard: {
+    backgroundColor: hdColors.surface,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: hdColors.border,
+    padding: 16,
+    marginTop: 12,
+  },
+  uploadCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 12,
+  },
+  uploadCardIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: hdColors.accent50,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  uploadCardText: {
+    flex: 1,
+    gap: 2,
+  },
+  uploadCardTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: hdColors.text,
+  },
+  uploadCardDesc: {
+    fontSize: 12,
+    color: hdColors.textTertiary,
+  },
+  uploadCardCheck: {
+    marginLeft: 4,
+  },
+  uploadCardButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: hdColors.accent,
+    borderRadius: 12,
+    paddingVertical: 12,
+    gap: 6,
+  },
+  uploadCardButtonDone: {
+    backgroundColor: hdColors.surfaceSecondary,
+    borderWidth: 1,
+    borderColor: hdColors.border,
+  },
+  uploadCardButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  uploadCardButtonTextDone: {
+    color: hdColors.textSecondary,
   },
 });

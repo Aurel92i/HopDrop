@@ -21,6 +21,7 @@ import { ParcelCard } from '../../components/common/ParcelCard';
 import { EmptyState } from '../../components/common/EmptyState';
 import { LoadingScreen } from '../../components/common/LoadingScreen';
 import { Logo } from '../../components/common/Logo';
+import { InfoCarousel } from '../../components/common/InfoCarousel';
 import { useParcelStore } from '../../stores/parcelStore';
 import { VendorStackParamList } from '../../navigation/types';
 import { hdColors, spacing, borderRadius } from '../../theme';
@@ -184,6 +185,8 @@ export function VendorHomeScreen({ navigation }: VendorHomeScreenProps) {
 
       {/* Tabs simples Revolut */}
       <View style={styles.tabsContainer}>
+        {/* Diaporama infos */}
+      <InfoCarousel />
         <View style={styles.tabsRow}>
           {tabs.map((tab) => (
             <TouchableOpacity

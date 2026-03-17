@@ -19,39 +19,66 @@ const fontConfig = {
 };
 
 export const hdColors = {
-  // Accent - Teal (Vinted-like)
-  accent: '#09B1BA',
-  accentDark: '#078E95',
-  accentLight: '#3DC4CB',
-  accent50: '#E6F7F8',
+  // Accent — Navy profond
+  accent: '#0d2c54',
+  accentDark: '#001219',
+  accentLight: '#33415c',
+  accent50: '#E8EDF4',
+
+  // CTA — Orange logo
+  cta: '#FF4422',
+  ctaLight: '#FF6B50',
+  cta50: '#FFF0EC',
 
   // Logo
   logoOrange: '#FF4422',
 
-  // Status badges - remplis
-  statusPending: '#E67E22',
-  statusAccepted: '#27AE60',
-  statusPickedUp: '#09B1BA',
-  statusDelivered: '#27AE60',
-  statusCancelled: '#C0392B',
-  statusExpired: '#95A5A6',
+  // Futuriste — Métalliques
+  chrome: '#C8CED8',
+  chromeDark: '#8892A0',
+  chromeLight: '#E8ECF0',
+  titanium: '#2D3748',
+  graphite: '#1A202C',
+  steel: '#A0AEC0',
+
+  // Néon — Accents futuristes
+  neonGreen: '#00E676',
+  neonGreen50: '#E0FFF0',
+  electricBlue: '#00B0FF',
+  electricBlue50: '#E0F4FF',
+  plasma: '#7C4DFF',
+  plasma50: '#F0EBFF',
+
+  // Status badges — Métalliques + néon
+  statusPending: '#F59E0B',
+  statusPendingBg: '#1A202C',
+  statusAccepted: '#00E676',
+  statusAcceptedBg: '#0A1F12',
+  statusPickedUp: '#00B0FF',
+  statusPickedUpBg: '#0A1824',
+  statusDelivered: '#00E676',
+  statusDeliveredBg: '#0A1F12',
+  statusCancelled: '#FF5252',
+  statusCancelledBg: '#1F0A0A',
+  statusExpired: '#8892A0',
+  statusExpiredBg: '#1A202C',
 
   // Semantic
-  success: '#27AE60',
-  success50: '#EAFAF1',
-  warning: '#E67E22',
-  warning50: '#FEF5E9',
-  danger: '#C0392B',
-  danger50: '#FADBD8',
+  success: '#00E676',
+  success50: '#E0FFF0',
+  warning: '#F59E0B',
+  warning50: '#FEF9E7',
+  danger: '#FF5252',
+  danger50: '#FFE8E8',
 
-  // Neutrals - Vinted clean
-  text: '#1A1A1A',
-  textSecondary: '#757575',
-  textTertiary: '#BDBDBD',
+  // Neutrals
+  text: '#212529',
+  textSecondary: '#33415c',
+  textTertiary: '#595959',
   background: '#FFFFFF',
   surface: '#FFFFFF',
-  surfaceSecondary: '#F2F2F2',
-  border: '#E0E0E0',
+  surfaceSecondary: '#F4F5F7',
+  border: '#E2E4E8',
 };
 
 export const theme = {
@@ -61,8 +88,8 @@ export const theme = {
     ...MD3LightTheme.colors,
     primary: hdColors.accent,
     primaryContainer: hdColors.accent50,
-    secondary: '#b4b8ab',
-    secondaryContainer: '#F2F3F0',
+    secondary: hdColors.cta,
+    secondaryContainer: hdColors.cta50,
     tertiary: hdColors.warning,
     tertiaryContainer: hdColors.warning50,
     error: hdColors.danger,
@@ -116,5 +143,4 @@ export const carriers = {
   CHRONOPOST: { label: 'Chronopost', icon: 'lightning-bolt' },
   RELAIS_COLIS: { label: 'Relais Colis', icon: 'package-variant' },
   UPS: { label: 'UPS', icon: 'truck' },
-  OTHER: { label: 'Autre', icon: 'help-circle' },
 };

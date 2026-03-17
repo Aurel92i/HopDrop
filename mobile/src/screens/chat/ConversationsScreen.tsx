@@ -179,11 +179,39 @@ export function ConversationsScreen({ navigation }: ConversationsScreenProps) {
 
   const renderEmpty = () => (
     <View style={styles.empty}>
-      <MaterialCommunityIcons name="chat-outline" size={64} color={hdColors.textTertiary} />
-      <Text style={styles.emptyTitle}>Aucune conversation</Text>
+      {/* Illustration */}
+      <View style={styles.emptyIllustration}>
+        <View style={styles.emptyBubble1}>
+          <MaterialCommunityIcons name="chat-outline" size={20} color={hdColors.accent} />
+        </View>
+        <View style={styles.emptyBubble2}>
+          <MaterialCommunityIcons name="emoticon-happy-outline" size={16} color={hdColors.navy} />
+        </View>
+        <View style={styles.emptyIconMain}>
+          <MaterialCommunityIcons name="chat-processing-outline" size={48} color={hdColors.accent} />
+        </View>
+      </View>
+
+      <Text style={styles.emptyTitle}>Pas encore de messages</Text>
       <Text style={styles.emptyDesc}>
-        Vos conversations avec les livreurs apparaîtront ici lorsqu'un colis sera accepté.
+        Quand un livreur acceptera l'un de vos colis, vous pourrez échanger ici pour coordonner le retrait.
       </Text>
+
+      {/* Tips */}
+      <View style={styles.emptyTips}>
+        <View style={styles.emptyTip}>
+          <MaterialCommunityIcons name="package-variant" size={18} color={hdColors.accent} />
+          <Text style={styles.emptyTipText}>Créez un colis depuis l'onglet "+"</Text>
+        </View>
+        <View style={styles.emptyTip}>
+          <MaterialCommunityIcons name="account-check" size={18} color={hdColors.success} />
+          <Text style={styles.emptyTipText}>Un livreur l'accepte</Text>
+        </View>
+        <View style={styles.emptyTip}>
+          <MaterialCommunityIcons name="chat" size={18} color={hdColors.navy} />
+          <Text style={styles.emptyTipText}>Discutez des détails ici</Text>
+        </View>
+      </View>
     </View>
   );
 
@@ -325,5 +353,61 @@ const styles = StyleSheet.create({
     color: hdColors.textTertiary,
     textAlign: 'center',
     lineHeight: 20,
+  },
+  emptyIllustration: {
+    width: 120,
+    height: 120,
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'relative',
+    marginBottom: 8,
+  },
+  emptyIconMain: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: hdColors.accent50,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  emptyBubble1: {
+    position: 'absolute',
+    top: 5,
+    right: 5,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: hdColors.surfaceSecondary,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  emptyBubble2: {
+    position: 'absolute',
+    bottom: 10,
+    left: 5,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: '#E8EDF4',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  emptyTips: {
+    width: '100%',
+    backgroundColor: hdColors.surfaceSecondary,
+    borderRadius: 16,
+    padding: 16,
+    gap: 14,
+    marginTop: 24,
+  },
+  emptyTip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  emptyTipText: {
+    fontSize: 14,
+    color: hdColors.text,
+    fontWeight: '500',
   },
 });

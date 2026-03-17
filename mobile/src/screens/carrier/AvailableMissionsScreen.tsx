@@ -20,7 +20,7 @@ export function AvailableMissionsScreen({ navigation }: AvailableMissionsScreenP
   const { t } = useTranslation();
   const { availableMissions, isLoading, fetchAvailableMissions, acceptMission } = useMissionStore();
   const [refreshing, setRefreshing] = useState(false);
-  const [radius, setRadius] = useState(5);
+  const [radius, setRadius] = useState(20);
   const [location, setLocation] = useState<{ latitude: number; longitude: number } | null>(null);
 
   useEffect(() => {

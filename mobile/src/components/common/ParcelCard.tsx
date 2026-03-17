@@ -18,38 +18,38 @@ export function ParcelCard({ parcel, onPress, showCarrier = true }: ParcelCardPr
   const statusConfig: Record<ParcelStatus, { label: string; bg: string; color: string }> = useMemo(() => ({
     PENDING: {
       label: t('status.PENDING'),
-      bg: '#F39C12',
-      color: '#FFFFFF',
+      bg: hdColors.titanium,
+      color: hdColors.statusPending,
     },
     ACCEPTED: {
       label: t('status.ACCEPTED'),
-      bg: '#2ECC71',
-      color: '#FFFFFF',
+      bg: hdColors.titanium,
+      color: hdColors.neonGreen,
     },
     PACKAGING_CONFIRMED: {
       label: t('status.PACKAGING_CONFIRMED'),
-      bg: hdColors.accent,
-      color: '#FFFFFF',
+      bg: hdColors.titanium,
+      color: hdColors.electricBlue,
     },
     PICKED_UP: {
       label: t('status.PICKED_UP'),
-      bg: '#3498DB',
-      color: '#FFFFFF',
+      bg: hdColors.titanium,
+      color: hdColors.electricBlue,
     },
     DELIVERED: {
       label: t('status.DELIVERED'),
-      bg: '#27AE60',
-      color: '#FFFFFF',
+      bg: hdColors.titanium,
+      color: hdColors.neonGreen,
     },
     CANCELLED: {
       label: t('status.CANCELLED'),
-      bg: '#E74C3C',
-      color: '#FFFFFF',
+      bg: hdColors.titanium,
+      color: hdColors.danger,
     },
     EXPIRED: {
       label: t('status.EXPIRED'),
-      bg: '#95A5A6',
-      color: '#FFFFFF',
+      bg: hdColors.titanium,
+      color: hdColors.steel,
     },
   }), [t]);
 
@@ -58,9 +58,9 @@ export function ParcelCard({ parcel, onPress, showCarrier = true }: ParcelCardPr
     const baseStatus = statusConfig[parcel.status];
     if (parcel.status === 'PICKED_UP' && mission?.deliveredAt) {
       if (mission.clientContestedAt && !mission.clientConfirmedDeliveryAt) {
-        return { label: 'Contesté', bg: '#E74C3C', color: '#FFFFFF' };
+        return { label: 'Contesté', bg: hdColors.titanium, color: hdColors.danger };
       }
-      return { label: 'Déposé', bg: '#8E44AD', color: '#FFFFFF' };
+      return { label: 'Déposé', bg: hdColors.titanium, color: hdColors.plasma };
     }
     return baseStatus;
   };
@@ -91,6 +91,7 @@ export function ParcelCard({ parcel, onPress, showCarrier = true }: ParcelCardPr
             <MaterialCommunityIcons name="package-variant" size={20} color={hdColors.accent} />
             <Text style={styles.sizeLabel}>{sizeInfo.label}</Text>
           </View>
+          {/* Badge taille fixe */}
           <View style={[styles.badge, { backgroundColor: status.bg }]}>
             <Text style={[styles.badgeText, { color: status.color }]}>{status.label}</Text>
           </View>
@@ -102,11 +103,11 @@ export function ParcelCard({ parcel, onPress, showCarrier = true }: ParcelCardPr
 
         <View style={styles.details}>
           <View style={styles.detailRow}>
-            <MaterialCommunityIcons name="map-marker-outline" size={15} color={hdColors.textTertiary} />
+            <MaterialCommunityIcons name="map-marker-outline" size={15} color={hdColors.chromeDark} />
             <Text style={styles.detailText} numberOfLines={1}>{parcel.dropoffName}</Text>
           </View>
           <View style={styles.detailRow}>
-            <MaterialCommunityIcons name="calendar-outline" size={15} color={hdColors.textTertiary} />
+            <MaterialCommunityIcons name="calendar-outline" size={15} color={hdColors.chromeDark} />
             <Text style={styles.detailText}>{formatDate(parcel.pickupSlotStart)}</Text>
           </View>
         </View>
@@ -154,14 +155,19 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: hdColors.text,
   },
+  // Badge taille fixe — fond sombre métallique
   badge: {
+    minWidth: 100,
     paddingHorizontal: 12,
-    paddingVertical: 5,
+    paddingVertical: 6,
     borderRadius: borderRadius.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   badgeText: {
     fontSize: 12,
     fontWeight: '700',
+    letterSpacing: 0.3,
   },
   description: {
     fontSize: 14,
@@ -179,7 +185,7 @@ const styles = StyleSheet.create({
   },
   detailText: {
     fontSize: 13,
-    color: hdColors.textTertiary,
+    color: hdColors.chromeDark,
     flex: 1,
   },
   footer: {
