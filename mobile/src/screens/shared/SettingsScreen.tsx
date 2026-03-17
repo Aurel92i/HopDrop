@@ -1,14 +1,53 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, ScrollView, Alert, Linking, Modal, TouchableOpacity } from 'react-native';
-import { Text, List, Switch, Divider, Button, TextInput } from 'react-native-paper';
+import { View, StyleSheet, ScrollView, Alert, Linking, Modal, TouchableOpacity, Platform } from 'react-native';
+import { Text, Switch, TextInput } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTranslation, languageLabels, Language } from '../../i18n/i18nContext';
 import { useAuthStore } from '../../stores/authStore';
-import { colors, spacing } from '../../theme';
+import { hdColors, spacing, borderRadius } from '../../theme';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ProfileStackParamList } from '../../navigation/types';
 import { api } from '../../services/api';
+
+const QS = Platform.select({ ios: 'Quicksand-Bold', android: 'Quicksand_700Bold', default: 'System' });
+
+interface SettingRowProps {
+  icon: string;
+  title: string;
+  desc?: string;
+  onPress?: () => void;
+  right?: React.ReactNode;
+  danger?: boolean;
+}
+
+function SettingRow({ icon, title, desc, onPress, right, danger }: SettingRowProps) {
+  const content = (
+    <View style={rowStyles.row}>
+      <View style={[rowStyles.iconCircle, danger && { backgroundColor: '#FADBD8' }]}>
+        <MaterialCommunityIcons name={icon as any} size={20} color={danger ? '#C0392B' : hdColors.accent} />
+      </View>
+      <View style={rowStyles.textCol}>
+        <Text style={[rowStyles.title, danger && { color: '#C0392B' }]}>{title}</Text>
+        {desc && <Text style={rowStyles.desc}>{desc}</Text>}
+      </View>
+      {right || (onPress && <MaterialCommunityIcons name="chevron-right" size={22} color={hdColors.textTertiary} />)}
+    </View>
+  );
+
+  if (onPress) {
+    return <TouchableOpacity onPress={onPress} activeOpacity={0.7}>{content}</TouchableOpacity>;
+  }
+  return content;
+}
+
+const rowStyles = StyleSheet.create({
+  row: { flexDirection: 'row', alignItems: 'center', padding: 16, gap: 14 },
+  iconCircle: { width: 40, height: 40, borderRadius: 20, backgroundColor: hdColors.accent50, justifyContent: 'center', alignItems: 'center' },
+  textCol: { flex: 1, gap: 2 },
+  title: { fontSize: 15, fontWeight: '600', color: hdColors.text },
+  desc: { fontSize: 12, color: hdColors.textTertiary },
+});
 
 export function SettingsScreen() {
   const { user } = useAuthStore();
@@ -52,147 +91,93 @@ export function SettingsScreen() {
     }
   };
 
-  const handleContactSupport = () => {
-    Linking.openURL('mailto:support@hopdrop.fr?subject=Support HopDrop');
-  };
-
-  const handleRateApp = () => {
-    Alert.alert(t('common.thanks'), t('shared.settings.rateAppMessage'));
-  };
-
-  const showLanguagePicker = () => {
-    setShowLanguageModal(true);
-  };
-
   const handleDeleteAccount = () => {
     Alert.alert(
       t('shared.settings.deleteAccount'),
       t('shared.settings.deleteAccountConfirm'),
       [
         { text: t('common.cancel'), style: 'cancel' },
-        {
-          text: t('common.delete'),
-          style: 'destructive',
-          onPress: () => {
-            Alert.alert(t('common.info'), t('shared.settings.deleteAccountInfo'));
-          },
-        },
+        { text: t('common.delete'), style: 'destructive', onPress: () => Alert.alert(t('common.info'), t('shared.settings.deleteAccountInfo')) },
       ]
     );
   };
 
+  const divider = <View style={styles.divider} />;
+
   return (
-    <ScrollView style={styles.container}>
-      {/* Language Section */}
-      <Text variant="titleSmall" style={styles.sectionTitle}>
-        {t('shared.settings.language')}
-      </Text>
+    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+      {/* Langue */}
+      <Text style={styles.sectionTitle}>{t('shared.settings.language')}</Text>
       <View style={styles.section}>
-        <List.Item
+        <SettingRow
+          icon="translate"
           title={t('shared.settings.selectLanguage')}
-          description={languageLabels[language]}
-          left={(props) => <List.Icon {...props} icon="translate" />}
-          right={(props) => <List.Icon {...props} icon="chevron-right" />}
-          onPress={showLanguagePicker}
+          desc={languageLabels[language]}
+          onPress={() => setShowLanguageModal(true)}
         />
       </View>
 
-      {/* Notifications Section */}
-      <Text variant="titleSmall" style={styles.sectionTitle}>
-        {t('shared.settings.notifications')}
-      </Text>
+      {/* Notifications */}
+      <Text style={styles.sectionTitle}>{t('shared.settings.notifications')}</Text>
       <View style={styles.section}>
-        <List.Item
+        <SettingRow
+          icon="bell-outline"
           title={t('shared.settings.pushNotifs')}
-          description={t('shared.settings.pushNotifsDesc')}
-          left={(props) => <List.Icon {...props} icon="bell" />}
-          right={() => (
-            <Switch value={notifications} onValueChange={setNotifications} />
-          )}
+          desc={t('shared.settings.pushNotifsDesc')}
+          right={<Switch value={notifications} onValueChange={setNotifications} color={hdColors.accent} />}
         />
-        <Divider />
-        <List.Item
+        {divider}
+        <SettingRow
+          icon="email-outline"
           title={t('shared.settings.emails')}
-          description={t('shared.settings.emailsDesc')}
-          left={(props) => <List.Icon {...props} icon="email" />}
-          right={() => <Switch value={true} disabled />}
+          desc={t('shared.settings.emailsDesc')}
+          right={<Switch value={true} disabled color={hdColors.accent} />}
         />
       </View>
 
-      {/* Privacy Section */}
-      <Text variant="titleSmall" style={styles.sectionTitle}>
-        {t('shared.settings.privacy')}
-      </Text>
+      {/* Confidentialité */}
+      <Text style={styles.sectionTitle}>{t('shared.settings.privacy')}</Text>
       <View style={styles.section}>
-        <List.Item
+        <SettingRow
+          icon="map-marker-outline"
           title={t('shared.settings.locationSharing')}
-          description={t('shared.settings.locationSharingDesc')}
-          left={(props) => <List.Icon {...props} icon="map-marker" />}
-          right={() => (
-            <Switch value={locationSharing} onValueChange={setLocationSharing} />
-          )}
+          desc={t('shared.settings.locationSharingDesc')}
+          right={<Switch value={locationSharing} onValueChange={setLocationSharing} color={hdColors.accent} />}
         />
-        <Divider />
-        <List.Item
-          title={t('shared.settings.cgu')}
-          left={(props) => <List.Icon {...props} icon="file-document" />}
-          right={(props) => <List.Icon {...props} icon="chevron-right" />}
-          onPress={() => navigation.navigate('Legal', { docType: 'cgu' })}
-        />
-        <Divider />
-        <List.Item
-          title={t('shared.settings.cgv')}
-          left={(props) => <List.Icon {...props} icon="file-document-outline" />}
-          right={(props) => <List.Icon {...props} icon="chevron-right" />}
-          onPress={() => navigation.navigate('Legal', { docType: 'cgv' })}
-        />
-        <Divider />
-        <List.Item
-          title={t('shared.settings.privacyPolicy')}
-          left={(props) => <List.Icon {...props} icon="shield-lock" />}
-          right={(props) => <List.Icon {...props} icon="chevron-right" />}
-          onPress={() => navigation.navigate('Legal', { docType: 'confidentialite' })}
-        />
-        <Divider />
-        <List.Item
-          title={t('shared.settings.legalNotices')}
-          left={(props) => <List.Icon {...props} icon="information" />}
-          right={(props) => <List.Icon {...props} icon="chevron-right" />}
-          onPress={() => navigation.navigate('Legal', { docType: 'mentions' })}
-        />
+        {divider}
+        <SettingRow icon="file-document-outline" title={t('shared.settings.cgu')} onPress={() => navigation.navigate('Legal', { docType: 'cgu' })} />
+        {divider}
+        <SettingRow icon="file-document-outline" title={t('shared.settings.cgv')} onPress={() => navigation.navigate('Legal', { docType: 'cgv' })} />
+        {divider}
+        <SettingRow icon="shield-lock-outline" title={t('shared.settings.privacyPolicy')} onPress={() => navigation.navigate('Legal', { docType: 'confidentialite' })} />
+        {divider}
+        <SettingRow icon="information-outline" title={t('shared.settings.legalNotices')} onPress={() => navigation.navigate('Legal', { docType: 'mentions' })} />
       </View>
 
-      {/* Support Section */}
-      <Text variant="titleSmall" style={styles.sectionTitle}>
-        {t('shared.settings.support')}
-      </Text>
+      {/* Support */}
+      <Text style={styles.sectionTitle}>{t('shared.settings.support')}</Text>
       <View style={styles.section}>
-        <List.Item
+        <SettingRow
+          icon="help-circle-outline"
           title={t('shared.settings.contactSupport')}
-          description="support@hopdrop.fr"
-          left={(props) => <List.Icon {...props} icon="help-circle" />}
-          right={(props) => <List.Icon {...props} icon="chevron-right" />}
-          onPress={handleContactSupport}
+          desc="support@hopdrop.fr"
+          onPress={() => Linking.openURL('mailto:support@hopdrop.fr?subject=Support HopDrop')}
         />
-        <Divider />
-        <List.Item
+        {divider}
+        <SettingRow
+          icon="star-outline"
           title={t('shared.settings.rateApp')}
-          description={t('shared.settings.rateAppDesc')}
-          left={(props) => <List.Icon {...props} icon="star" />}
-          right={(props) => <List.Icon {...props} icon="chevron-right" />}
-          onPress={handleRateApp}
+          desc={t('shared.settings.rateAppDesc')}
+          onPress={() => Alert.alert(t('common.thanks'), t('shared.settings.rateAppMessage'))}
         />
       </View>
 
-      {/* Account Section */}
-      <Text variant="titleSmall" style={styles.sectionTitle}>
-        {t('shared.settings.account')}
-      </Text>
+      {/* Compte */}
+      <Text style={styles.sectionTitle}>{t('shared.settings.account')}</Text>
       <View style={styles.section}>
-        <List.Item
+        <SettingRow
+          icon="lock-outline"
           title={t('shared.settings.changePassword')}
-          left={(props) => <List.Icon {...props} icon="lock" />}
-          right={(props) => <List.Icon {...props} icon={showPasswordForm ? 'chevron-up' : 'chevron-right'} />}
           onPress={() => setShowPasswordForm(!showPasswordForm)}
         />
         {showPasswordForm && (
@@ -204,6 +189,8 @@ export function SettingsScreen() {
               secureTextEntry
               mode="outlined"
               style={styles.passwordInput}
+              outlineColor={hdColors.border}
+              activeOutlineColor={hdColors.accent}
             />
             <TextInput
               label={t('shared.settings.newPassword')}
@@ -212,6 +199,8 @@ export function SettingsScreen() {
               secureTextEntry
               mode="outlined"
               style={styles.passwordInput}
+              outlineColor={hdColors.border}
+              activeOutlineColor={hdColors.accent}
             />
             <TextInput
               label={t('shared.settings.confirmNewPassword')}
@@ -220,51 +209,52 @@ export function SettingsScreen() {
               secureTextEntry
               mode="outlined"
               style={styles.passwordInput}
+              outlineColor={hdColors.border}
+              activeOutlineColor={hdColors.accent}
             />
-            <Button
-              mode="contained"
+            <TouchableOpacity
+              style={[styles.passwordButton, isChangingPassword && { opacity: 0.5 }]}
               onPress={handleChangePassword}
-              loading={isChangingPassword}
               disabled={isChangingPassword}
-              style={styles.passwordButton}
+              activeOpacity={0.85}
             >
-              {t('shared.settings.changePasswordBtn')}
-            </Button>
+              <Text style={styles.passwordButtonText}>
+                {isChangingPassword ? '...' : t('shared.settings.changePasswordBtn')}
+              </Text>
+            </TouchableOpacity>
           </View>
         )}
-        <Divider />
-        <List.Item
+        {divider}
+        <SettingRow
+          icon="delete-outline"
           title={t('shared.settings.deleteAccount')}
-          titleStyle={{ color: colors.error }}
-          left={(props) => <List.Icon {...props} icon="delete" color={colors.error} />}
           onPress={handleDeleteAccount}
+          danger
         />
       </View>
 
-      {/* App Info */}
+      {/* App info */}
       <View style={styles.appInfo}>
-        <Text variant="bodySmall" style={styles.appInfoText}>
-          {t('common.version')}
-        </Text>
-        <Text variant="bodySmall" style={styles.appInfoText}>
-          {t('common.copyright')}
-        </Text>
+        <Text style={styles.appInfoText}>{t('common.version')}</Text>
+        <Text style={styles.appInfoText}>{t('common.copyright')}</Text>
       </View>
 
-      {/* Modal sélection de langue */}
+      {/* Modal langue */}
       <Modal visible={showLanguageModal} transparent animationType="fade" onRequestClose={() => setShowLanguageModal(false)}>
-        <TouchableOpacity style={styles.langModalOverlay} activeOpacity={1} onPress={() => setShowLanguageModal(false)}>
-          <View style={styles.langModalContent}>
-            <Text style={styles.langModalTitle}>{t('shared.settings.selectLanguage')}</Text>
+        <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setShowLanguageModal(false)}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>{t('shared.settings.selectLanguage')}</Text>
             {(Object.keys(languageLabels) as Language[]).map((lang) => (
               <TouchableOpacity
                 key={lang}
-                style={styles.langModalOption}
+                style={[styles.modalOption, lang === language && styles.modalOptionActive]}
                 onPress={() => { setLanguage(lang); setShowLanguageModal(false); }}
+                activeOpacity={0.7}
               >
-                <Text style={[styles.langModalOptionText, lang === language && { color: colors.primary, fontWeight: '700' }]}>
-                  {languageLabels[lang]}{lang === language ? ' ✓' : ''}
+                <Text style={[styles.modalOptionText, lang === language && styles.modalOptionTextActive]}>
+                  {languageLabels[lang]}
                 </Text>
+                {lang === language && <MaterialCommunityIcons name="check" size={18} color={hdColors.accent} />}
               </TouchableOpacity>
             ))}
           </View>
@@ -277,64 +267,105 @@ export function SettingsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: hdColors.background,
   },
   sectionTitle: {
-    color: colors.onSurfaceVariant,
-    marginHorizontal: spacing.md,
-    marginTop: spacing.lg,
-    marginBottom: spacing.xs,
+    fontSize: 13,
+    fontWeight: '600',
+    color: hdColors.textTertiary,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    marginHorizontal: 16,
+    marginTop: 24,
+    marginBottom: 8,
   },
   section: {
-    backgroundColor: colors.surface,
-    marginHorizontal: spacing.md,
-    borderRadius: 12,
+    backgroundColor: hdColors.surface,
+    marginHorizontal: 16,
+    borderRadius: borderRadius.xl,
+    borderWidth: 1,
+    borderColor: hdColors.border,
     overflow: 'hidden',
   },
+  divider: {
+    height: 0.5,
+    backgroundColor: hdColors.border,
+    marginLeft: 70,
+  },
+
+  // Password
   passwordForm: {
-    padding: spacing.md,
+    padding: 16,
+    paddingTop: 0,
   },
   passwordInput: {
-    marginBottom: spacing.sm,
+    marginBottom: 10,
+    backgroundColor: hdColors.surface,
   },
   passwordButton: {
-    marginTop: spacing.sm,
+    backgroundColor: hdColors.accent,
+    borderRadius: borderRadius.lg,
+    paddingVertical: 14,
+    alignItems: 'center',
+    marginTop: 6,
   },
+  passwordButtonText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '700',
+  },
+
+  // App info
   appInfo: {
     alignItems: 'center',
-    padding: spacing.xl,
+    paddingVertical: 32,
+    gap: 4,
   },
   appInfoText: {
-    color: colors.onSurfaceVariant,
+    fontSize: 12,
+    color: hdColors.textTertiary,
   },
-  langModalOverlay: {
+
+  // Modal
+  modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.4)',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  langModalContent: {
-    backgroundColor: 'white',
-    borderRadius: 16,
-    padding: 20,
-    width: '80%',
-    maxWidth: 320,
+  modalContent: {
+    backgroundColor: hdColors.surface,
+    borderRadius: borderRadius.xl,
+    padding: 24,
+    width: '85%',
+    maxWidth: 340,
   },
-  langModalTitle: {
+  modalTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#1F2937',
+    color: hdColors.text,
     marginBottom: 16,
     textAlign: 'center',
+    fontFamily: QS,
   },
-  langModalOption: {
+  modalOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    paddingHorizontal: 12,
+    borderRadius: borderRadius.md,
+    marginBottom: 2,
   },
-  langModalOptionText: {
+  modalOptionActive: {
+    backgroundColor: hdColors.accent50,
+  },
+  modalOptionText: {
     fontSize: 16,
-    color: '#374151',
-    textAlign: 'center',
+    color: hdColors.text,
   },
-}); 
+  modalOptionTextActive: {
+    color: hdColors.accent,
+    fontWeight: '700',
+  },
+});
