@@ -26,7 +26,7 @@ export function EmailVerificationScreen({ navigation }: Props) {
   useEffect(() => {
     handleResend(true);
   }, []);
-
+  
   // Countdown pour le cooldown de renvoi
   useEffect(() => {
     if (cooldown > 0) {

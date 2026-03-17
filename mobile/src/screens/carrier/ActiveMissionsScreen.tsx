@@ -12,7 +12,7 @@ import { PackagingStatusBadge } from '../../components/common/PackagingStatusBad
 import { DeliveryDeadlineBadge } from '../../components/common/DeliveryDeadlineBadge';
 import { api } from '../../services/api';
 import { CarrierStackParamList } from '../../navigation/types';
-import { colors, spacing, sizes, carriers } from '../../theme';
+import { colors, spacing, sizes, carriers, hdColors } from '../../theme';
 import { Mission, MissionStatus, Carrier } from '../../types';
 import { useTranslation } from '../../i18n/i18nContext';
 import { PhotoPreviewModal } from '../../components/common/PhotoPreviewModal';
@@ -32,7 +32,7 @@ export function ActiveMissionsScreen({ navigation }: ActiveMissionsScreenProps) 
     ACCEPTED: { label: t('carrier.activeMissions.toPickup'), color: colors.primary, icon: 'package-variant' },
     IN_PROGRESS: { label: t('carrier.activeMissions.enRoute'), color: '#F59E0B', icon: 'bike' },
     PICKED_UP: { label: t('carrier.activeMissions.validating'), color: '#8B5CF6', icon: 'clock-check-outline' },
-    DELIVERED: { label: t('carrier.activeMissions.delivered'), color: '#10B981', icon: 'check-all' },
+    DELIVERED: { label: t('carrier.activeMissions.delivered'), color: hdColors.neonGreen, icon: 'check-all' },
     CANCELLED: { label: t('carrier.activeMissions.cancelled'), color: colors.error, icon: 'close-circle' },
   };
 
@@ -370,7 +370,7 @@ export function ActiveMissionsScreen({ navigation }: ActiveMissionsScreenProps) 
     } else if (isDeposited) {
       displayStatus = { label: 'Déposé — Confirmation client requise', color: '#8B5CF6', icon: 'store-check' };
     } else if (mission.status === 'PICKED_UP' && !mission.deliveredAt) {
-      displayStatus = { label: 'Récupéré — En route vers le dépôt', color: colors.secondary, icon: 'package-variant-closed' };
+      displayStatus = { label: 'Récupéré — En route vers le dépôt', color: hdColors.accent, icon: 'package-variant-closed' };
     }
     
     // Infos transporteur
@@ -398,7 +398,7 @@ export function ActiveMissionsScreen({ navigation }: ActiveMissionsScreenProps) 
             )}
             
             {hasArrived && mission.status !== 'PICKED_UP' && (
-              <Chip icon="map-marker-check" compact style={[styles.etaChip, { backgroundColor: '#D1FAE5' }]} textStyle={{ color: '#10B981' }}>
+              <Chip icon="map-marker-check" compact style={[styles.etaChip, { backgroundColor: hdColors.chromeLight }]} textStyle={{ color: hdColors.accent }}>
                 Arrivé
               </Chip>
             )}
@@ -586,7 +586,7 @@ export function ActiveMissionsScreen({ navigation }: ActiveMissionsScreenProps) 
                 <MaterialCommunityIcons 
                   name={parcel.hasShippingLabel ? 'check-circle' : 'printer'} 
                   size={16} 
-                  color={parcel.hasShippingLabel ? '#10B981' : colors.secondary} 
+                  color={parcel.hasShippingLabel ? hdColors.neonGreen : hdColors.accent} 
                 />
                 <Text variant="bodySmall" style={styles.labelInfoText}>
                   {parcel.hasShippingLabel 
@@ -624,7 +624,7 @@ export function ActiveMissionsScreen({ navigation }: ActiveMissionsScreenProps) 
             <>
               <Divider style={styles.divider} />
               {isContested ? (
-                <View style={[styles.validationPendingCard, { backgroundColor: '#FEE2E2', borderLeftColor: '#EF4444' }]}>
+                <View style={[styles.validationPendingCard, { backgroundColor: hdColors.chromeLight,  borderLeftColor: hdColors.danger }]}>
                   <View style={styles.validationHeader}>
                     <MaterialCommunityIcons name="alert-circle" size={24} color="#EF4444" />
                     <Text variant="titleSmall" style={[styles.validationTitle, { color: '#EF4444' }]}>
@@ -674,7 +674,7 @@ export function ActiveMissionsScreen({ navigation }: ActiveMissionsScreenProps) 
                 onPress={() => handleDepart(mission)}
                 loading={isActionLoading}
                 style={styles.actionButton}
-                buttonColor="#F59E0B"
+                buttonColor={hdColors.warning}
               >
                 Je pars
               </Button>
@@ -688,7 +688,7 @@ export function ActiveMissionsScreen({ navigation }: ActiveMissionsScreenProps) 
                 onPress={() => handleArrived(mission)}
                 loading={isActionLoading}
                 style={styles.actionButton}
-                buttonColor={colors.secondary}
+                buttonColor={hdColors.accent}
               >
                 Je suis arrivé
               </Button>
@@ -717,7 +717,7 @@ export function ActiveMissionsScreen({ navigation }: ActiveMissionsScreenProps) 
                 onPress={() => handlePickup(mission)}
                 loading={isActionLoading}
                 style={styles.actionButton}
-                buttonColor="#10B981"
+                buttonColor={hdColors.accent}
               >
                 Colis récupéré
               </Button>
@@ -733,7 +733,7 @@ export function ActiveMissionsScreen({ navigation }: ActiveMissionsScreenProps) 
                   setShowDeliveryModal(true);
                 }}
                 style={styles.actionButton}
-                buttonColor={colors.secondary}
+                buttonColor={hdColors.accent}
               >
                 Colis déposé
               </Button>
@@ -905,7 +905,7 @@ export function ActiveMissionsScreen({ navigation }: ActiveMissionsScreenProps) 
             disabled={!deliveryProofPhoto}
             loading={isActionLoading}
             style={styles.modalButton}
-            buttonColor={colors.secondary}
+            buttonColor={hdColors.accent}
             icon="check-circle"
           >
             Confirmer
@@ -1052,11 +1052,11 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   sizeChip: {
-    backgroundColor: colors.secondaryContainer,
+    backgroundcolor: hdColors.accentContainer,
   },
   sizeChipText: {
     fontWeight: '600',
-    color: colors.secondary,
+    color: hdColors.accent,
   },
   categoryText: {
     color: colors.onSurfaceVariant,
@@ -1067,7 +1067,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: spacing.sm,
-    backgroundColor: colors.secondaryContainer,
+    backgroundcolor: hdColors.accentContainer,
     padding: spacing.md,
     borderRadius: 12,
     marginTop: spacing.sm,
@@ -1076,7 +1076,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   destinationLabel: {
-    color: colors.secondary,
+    color: hdColors.accent,
     fontWeight: '600',
   },
   destinationName: {
@@ -1169,7 +1169,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: spacing.sm,
-    backgroundColor: colors.secondaryContainer,
+    backgroundcolor: hdColors.accentContainer,
     padding: spacing.sm,
     borderRadius: 8,
     marginBottom: spacing.sm,
@@ -1178,7 +1178,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   noteLabel: {
-    color: colors.secondary,
+    color: hdColors.accent,
     fontWeight: '600',
   },
   noteText: {
@@ -1319,13 +1319,13 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: colors.secondaryContainer,
+    backgroundcolor: hdColors.accentContainer,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: spacing.md,
   },
   deliveryDropoffName: {
-    color: colors.secondary,
+    color: hdColors.accent,
     fontWeight: '600',
     marginBottom: spacing.xs,
   },
@@ -1336,12 +1336,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: colors.secondary,
+    bordercolor: hdColors.accent,
     borderStyle: 'dashed',
     marginBottom: spacing.md,
   },
   photoPlaceholderText: {
-    color: colors.secondary,
+    color: hdColors.accent,
     marginTop: spacing.sm,
     fontWeight: '500',
   },
