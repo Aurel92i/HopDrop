@@ -2,7 +2,6 @@ import React, { useMemo } from 'react';
 import { View, StyleSheet, TouchableOpacity, Platform } from 'react-native';
 import { Text } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Parcel, ParcelStatus } from '../../types';
 import { hdColors, borderRadius, sizes } from '../../theme';
 import { useTranslation } from '../../i18n/i18nContext';
@@ -59,13 +58,8 @@ export function ParcelCard({ parcel, onPress, showCarrier = true }: ParcelCardPr
   return (
     <TouchableOpacity onPress={onPress} activeOpacity={0.85}>
       <View style={styles.cardOuter}>
-        <LinearGradient
-          colors={['#0A1E3D', '#0d2c54', '#143A6B']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.card}
-        >
-          {/* Motif subtil — cercles géométriques */}
+        <View style={styles.card}>
+          {/* Motif subtil */}
           <View style={styles.patternContainer}>
             <View style={[styles.patternCircle, { top: -15, right: -15, width: 80, height: 80 }]} />
             <View style={[styles.patternCircle, { bottom: -20, left: -10, width: 60, height: 60 }]} />
@@ -76,7 +70,7 @@ export function ParcelCard({ parcel, onPress, showCarrier = true }: ParcelCardPr
             <View style={[styles.patternDot, { top: 50, left: 20 }]} />
           </View>
 
-          {/* Header : taille + badge */}
+          {/* Header */}
           <View style={styles.header}>
             <View style={styles.sizeRow}>
               <View style={styles.sizeIconBg}>
@@ -107,10 +101,10 @@ export function ParcelCard({ parcel, onPress, showCarrier = true }: ParcelCardPr
             </View>
           </View>
 
-          {/* Séparateur chrome */}
+          {/* Séparateur */}
           <View style={styles.separator} />
 
-          {/* Footer : prix + carrier */}
+          {/* Footer */}
           <View style={styles.footer}>
             <Text style={styles.price}>{Number(parcel.price).toFixed(2)} €</Text>
             {showCarrier && parcel.assignedCarrier && (
@@ -120,7 +114,7 @@ export function ParcelCard({ parcel, onPress, showCarrier = true }: ParcelCardPr
               </View>
             )}
           </View>
-        </LinearGradient>
+        </View>
       </View>
     </TouchableOpacity>
   );
@@ -145,9 +139,10 @@ const styles = StyleSheet.create({
     padding: 16,
     overflow: 'hidden',
     position: 'relative',
+    backgroundColor: '#0d2c54',
   },
 
-  // Motif géométrique subtil
+  // Motif
   patternContainer: {
     ...StyleSheet.absoluteFillObject,
     overflow: 'hidden',
@@ -201,7 +196,7 @@ const styles = StyleSheet.create({
     letterSpacing: -0.3,
   },
 
-  // Badge — fond semi-transparent
+  // Badge
   badge: {
     flexDirection: 'row',
     alignItems: 'center',

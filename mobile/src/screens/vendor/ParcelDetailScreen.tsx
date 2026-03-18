@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
-import { View, StyleSheet, ScrollView, Alert, Image, Dimensions, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, ScrollView, Alert, Image, Dimensions, TouchableOpacity, Platform } from 'react-native';
 import { Text, Card, Button, Chip, Divider, Avatar, Portal, Modal, TextInput, ProgressBar } from 'react-native-paper';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp, useFocusEffect } from '@react-navigation/native';
@@ -12,7 +12,8 @@ import { DeliveryDeadlineBadge } from '../../components/common/DeliveryDeadlineB
 import { useParcelStore } from '../../stores/parcelStore';
 import { api } from '../../services/api';
 import { VendorStackParamList } from '../../navigation/types';
-import { colors, spacing, sizes } from '../../theme';
+import { colors, spacing, sizes, hdColors, borderRadius } from '../../theme';
+
 import { ParcelStatus } from '../../types';
 import { useTranslation } from '../../i18n/i18nContext';
 
@@ -717,54 +718,61 @@ export function ParcelDetailScreen({ navigation, route }: ParcelDetailScreenProp
       )}
 
       {/* Parcel Info */}
-      <Card style={styles.card}>
-        <Card.Content>
-          <Text variant="titleMedium" style={styles.sectionTitle}>
+        <View style={styles.hdCard}>
+          <Text style={styles.hdSectionTitle}>
             {t('vendor.parcelDetail.parcelInfoTitle')}
           </Text>
 
-          <View style={styles.infoRow}>
-            <Text variant="bodyMedium" style={styles.label}>
+          <View style={styles.hdInfoRow}>
+            <Text style={styles.hdLabel}>
               {t('vendor.parcelDetail.sizeLabel')}
             </Text>
-            <Chip icon="package-variant">{sizeInfo.label}</Chip>
+            <View style={styles.hdSizeBadge}>
+              <MaterialCommunityIcons name="package-variant" size={16} color="#FFFFFF" />
+              <Text style={styles.hdSizeBadgeText}>{sizeInfo.label}</Text>
+            </View>
           </View>
 
-          <View style={styles.infoRow}>
-            <Text variant="bodyMedium" style={styles.label}>
+          <View style={styles.hdDivider} />
+
+          <View style={styles.hdInfoRow}>
+            <Text style={styles.hdLabel}>
               {t('vendor.parcelDetail.priceLabel')}
             </Text>
-            <Text variant="titleMedium" style={styles.price}>
+            <Text style={styles.hdPrice}>
               {Number(currentParcel.price).toFixed(2)} €
             </Text>
           </View>
 
           {currentParcel.description && (
-            <View style={styles.infoRow}>
-              <Text variant="bodyMedium" style={styles.label}>
-                {t('vendor.parcelDetail.descriptionLabel')}
-              </Text>
-              <Text variant="bodyMedium">{currentParcel.description}</Text>
-            </View>
+            <>
+              <View style={styles.hdDivider} />
+              <View style={styles.hdInfoRow}>
+                <Text style={styles.hdLabel}>
+                  {t('vendor.parcelDetail.descriptionLabel')}
+                </Text>
+                <Text style={styles.hdValue}>{currentParcel.description}</Text>
+              </View>
+            </>
           )}
-        </Card.Content>
-      </Card>
+        </View>
 
       {/* Addresses */}
-      <Card style={styles.card}>
-        <Card.Content>
-          <Text variant="titleMedium" style={styles.sectionTitle}>
+        <View style={styles.hdCard}>
+          <Text style={styles.hdSectionTitle}>
             {t('vendor.parcelDetail.addressesTitle')}
           </Text>
 
-          <View style={styles.addressBlock}>
-            <MaterialCommunityIcons name="home" size={20} color={colors.primary} />
-            <View style={styles.addressInfo}>
-              <Text variant="labelMedium" style={styles.addressLabel}>
+          <View style={styles.hdAddressRow}>
+            <View style={styles.hdAddressIcon}>
+              <MaterialCommunityIcons name="home" size={20} color={hdColors.accent} />
+            </View>
+            <View style={styles.hdAddressInfo}>
+              <Text style={styles.hdAddressLabel}>
                 {t('vendor.parcelDetail.pickupLabel')}
               </Text>
               {currentParcel.pickupAddress && (
-                <Text variant="bodyMedium">
+                <Text style={styles.hdAddressValue}>
                   {currentParcel.pickupAddress.street}, {currentParcel.pickupAddress.postalCode}{' '}
                   {currentParcel.pickupAddress.city}
                 </Text>
@@ -772,39 +780,45 @@ export function ParcelDetailScreen({ navigation, route }: ParcelDetailScreenProp
             </View>
           </View>
 
-          <Divider style={styles.divider} />
+          <View style={styles.hdDivider} />
 
-          <View style={styles.addressBlock}>
-            <MaterialCommunityIcons name="store" size={20} color={colors.secondary} />
-            <View style={styles.addressInfo}>
-              <Text variant="labelMedium" style={styles.addressLabel}>
+          <View style={styles.hdAddressRow}>
+            <View style={[styles.hdAddressIcon, { backgroundColor: hdColors.cta50 }]}>
+              <MaterialCommunityIcons name="store" size={20} color={hdColors.cta} />
+            </View>
+            <View style={styles.hdAddressInfo}>
+              <Text style={styles.hdAddressLabel}>
                 {t('vendor.parcelDetail.dropoffLabel')}
               </Text>
-              <Text variant="bodyMedium">{currentParcel.dropoffName}</Text>
-              <Text variant="bodySmall" style={styles.addressText}>
-                {currentParcel.dropoffAddress}
+              <Text style={styles.hdAddressValue}>{currentParcel.dropoffName}</Text>
+              <Text style={styles.hdAddressHint}>
+                {currentParcel.dropoffAddress || 'À définir par le livreur'}
               </Text>
             </View>
           </View>
-        </Card.Content>
-      </Card>
+        </View>
 
       {/* Time Slot */}
-      <Card style={styles.card}>
-        <Card.Content>
-          <Text variant="titleMedium" style={styles.sectionTitle}>
+        <View style={styles.hdCard}>
+          <Text style={styles.hdSectionTitle}>
             {t('vendor.parcelDetail.pickupSlotTitle')}
           </Text>
-          <Text variant="bodyMedium">{formatDate(currentParcel.pickupSlotStart)}</Text>
-          <Text variant="bodySmall" style={styles.slotEnd}>
-            {t('vendor.parcelDetail.until')}{' '}
-            {new Date(currentParcel.pickupSlotEnd).toLocaleTimeString('fr-FR', {
-              hour: '2-digit',
-              minute: '2-digit',
-            })}
-          </Text>
-        </Card.Content>
-      </Card>
+          <View style={styles.hdSlotGradient}>
+            <View style={styles.hdSlotIconBg}>
+              <MaterialCommunityIcons name="clock-outline" size={22} color="#FFFFFF" />
+            </View>
+            <View style={styles.hdSlotText}>
+              <Text style={styles.hdSlotDate}>{formatDate(currentParcel.pickupSlotStart)}</Text>
+              <Text style={styles.hdSlotEnd}>
+                {t('vendor.parcelDetail.until')}{' '}
+                {new Date(currentParcel.pickupSlotEnd).toLocaleTimeString('fr-FR', {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })}
+              </Text>
+            </View>
+          </View>
+        </View>
 
       {/* Carrier Info */}
       {currentParcel.assignedCarrier && (
@@ -1529,5 +1543,131 @@ const styles = StyleSheet.create({
   },
   tipModalButton: {
     flex: 1,
+  },
+  // ===== NOUVEAU DESIGN HD =====
+  hdCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: hdColors.border,
+    padding: 20,
+    marginBottom: 12,
+  },
+  hdSectionTitle: {
+    fontSize: 18,
+    fontWeight: '400',
+    color: '#0d2c54',
+    marginBottom: 16,
+    fontFamily: Platform.select({ ios: 'Quicksand-Bold', android: 'Quicksand_700Bold', default: 'System' }),
+    letterSpacing: 0.3,
+  },
+  hdInfoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 6,
+  },
+  hdLabel: {
+    fontSize: 14,
+    color: hdColors.textTertiary,
+    fontWeight: '500',
+  },
+  hdValue: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: hdColors.text,
+    flex: 1,
+    textAlign: 'right',
+  },
+  hdPrice: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#0d2c54',
+  },
+  hdSizeBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#FF4422',
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 10,
+  },
+  hdSizeBadgeText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  hdDivider: {
+    height: 1,
+    backgroundColor: hdColors.border,
+    marginVertical: 10,
+  },
+  // Adresses
+  hdAddressRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 14,
+    paddingVertical: 4,
+  },
+  hdAddressIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: hdColors.accent50,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 2,
+  },
+  hdAddressInfo: {
+    flex: 1,
+    gap: 2,
+  },
+  hdAddressLabel: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#0d2c54',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  hdAddressValue: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: hdColors.text,
+  },
+  hdAddressHint: {
+    fontSize: 12,
+    color: hdColors.textTertiary,
+    fontStyle: 'italic',
+  },
+  // Créneau gradient
+  hdSlotGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 16,
+    padding: 18,
+    gap: 14,
+    backgroundColor: '#0d2c54',
+  },
+  hdSlotIconBg: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  hdSlotText: {
+    flex: 1,
+    gap: 2,
+  },
+  hdSlotDate: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  hdSlotEnd: {
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.55)',
   },
 });
