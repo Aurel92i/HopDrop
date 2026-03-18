@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { View, ActivityIndicator, TouchableOpacity, Platform, StyleSheet, Alert } from 'react-native';
+import { Text } from 'react-native-paper';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -247,8 +248,19 @@ function MainNavigator() {
           component={CarrierNavigator}
           options={{
             title: 'Carte',
-            tabBarIcon: ({ color }) => (
-              <MaterialCommunityIcons name="map-outline" size={22} color={color} />
+            tabBarIcon: ({ color, focused }) => (
+              <View style={focused ? tabStyles.tabIconActive : undefined}>
+                <MaterialCommunityIcons
+                  name={focused ? 'map' : 'map-outline'}
+                  size={22}
+                  color={focused ? '#FFFFFF' : color}
+                />
+              </View>
+            ),
+            tabBarLabel: ({ color, focused }) => (
+              <Text style={[tabStyles.tabLabel, { color: focused ? hdColors.accent : hdColors.textTertiary }]}>
+                Carte
+              </Text>
             ),
           }}
         />
@@ -337,8 +349,19 @@ function MainNavigator() {
           component={CarrierNavigator}
           options={{
             title: 'Courses',
-            tabBarIcon: ({ color }) => (
-              <MaterialCommunityIcons name="map-outline" size={22} color={color} />
+            tabBarIcon: ({ color, focused }) => (
+              <View style={focused ? tabStyles.tabIconActive : undefined}>
+                <MaterialCommunityIcons
+                  name={focused ? 'map' : 'map-outline'}
+                  size={22}
+                  color={focused ? '#FFFFFF' : color}
+                />
+              </View>
+            ),
+            tabBarLabel: ({ color, focused }) => (
+              <Text style={[tabStyles.tabLabel, { color: focused ? hdColors.accent : hdColors.textTertiary }]}>
+                Courses
+              </Text>
             ),
           }}
         />
@@ -392,6 +415,14 @@ const tabStyles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  tabIconActive: {
+    width: 40,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: hdColors.accent,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   centerContainer: {
     flex: 1,

@@ -266,7 +266,7 @@ export function RegisterScreen({ navigation }: RegisterScreenProps) {
               disabled={isBusy}
               activeOpacity={0.85}
             >
-              <MaterialCommunityIcons name="apple" size={22} color="#FFFFFF" />
+              <MaterialCommunityIcons name="apple" size={22} color="#000000" />
               <Text style={styles.appleButtonText}>
                 {socialLoading === 'apple' ? '...' : t('auth.register.continueWithApple')}
               </Text>
@@ -514,35 +514,42 @@ const styles = StyleSheet.create({
   },
 
   // Social buttons
+  socialRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
   appleButton: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#000000',
+    backgroundColor: '#FFFFFF',
     borderRadius: borderRadius.lg,
     paddingVertical: 15,
-    marginBottom: 10,
-    gap: 10,
+    borderWidth: 1.5,
+    borderColor: hdColors.border,
+    gap: 8,
   },
   appleButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
+    color: hdColors.text,
+    fontSize: 15,
     fontWeight: '600',
   },
   googleButton: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: hdColors.surface,
+    backgroundColor: '#FFFFFF',
     borderRadius: borderRadius.lg,
     paddingVertical: 15,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: hdColors.border,
-    gap: 10,
+    gap: 8,
   },
   googleButtonText: {
     color: hdColors.text,
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
   },
 

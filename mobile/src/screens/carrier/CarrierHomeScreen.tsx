@@ -471,7 +471,7 @@ AIzaSyDPGWjWiTpS52Td4gIWedEPOXqoWqQVwpA
           <Switch
             value={isAvailable}
             onValueChange={toggleAvailability}
-            color={hdColors.accent}
+            color={hdColors.neonGreen}
             style={styles.onlineSwitch}
           />
         </View>
@@ -574,10 +574,10 @@ AIzaSyDPGWjWiTpS52Td4gIWedEPOXqoWqQVwpA
             onPress={() => currentMissions.length > 0 && navigation.navigate('ActiveMissions')}
             activeOpacity={0.7}
           >
-            <View style={[styles.barIconCircle, { backgroundColor: currentMissions.length > 0 ? 'hdColors.neonGreen50' : '#F3F4F6' }]}>
-              <MaterialCommunityIcons name="bike" size={20} color={currentMissions.length > 0 ? 'hdColors.neonGreen' : '#9CA3AF'} />
+            <View style={[styles.barIconCircle, { backgroundColor: currentMissions.length > 0 ? hdColors.neonGreen50 : '#F3F4F6' }]}>
+              <MaterialCommunityIcons name="bike" size={20} color={currentMissions.length > 0 ? hdColors.neonGreen : '#9CA3AF'} />
               {currentMissions.length > 0 && (
-                <View style={[styles.barBadge, { backgroundColor: 'hdColors.neonGreen' }]}>
+                <View style={[styles.barBadge, { backgroundColor: hdColors.neonGreen }]}>
                   <Text style={styles.barBadgeText}>{currentMissions.length}</Text>
                 </View>
               )}
@@ -738,7 +738,7 @@ AIzaSyDPGWjWiTpS52Td4gIWedEPOXqoWqQVwpA
               </View>
 
               <View style={styles.infoRow}>
-                <View style={[styles.infoIcon, { backgroundColor: 'hdColors.neonGreen50' }]}><MaterialCommunityIcons name="map-marker" size={22} color="hdColors.neonGreen" /></View>
+                <View style={[styles.infoIcon, { backgroundColor: hdColors.neonGreen50 }]}><MaterialCommunityIcons name="map-marker" size={22} color={hdColors.neonGreen} /></View>
                 <View style={styles.infoText}><Text style={styles.infoLabel}>{t('carrier.home.pickupLabel')}</Text><Text style={styles.infoValue}>{selectedParcel.pickupAddress?.street}</Text><Text style={styles.infoValueSub}>{selectedParcel.pickupAddress?.postalCode} {selectedParcel.pickupAddress?.city}</Text></View>
               </View>
 
@@ -801,7 +801,7 @@ const styles = StyleSheet.create({
   },
   onlineLeft: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   onlineDot: { width: 12, height: 12, borderRadius: 6, backgroundColor: '#D1D5DB' },
-  onlineDotActive: { backgroundColor: 'hdColors.neonGreen' },
+  onlineDotActive: { backgroundColor: hdColors.neonGreen },
   onlineTitle: { fontSize: 16, fontWeight: '700', color: '#1F2937' },
   onlineSubtitle: { fontSize: 12, color: '#6B7280', marginTop: 2 },
   onlineSwitch: { transform: [{ scaleX: 1.1 }, { scaleY: 1.1 }] },
@@ -874,7 +874,7 @@ const styles = StyleSheet.create({
       android: { elevation: 4 },
     }),
   },
-  searchIndicatorText: { fontSize: 13, fontWeight: '500', color: 'hdColors.neonGreen' },
+  searchIndicatorText: { fontSize: 13, fontWeight: '500', color: hdColors.neonGreen },
 
   bottomBar: {
     position: 'absolute',
@@ -950,7 +950,7 @@ const styles = StyleSheet.create({
       android: { elevation: 8 },
     }),
   },
-  parcelMarkerSelected: { backgroundColor: 'hdColors.neonGreen', transform: [{ scale: 1.15 }] },
+  parcelMarkerSelected: { backgroundColor: hdColors.neonGreen, transform: [{ scale: 1.15 }] },
   poiMarker: {
     width: 28,
     height: 28,
@@ -964,15 +964,15 @@ const styles = StyleSheet.create({
       android: { elevation: 4 },
     }),
   },
-  poiMarkerHighlight: { borderColor: 'hdColors.neonGreen', borderWidth: 3, transform: [{ scale: 1.25 }] },
+  poiMarkerHighlight: { borderColor: hdColors.neonGreen, borderWidth: 3, transform: [{ scale: 1.25 }] },
   missionMarker: {
-    backgroundColor: 'hdColors.neonGreen',
+    backgroundColor: hdColors.neonGreen,
     padding: 8,
     borderRadius: 18,
     borderWidth: 2.5,
     borderColor: 'white',
     ...Platform.select({
-      ios: { shadowColor: 'hdColors.neonGreen', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 8 },
+      ios: { shadowColor: hdColors.neonGreen, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 8 },
       android: { elevation: 6 },
     }),
   },
@@ -1028,8 +1028,8 @@ const styles = StyleSheet.create({
   resultAddress: { fontSize: 13, color: '#6B7280', marginTop: 3 },
   resultMeta: { flexDirection: 'row', alignItems: 'center', marginTop: 4, gap: 8 },
   resultCity: { fontSize: 12, color: '#9CA3AF' },
-  badge24: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'hdColors.neonGreen50', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10, gap: 4 },
-  badge24Text: { fontSize: 10, fontWeight: '700', color: 'hdColors.neonGreen' },
+  badge24: { flexDirection: 'row', alignItems: 'center', backgroundColor: hdColors.neonGreen50, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10, gap: 4 },
+  badge24Text: { fontSize: 10, fontWeight: '700', color: hdColors.neonGreen },
   resultArrow: { padding: 4 },
 
   backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: '#000' },

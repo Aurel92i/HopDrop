@@ -1032,7 +1032,9 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
                   <View style={styles.scheduledSlot}>
                     <View style={styles.scheduledSlotDate}>
                       <MaterialCommunityIcons name="calendar" size={16} color="#1976D2" />
-                      <Text style={styles.scheduledSlotDateText}>{pickupDate}</Text>
+                      <Text style={styles.scheduledSlotDateText}>
+                          {pickupDate ? new Date(pickupDate + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }) : ''}
+                        </Text>
                     </View>
                     <View style={styles.scheduledSlotTime}>
                       <MaterialCommunityIcons name="clock-outline" size={16} color="#1976D2" />
