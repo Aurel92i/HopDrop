@@ -297,7 +297,7 @@ export function MissionDetailScreen({ navigation, route }: MissionDetailScreenPr
             <Text style={styles.earningsHint}>💡 {t('carrier.home.paidAfterDelivery')}</Text>
           </View>
           <Text style={styles.earningsAmount}>
-            {(Number(parcel.price) * 0.8).toFixed(2)} €
+            {(Number(parcel.price) * 0.9).toFixed(2)} €
           </Text>
         </View>
       )}
