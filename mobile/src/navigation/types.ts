@@ -4,6 +4,7 @@ export type AuthStackParamList = {
   Login: undefined;
   Register: undefined;
   ForgotPassword: undefined;
+  Legal: { docType: 'cgu' | 'cgv' | 'mentions' | 'confidentialite' };
 };
 
 export type VendorStackParamList = {

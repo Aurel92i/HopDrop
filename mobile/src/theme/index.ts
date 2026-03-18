@@ -42,8 +42,8 @@ export const hdColors = {
   steel: '#A0AEC0',
 
   // Néon — Accents futuristes
-  neonGreen: '#00E676',
-  neonGreen50: '#E0FFF0',
+  neonGreen: '#2ECC71',
+  neonGreen50: '#EAFAF1',
   electricBlue: '#00B0FF',
   electricBlue50: '#E0F4FF',
   plasma: '#7C4DFF',

@@ -226,18 +226,40 @@ export function RegisterScreen({ navigation }: RegisterScreenProps) {
           />
 
           {/* CGU */}
-          <TouchableOpacity
-            style={styles.cguRow}
-            onPress={() => setCguAccepted(!cguAccepted)}
-            activeOpacity={0.7}
-          >
-            <View style={[styles.cguCheck, cguAccepted && styles.cguCheckActive]}>
-              {cguAccepted && (
-                <MaterialCommunityIcons name="check" size={14} color="#FFFFFF" />
-              )}
+            <View style={styles.cguRow}>
+              <TouchableOpacity
+                style={[styles.cguCheck, cguAccepted && styles.cguCheckActive]}
+                onPress={() => setCguAccepted(!cguAccepted)}
+                activeOpacity={0.7}
+              >
+                {cguAccepted && (
+                  <MaterialCommunityIcons name="check" size={14} color="#FFFFFF" />
+                )}
+              </TouchableOpacity>
+              <Text style={styles.cguText}>
+                J'accepte les{' '}
+                <Text
+                  style={styles.cguLink}
+                  onPress={() => navigation.navigate('Legal' as any, { docType: 'cgu' })}
+                >
+                  CGU
+                </Text>
+                , les{' '}
+                <Text
+                  style={styles.cguLink}
+                  onPress={() => navigation.navigate('Legal' as any, { docType: 'cgv' })}
+                >
+                  CGV
+                </Text>
+                {' '}et la{' '}
+                <Text
+                  style={styles.cguLink}
+                  onPress={() => navigation.navigate('Legal' as any, { docType: 'confidentialite' })}
+                >
+                  Politique de confidentialité
+                </Text>
+              </Text>
             </View>
-            <Text style={styles.cguText}>{t('auth.register.acceptCgu')}</Text>
-          </TouchableOpacity>
 
           {/* Bouton S'inscrire */}
           <TouchableOpacity
@@ -476,6 +498,11 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: hdColors.textSecondary,
     lineHeight: 18,
+  },
+  cguLink: {
+    color: hdColors.accent,
+    fontWeight: '700',
+    textDecorationLine: 'underline',
   },
 
   // Submit

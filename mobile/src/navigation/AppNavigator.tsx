@@ -143,6 +143,7 @@ function AuthNavigator() {
       <AuthStack.Screen name="Login" component={LoginScreen} />
       <AuthStack.Screen name="Register" component={RegisterScreen} />
       <AuthStack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+      <AuthStack.Screen name="Legal" component={LegalScreen} options={{ title: 'Document légal' }} />
     </AuthStack.Navigator>
   );
 }
@@ -477,14 +478,6 @@ const tabStyles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  tabIconActive: {
-    width: 40,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: hdColors.accent,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   centerContainer: {
     flex: 1,
