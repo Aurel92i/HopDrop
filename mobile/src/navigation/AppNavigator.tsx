@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, ActivityIndicator, TouchableOpacity, Platform, StyleSheet, Alert } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, ActivityIndicator, TouchableOpacity, Platform, StyleSheet, Alert, Animated } from 'react-native';
 import { Text } from 'react-native-paper';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -49,6 +49,80 @@ import { SplashScreen } from '../screens/shared/SplashScreen';
 import { ChatScreen } from '../screens/chat/ChatScreen';
 import { ConversationsScreen } from '../screens/chat/ConversationsScreen';
 import { LegalScreen } from '../screens/shared/LegalScreen';
+
+// ===== ANIMATED TAB ICON =====
+function AnimatedTabIcon({ name, nameOutline, color, focused, size = 22 }: {
+  name: string;
+  nameOutline?: string;
+  color: string;
+  focused: boolean;
+  size?: number;
+}) {
+  const scaleAnim = useRef(new Animated.Value(focused ? 1 : 0)).current;
+  const glowAnim = useRef(new Animated.Value(focused ? 1 : 0)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.spring(scaleAnim, {
+        toValue: focused ? 1 : 0,
+        friction: 6,
+        tension: 80,
+        useNativeDriver: true,
+      }),
+      Animated.timing(glowAnim, {
+        toValue: focused ? 1 : 0,
+        duration: 250,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [focused]);
+
+  const scale = scaleAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [1, 1.15],
+  });
+
+  const pillOpacity = glowAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, 1],
+  });
+
+  const iconName = focused ? name : (nameOutline || name);
+
+  return (
+    <View style={animStyles.iconWrapper}>
+      <Animated.View
+        style={[
+          animStyles.iconPill,
+          {
+            opacity: pillOpacity,
+            transform: [{ scale }],
+          },
+        ]}
+      />
+      <Animated.View style={{ transform: [{ scale }] }}>
+        <MaterialCommunityIcons name={iconName as any} size={size} color={color} />
+      </Animated.View>
+    </View>
+  );
+}
+
+const animStyles = StyleSheet.create({
+  iconWrapper: {
+    width: 48,
+    height: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'relative',
+  },
+  iconPill: {
+    position: 'absolute',
+    width: 48,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: hdColors.accent + '18', // 10% opacity navy
+  },
+});
 
 const AuthStack = createNativeStackNavigator<AuthStackParamList>();
 const VendorStack = createNativeStackNavigator<VendorStackParamList>();
@@ -235,9 +309,9 @@ function MainNavigator() {
           component={VendorNavigator}
           options={{
             title: 'Colis',
-            tabBarIcon: ({ color }) => (
-              <MaterialCommunityIcons name="package-variant" size={22} color={color} />
-            ),
+            tabBarIcon: ({ color, focused }) => (
+                <AnimatedTabIcon name="package-variant" nameOutline="package-variant-closed" color={color} focused={focused} />
+              ),
           }}
         />
       )}
@@ -249,13 +323,7 @@ function MainNavigator() {
           options={{
             title: 'Carte',
             tabBarIcon: ({ color, focused }) => (
-              <View style={focused ? tabStyles.tabIconActive : undefined}>
-                <MaterialCommunityIcons
-                  name={focused ? 'map' : 'map-outline'}
-                  size={22}
-                  color={focused ? '#FFFFFF' : color}
-                />
-              </View>
+              <AnimatedTabIcon name="map" nameOutline="map-outline" color={color} focused={focused} />
             ),
             tabBarLabel: ({ color, focused }) => (
               <Text style={[tabStyles.tabLabel, { color: focused ? hdColors.accent : hdColors.textTertiary }]}>
@@ -272,9 +340,9 @@ function MainNavigator() {
         component={MessagesNavigator}
         options={{
           title: 'Messages',
-          tabBarIcon: ({ color }) => (
-            <MaterialCommunityIcons name="chat-outline" size={22} color={color} />
-          ),
+          tabBarIcon: ({ color, focused }) => (
+              <AnimatedTabIcon name="chat" nameOutline="chat-outline" color={color} focused={focused} />
+            ),
         }}
       />
 
@@ -311,9 +379,9 @@ function MainNavigator() {
         component={ProfileNavigator}
         options={{
           title: 'Profil',
-          tabBarIcon: ({ color }) => (
-            <MaterialCommunityIcons name="account" size={22} color={color} />
-          ),
+          tabBarIcon: ({ color, focused }) => (
+              <AnimatedTabIcon name="account" nameOutline="account-outline" color={color} focused={focused} />
+            ),
         }}
       />
 
@@ -323,9 +391,9 @@ function MainNavigator() {
         component={SettingsNavigator}
         options={{
           title: 'Réglages',
-          tabBarIcon: ({ color }) => (
-            <MaterialCommunityIcons name="cog-outline" size={22} color={color} />
-          ),
+          tabBarIcon: ({ color, focused }) => (
+              <AnimatedTabIcon name="cog" nameOutline="cog-outline" color={color} focused={focused} />
+            ),
         }}
       />
 
@@ -336,8 +404,8 @@ function MainNavigator() {
           component={AdminNavigator}
           options={{
             title: 'Admin',
-            tabBarIcon: ({ color }) => (
-              <MaterialCommunityIcons name="shield-crown" size={22} color={color} />
+            tabBarIcon: ({ color, focused }) => (
+              <AnimatedTabIcon name="shield-crown" nameOutline="shield-crown-outline" color={color} focused={focused} />
             ),
           }}
         />
@@ -350,13 +418,7 @@ function MainNavigator() {
           options={{
             title: 'Courses',
             tabBarIcon: ({ color, focused }) => (
-              <View style={focused ? tabStyles.tabIconActive : undefined}>
-                <MaterialCommunityIcons
-                  name={focused ? 'map' : 'map-outline'}
-                  size={22}
-                  color={focused ? '#FFFFFF' : color}
-                />
-              </View>
+              <AnimatedTabIcon name="map" nameOutline="map-outline" color={color} focused={focused} />
             ),
             tabBarLabel: ({ color, focused }) => (
               <Text style={[tabStyles.tabLabel, { color: focused ? hdColors.accent : hdColors.textTertiary }]}>
