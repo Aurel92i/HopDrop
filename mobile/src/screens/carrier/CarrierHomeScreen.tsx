@@ -285,7 +285,9 @@ export function CarrierHomeScreen({ navigation }: CarrierHomeScreenProps) {
   };
 
   const formatDate = (dateString: string) => {
+    if (!dateString) return 'Date non définie';
     const date = new Date(dateString);
+    if (isNaN(date.getTime())) return 'Date non définie';
     const today = new Date();
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
@@ -719,13 +721,13 @@ AIzaSyDPGWjWiTpS52Td4gIWedEPOXqoWqQVwpA
                 </TouchableOpacity>
               </View>
 
-              <View style={[styles.slotBanner, selectedParcel.pickupMode === 'IMMEDIATE' ? styles.slotImmediate : styles.slotScheduled]}>
+              <View style={[styles.slotBanner, (selectedParcel.pickupMode || selectedParcel.pickupSlot?.mode) === 'IMMEDIATE' ? styles.slotImmediate : styles.slotScheduled]}>
                 <MaterialCommunityIcons name={selectedParcel.pickupMode === 'IMMEDIATE' ? 'lightning-bolt' : 'clock-outline'} size={26} color="white" />
                 <View style={styles.slotContent}>
-                  {selectedParcel.pickupMode === 'IMMEDIATE' ? (
+                  {(selectedParcel.pickupMode || selectedParcel.pickupSlot?.mode) === 'IMMEDIATE' ? (
                     <><Text style={styles.slotTitle}>{t('carrier.missionDetail.immediatePickup')}</Text><Text style={styles.slotSubtitle}>{t('carrier.missionDetail.vendorWaiting')}</Text></>
                   ) : (
-                    <><Text style={styles.slotTitle}>{formatDate(selectedParcel.pickupSlotStart)}</Text><Text style={styles.slotSubtitle}>{formatTime(selectedParcel.pickupSlotStart)} - {formatTime(selectedParcel.pickupSlotEnd)}</Text></>
+                    <><Text style={styles.slotTitle}>{formatDate(selectedParcel.pickupSlot?.start || selectedParcel.pickupSlotStart)}</Text><Text style={styles.slotSubtitle}>{formatTime(selectedParcel.pickupSlot?.start || selectedParcel.pickupSlotStart)} - {formatTime(selectedParcel.pickupSlot?.end || selectedParcel.pickupSlotEnd)}</Text></>
                   )}
                 </View>
               </View>
@@ -755,7 +757,7 @@ size={22} color={hdColors.accent} /></View>
                   <Text style={styles.priceLabel}>{t('carrier.home.yourEarnings')}</Text>
                   <Text style={styles.priceHint}>{'\ud83d\udca1'} {t('carrier.home.paidAfterDelivery')}</Text>
                 </View>
-                <Text style={styles.priceValue}>{typeof selectedParcel.price === 'object' ? (selectedParcel.price as any)?.total?.toFixed(2) : Number(selectedParcel.price).toFixed(2)}€</Text>
+                <Text style={styles.priceValue}>{typeof selectedParcel.price === 'object' ? ((selectedParcel.price as any)?.total * 0.9).toFixed(2) : (Number(selectedParcel.price) * 0.9).toFixed(2)}€</Text>
               </View>
 
               <TouchableOpacity style={styles.acceptBtn} onPress={handleAcceptMission} disabled={isAccepting} activeOpacity={0.8}>
