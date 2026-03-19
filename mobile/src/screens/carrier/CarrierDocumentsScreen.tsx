@@ -1,13 +1,22 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, StyleSheet, ScrollView, RefreshControl, TouchableOpacity, Alert, Linking } from 'react-native';
-import { Text, Button, Card, Chip, Switch, ActivityIndicator } from 'react-native-paper';
+import {
+  View,
+  StyleSheet,
+  ScrollView,
+  RefreshControl,
+  TouchableOpacity,
+  Alert,
+  Linking,
+  Platform,
+} from 'react-native';
+import { Text, Switch, ActivityIndicator } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 
 import { api } from '../../services/api';
-import { colors, spacing } from '../../theme';
+import { hdColors, spacing, borderRadius } from '../../theme';
 import { useTranslation } from '../../i18n/i18nContext';
 import { PhotoPreviewModal } from '../../components/common/PhotoPreviewModal';
 
@@ -30,8 +39,14 @@ interface CarrierProfileInfo {
   documentsVerified: boolean;
 }
 
-// Taille max fichier : 10 MB
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
+
+const VEHICLE_ICONS: Record<string, string> = {
+  NONE: 'walk',
+  BIKE: 'bike',
+  SCOOTER: 'motorbike',
+  CAR: 'car',
+};
 
 export function CarrierDocumentsScreen() {
   const { t } = useTranslation();
@@ -42,7 +57,6 @@ export function CarrierDocumentsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [rawDocPhoto, setRawDocPhoto] = useState<{ uri: string; type: DocumentType } | null>(null);
 
-  // Stripe Connect state
   const [stripeStatus, setStripeStatus] = useState<{
     hasAccount: boolean;
     status?: 'PENDING' | 'ACTIVE' | 'RESTRICTED' | null;
@@ -86,6 +100,8 @@ export function CarrierDocumentsScreen() {
     { value: 'CAR', label: t('carrier.documents.vehicleCar') },
   ];
 
+  // ─── Data Loading ───────────────────────────────────────────────
+
   const loadDocuments = useCallback(async () => {
     try {
       const result = await api.getCarrierDocuments();
@@ -109,25 +125,6 @@ export function CarrierDocumentsScreen() {
     }
   }, []);
 
-  const handleSetupStripe = async () => {
-    setStripeLoading(true);
-    try {
-      // Create account if needed
-      if (!stripeStatus?.hasAccount) {
-        await api.createConnectAccount();
-      }
-      // Get onboarding link and open it
-      const { url } = await api.getConnectOnboardingLink();
-      await Linking.openURL(url);
-      // Refresh status when user comes back
-      setTimeout(() => loadStripeStatus(), 2000);
-    } catch (error: any) {
-      Alert.alert(t('common.error'), error.response?.data?.error || error.message);
-    } finally {
-      setStripeLoading(false);
-    }
-  };
-
   useEffect(() => {
     loadDocuments();
     loadStripeStatus();
@@ -136,7 +133,28 @@ export function CarrierDocumentsScreen() {
   const onRefresh = () => {
     setRefreshing(true);
     loadDocuments();
+    loadStripeStatus();
   };
+
+  // ─── Stripe ─────────────────────────────────────────────────────
+
+  const handleSetupStripe = async () => {
+    setStripeLoading(true);
+    try {
+      if (!stripeStatus?.hasAccount) {
+        await api.createConnectAccount();
+      }
+      const { url } = await api.getConnectOnboardingLink();
+      await Linking.openURL(url);
+      setTimeout(() => loadStripeStatus(), 2000);
+    } catch (error: any) {
+      Alert.alert(t('common.error'), error.response?.data?.error || error.message);
+    } finally {
+      setStripeLoading(false);
+    }
+  };
+
+  // ─── Document Picking ───────────────────────────────────────────
 
   const handlePickDocument = async (type: DocumentType) => {
     Alert.alert(t('carrier.documents.addDocumentTitle'), t('carrier.documents.addDocumentMessage'), [
@@ -152,13 +170,11 @@ export function CarrierDocumentsScreen() {
       Alert.alert(t('common.permissionDenied'), t('carrier.documents.cameraPermission'));
       return;
     }
-
     const result = await ImagePicker.launchCameraAsync({
       mediaTypes: ['images'],
       quality: 0.8,
       allowsEditing: false,
     });
-
     if (!result.canceled && result.assets[0]) {
       setRawDocPhoto({ uri: result.assets[0].uri, type });
     }
@@ -170,11 +186,8 @@ export function CarrierDocumentsScreen() {
         type: ['application/pdf', 'image/jpeg', 'image/png', 'image/heic'],
         copyToCacheDirectory: true,
       });
-
       if (!result.canceled && result.assets[0]) {
         const asset = result.assets[0];
-
-        // Vérifier la taille du fichier
         const fileInfo = await FileSystem.getInfoAsync(asset.uri);
         if (fileInfo.exists && 'size' in fileInfo && fileInfo.size && fileInfo.size > MAX_FILE_SIZE) {
           Alert.alert(
@@ -183,9 +196,7 @@ export function CarrierDocumentsScreen() {
           );
           return;
         }
-
         const isPdf = asset.mimeType === 'application/pdf' || asset.name?.toLowerCase().endsWith('.pdf');
-        console.log('[SCREEN] Fichier sélectionné:', asset.name, '- MIME:', asset.mimeType, '- PDF:', isPdf);
         await uploadDocument(type, asset.uri, isPdf ? 'pdf' : 'image');
       }
     } catch (error) {
@@ -194,22 +205,15 @@ export function CarrierDocumentsScreen() {
     }
   };
 
+  // ─── Upload ─────────────────────────────────────────────────────
+
   const uploadDocument = async (type: DocumentType, fileUri: string, fileType: 'image' | 'pdf') => {
     setIsUploading(type);
     try {
-      console.log('[SCREEN] === DEBUT UPLOAD ===');
-      console.log('[SCREEN] Type document:', type);
-      console.log('[SCREEN] Type fichier:', fileType);
-      console.log('[SCREEN] URI:', fileUri.substring(0, 80) + '...');
-
-      // Etape 1 : Lire le fichier en base64
-      console.log('[SCREEN] Etape 1: Lecture base64...');
       const base64 = await FileSystem.readAsStringAsync(fileUri, {
         encoding: FileSystem.EncodingType.Base64,
       });
-      console.log('[SCREEN] Base64 lu - taille:', Math.round(base64.length / 1024), 'KB');
 
-      // Etape 2 : Determiner le type MIME
       let mimeType = 'image/jpeg';
       if (fileType === 'pdf') {
         mimeType = 'application/pdf';
@@ -218,29 +222,14 @@ export function CarrierDocumentsScreen() {
       } else if (fileUri.toLowerCase().includes('.heic')) {
         mimeType = 'image/heic';
       }
-      console.log('[SCREEN] MIME type:', mimeType);
 
-      // Etape 3 : Creer le data URI
       const dataUri = `data:${mimeType};base64,${base64}`;
-
-      // Etape 4 : Upload via base64 (UN SEUL appel a /uploads)
-      console.log('[SCREEN] Etape 4: Appel api.uploadBase64...');
       const imageUrl = await api.uploadBase64(dataUri);
-      console.log('[SCREEN] Upload OK - URL:', imageUrl);
-
-      // Etape 5 : Enregistrer le document (appel a /carrier/documents)
-      console.log('[SCREEN] Etape 5: Appel api.saveCarrierDocument...');
       await api.saveCarrierDocument(type, imageUrl);
-      console.log('[SCREEN] === UPLOAD TERMINE AVEC SUCCES ===');
 
       Alert.alert(t('common.success'), t('carrier.documents.uploadSuccess'));
       loadDocuments();
     } catch (error: any) {
-      console.error('[SCREEN] === ERREUR UPLOAD ===');
-      console.error('[SCREEN] Message:', error.message);
-      console.error('[SCREEN] Response status:', error.response?.status);
-      console.error('[SCREEN] Response data:', JSON.stringify(error.response?.data));
-
       let errorMessage = t('carrier.documents.uploadError');
       if (error.response?.status === 413) {
         errorMessage = t('carrier.documents.fileTooLargeServer');
@@ -249,12 +238,13 @@ export function CarrierDocumentsScreen() {
       } else if (error.message) {
         errorMessage = error.message;
       }
-
       Alert.alert(t('common.error'), errorMessage);
     } finally {
       setIsUploading(null);
     }
   };
+
+  // ─── Actions ────────────────────────────────────────────────────
 
   const handleDeleteDocument = (type: DocumentType) => {
     Alert.alert(t('carrier.documents.deleteDocumentTitle'), t('carrier.documents.deleteConfirm'), [
@@ -293,12 +283,23 @@ export function CarrierDocumentsScreen() {
     }
   };
 
+  // ─── Helpers ────────────────────────────────────────────────────
+
   const getStatusColor = (status: string | null) => {
     switch (status) {
-      case 'APPROVED': return colors.primary;
-      case 'REJECTED': return colors.error;
-      case 'PENDING': return colors.secondary;
-      default: return colors.outline;
+      case 'APPROVED': return hdColors.neonGreen;
+      case 'REJECTED': return hdColors.danger;
+      case 'PENDING': return hdColors.warning;
+      default: return hdColors.chromeDark;
+    }
+  };
+
+  const getStatusBg = (status: string | null) => {
+    switch (status) {
+      case 'APPROVED': return hdColors.success50;
+      case 'REJECTED': return hdColors.danger50;
+      case 'PENDING': return hdColors.warning50;
+      default: return hdColors.surfaceSecondary;
     }
   };
 
@@ -320,248 +321,310 @@ export function CarrierDocumentsScreen() {
     }
   };
 
+  // Progression documents
+  const totalRequired = documents.filter((d) => d.required).length;
+  const uploadedRequired = documents.filter((d) => d.required && d.uploaded).length;
+  const progressPercent = totalRequired > 0 ? (uploadedRequired / totalRequired) * 100 : 0;
+
+  // ─── Loading ────────────────────────────────────────────────────
+
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" />
+        <View style={styles.loadingIconBg}>
+          <MaterialCommunityIcons name="file-document-outline" size={28} color={hdColors.accent} />
+        </View>
+        <ActivityIndicator size="large" color={hdColors.accent} style={{ marginTop: spacing.md }} />
         <Text style={styles.loadingText}>{t('common.loading')}</Text>
       </View>
     );
   }
 
+  // ─── Render ─────────────────────────────────────────────────────
+
   return (
     <ScrollView
       style={styles.container}
       contentContainerStyle={styles.content}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={hdColors.accent} />}
+      showsVerticalScrollIndicator={false}
     >
-      {/* Statut general */}
-      <Card style={[styles.statusCard, profile?.documentsVerified && styles.statusCardApproved]}>
-        <Card.Content style={styles.statusContent}>
-          <MaterialCommunityIcons
-            name={profile?.documentsVerified ? 'check-circle' : 'information'}
-            size={32}
-            color={profile?.documentsVerified ? colors.primary : colors.secondary}
-          />
-          <View style={styles.statusInfo}>
-            <Text variant="titleSmall">
-              {profile?.documentsVerified ? t('carrier.documents.verifiedTitle') : t('carrier.documents.pendingTitle')}
+      {/* ── Hero Statut Général ── */}
+      <View style={[styles.heroCard, profile?.documentsVerified && styles.heroCardVerified]}>
+        {/* Motifs géométriques */}
+        <View style={[styles.patternCircle, { top: -20, right: -20 }]} />
+        <View style={[styles.patternCircle, { bottom: -15, left: -15, width: 80, height: 80 }]} />
+
+        <View style={styles.heroContent}>
+          <View style={styles.heroIconBg}>
+            <MaterialCommunityIcons
+              name={profile?.documentsVerified ? 'shield-check' : 'file-document-edit-outline'}
+              size={26}
+              color="#FFFFFF"
+            />
+          </View>
+          <View style={styles.heroInfo}>
+            <Text style={styles.heroLabel}>
+              {profile?.documentsVerified ? 'DOSSIER COMPLET' : 'DOSSIER EN COURS'}
             </Text>
-            <Text variant="bodySmall" style={styles.statusSubtext}>
+            <Text style={styles.heroTitle}>
+              {profile?.documentsVerified
+                ? t('carrier.documents.verifiedTitle')
+                : t('carrier.documents.pendingTitle')}
+            </Text>
+            <Text style={styles.heroSubtext}>
               {profile?.documentsVerified
                 ? t('carrier.documents.verifiedSubtext')
                 : t('carrier.documents.pendingSubtext')}
             </Text>
           </View>
-        </Card.Content>
-      </Card>
+        </View>
 
-      {/* Type de vehicule */}
-      <Card style={styles.card}>
-        <Card.Content>
-          <Text variant="titleSmall" style={styles.sectionTitle}>{t('carrier.documents.vehicleType')}</Text>
-          <Text variant="bodySmall" style={styles.sectionSubtitle}>
-            {t('carrier.documents.vehicleQuestion')}
-          </Text>
-          <View style={styles.vehicleOptions}>
-            {vehicleOptions.map((option) => (
+        {/* Barre de progression */}
+        {!profile?.documentsVerified && totalRequired > 0 && (
+          <View style={styles.progressSection}>
+            <View style={styles.progressBarBg}>
+              <View style={[styles.progressBarFill, { width: `${progressPercent}%` }]} />
+            </View>
+            <Text style={styles.progressText}>
+              {uploadedRequired}/{totalRequired} documents envoyés
+            </Text>
+          </View>
+        )}
+      </View>
+
+      {/* ── Type de véhicule ── */}
+      <View style={styles.hdCard}>
+        <Text style={styles.sectionLabel}>VÉHICULE</Text>
+        <Text style={styles.hdSectionTitle}>{t('carrier.documents.vehicleType')}</Text>
+        <Text style={styles.sectionSubtitle}>{t('carrier.documents.vehicleQuestion')}</Text>
+
+        <View style={styles.vehicleGrid}>
+          {vehicleOptions.map((option) => {
+            const isSelected = profile?.vehicleType === option.value;
+            return (
               <TouchableOpacity
                 key={option.value}
-                style={[
-                  styles.vehicleOption,
-                  profile?.vehicleType === option.value && styles.vehicleOptionSelected,
-                ]}
+                style={[styles.vehicleChip, isSelected && styles.vehicleChipSelected]}
                 onPress={() => handleVehicleChange(option.value)}
+                activeOpacity={0.7}
               >
-                <Text
-                  style={[
-                    styles.vehicleOptionText,
-                    profile?.vehicleType === option.value && styles.vehicleOptionTextSelected,
-                  ]}
-                >
+                <View style={[styles.vehicleIconBg, isSelected && styles.vehicleIconBgSelected]}>
+                  <MaterialCommunityIcons
+                    name={VEHICLE_ICONS[option.value] as any}
+                    size={20}
+                    color={isSelected ? '#FFFFFF' : hdColors.accent}
+                  />
+                </View>
+                <Text style={[styles.vehicleChipText, isSelected && styles.vehicleChipTextSelected]}>
                   {option.label}
                 </Text>
               </TouchableOpacity>
-            ))}
-          </View>
-        </Card.Content>
-      </Card>
+            );
+          })}
+        </View>
+      </View>
 
-      {/* Question imprimante */}
-      <Card style={styles.card}>
-        <Card.Content>
-          <View style={styles.printerRow}>
-            <View style={styles.printerInfo}>
-              <Text variant="titleSmall">{t('carrier.documents.printerQuestion')}</Text>
-              <Text variant="bodySmall" style={styles.printerSubtext}>
-                {t('carrier.documents.printerDesc')}
-              </Text>
-            </View>
-            <Switch
-              value={profile?.hasOwnPrinter || false}
-              onValueChange={handlePrinterChange}
-              color={colors.primary}
-            />
+      {/* ── Question imprimante ── */}
+      <View style={styles.hdCard}>
+        <View style={styles.printerRow}>
+          <View style={styles.printerIconBg}>
+            <MaterialCommunityIcons name="printer" size={22} color={hdColors.accent} />
           </View>
-        </Card.Content>
-      </Card>
+          <View style={styles.printerInfo}>
+            <Text style={styles.printerTitle}>{t('carrier.documents.printerQuestion')}</Text>
+            <Text style={styles.printerSubtext}>{t('carrier.documents.printerDesc')}</Text>
+          </View>
+          <Switch
+            value={profile?.hasOwnPrinter || false}
+            onValueChange={handlePrinterChange}
+            color={hdColors.neonGreen}
+          />
+        </View>
+      </View>
 
-      {/* Stripe Connect */}
-      <Card style={[styles.card, styles.stripeCard]}>
-        <Card.Content>
-          <View style={styles.stripeHeader}>
+      {/* ── Stripe Connect ── */}
+      <View style={styles.hdCard}>
+        <Text style={styles.sectionLabel}>PAIEMENTS</Text>
+        <View style={styles.stripeHeader}>
+          <View style={[
+            styles.stripeIconBg,
+            stripeStatus?.status === 'ACTIVE' && styles.stripeIconBgActive,
+          ]}>
             <MaterialCommunityIcons
-              name={stripeStatus?.status === 'ACTIVE' ? 'check-circle' : 'credit-card-settings-outline'}
-              size={28}
-              color={stripeStatus?.status === 'ACTIVE' ? colors.secondary : colors.tertiary}
+              name={stripeStatus?.status === 'ACTIVE' ? 'check-bold' : 'credit-card-outline'}
+              size={22}
+              color={stripeStatus?.status === 'ACTIVE' ? '#FFFFFF' : hdColors.accent}
             />
-            <View style={{ flex: 1 }}>
-              <Text variant="titleSmall">Configurer mes paiements</Text>
-              <Text variant="bodySmall" style={{ color: colors.onSurfaceVariant }}>
-                {stripeStatus?.status === 'ACTIVE'
-                  ? 'Paiements actives'
-                  : 'Recevez vos gains de livraison'}
-              </Text>
-            </View>
           </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.hdSectionTitle}>Configurer mes paiements</Text>
+            <Text style={styles.sectionSubtitle}>
+              {stripeStatus?.status === 'ACTIVE'
+                ? 'Paiements activés — vous recevrez vos gains'
+                : 'Recevez vos gains de livraison'}
+            </Text>
+          </View>
+        </View>
 
-          {!stripeStatus || !stripeStatus.hasAccount ? (
-            <Button
-              mode="contained"
-              icon="credit-card-plus-outline"
+        {!stripeStatus || !stripeStatus.hasAccount ? (
+          <TouchableOpacity
+            style={styles.ctaButton}
+            onPress={handleSetupStripe}
+            disabled={stripeLoading}
+            activeOpacity={0.8}
+          >
+            {stripeLoading ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+              <>
+                <MaterialCommunityIcons name="credit-card-plus-outline" size={20} color="#FFFFFF" />
+                <Text style={styles.ctaButtonText}>Configurer Stripe</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        ) : stripeStatus.status === 'ACTIVE' ? (
+          <View style={styles.stripeActiveBadge}>
+            <MaterialCommunityIcons name="check-circle" size={18} color={hdColors.neonGreen} />
+            <Text style={styles.stripeActiveText}>Paiements activés</Text>
+          </View>
+        ) : (
+          <View>
+            <View style={styles.stripePendingBadge}>
+              <MaterialCommunityIcons name="clock-outline" size={18} color={hdColors.warning} />
+              <Text style={styles.stripePendingText}>Vérification en cours</Text>
+            </View>
+            <TouchableOpacity
+              style={styles.secondaryButton}
               onPress={handleSetupStripe}
-              loading={stripeLoading}
               disabled={stripeLoading}
-              style={styles.stripeButton}
+              activeOpacity={0.8}
             >
-              Configurer Stripe
-            </Button>
-          ) : stripeStatus.status === 'ACTIVE' ? (
-            <View style={styles.stripeActive}>
-              <MaterialCommunityIcons name="check-circle" size={20} color={colors.secondary} />
-              <Text style={{ color: colors.secondary, fontWeight: '600' }}>Paiements actives</Text>
-            </View>
-          ) : (
-            <View>
-              <View style={styles.stripePending}>
-                <MaterialCommunityIcons name="clock-outline" size={20} color={colors.tertiary} />
-                <Text style={{ color: colors.tertiary, fontWeight: '500' }}>Verification en cours</Text>
-              </View>
-              <Button
-                mode="outlined"
-                icon="open-in-new"
-                onPress={handleSetupStripe}
-                loading={stripeLoading}
-                disabled={stripeLoading}
-                style={{ marginTop: spacing.sm }}
-              >
-                Completer la verification
-              </Button>
-            </View>
-          )}
-        </Card.Content>
-      </Card>
+              {stripeLoading ? (
+                <ActivityIndicator size="small" color={hdColors.accent} />
+              ) : (
+                <>
+                  <MaterialCommunityIcons name="open-in-new" size={18} color={hdColors.accent} />
+                  <Text style={styles.secondaryButtonText}>Compléter la vérification</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          </View>
+        )}
+      </View>
 
-      {/* Documents */}
-      <Text variant="titleMedium" style={styles.documentsTitle}>{t('carrier.documents.requiredDocuments')}</Text>
+      {/* ── Documents requis ── */}
+      <Text style={styles.sectionLabel2}>DOCUMENTS REQUIS</Text>
 
       {documents.map((doc) => {
         const docInfo = documentLabels[doc.type];
         if (!docInfo) return null;
         const isCurrentlyUploading = isUploading === doc.type;
+        const statusColor = getStatusColor(doc.status);
+        const statusBg = getStatusBg(doc.status);
 
         return (
-          <Card key={doc.type} style={styles.documentCard}>
-            <Card.Content>
-              <View style={styles.documentHeader}>
+          <View key={doc.type} style={styles.hdCard}>
+            {/* En-tête document */}
+            <View style={styles.docHeader}>
+              <View style={[styles.docIconBg, { backgroundColor: doc.uploaded ? statusBg : hdColors.accent50 }]}>
                 <MaterialCommunityIcons
                   name={docInfo.icon as any}
-                  size={28}
-                  color={doc.uploaded ? getStatusColor(doc.status) : colors.outline}
+                  size={22}
+                  color={doc.uploaded ? statusColor : hdColors.accent}
                 />
-                <View style={styles.documentInfo}>
-                  <View style={styles.documentTitleRow}>
-                    <Text variant="titleSmall">{docInfo.label}</Text>
-                    {doc.required && (
-                      <Chip compact style={styles.requiredChip} textStyle={styles.requiredChipText}>
-                        {t('common.required')}
-                      </Chip>
-                    )}
-                  </View>
-                  <Text variant="bodySmall" style={styles.documentDescription}>
-                    {docInfo.description}
-                  </Text>
+              </View>
+              <View style={styles.docInfo}>
+                <View style={styles.docTitleRow}>
+                  <Text style={styles.docTitle}>{docInfo.label}</Text>
+                  {doc.required && (
+                    <View style={styles.requiredPill}>
+                      <Text style={styles.requiredPillText}>{t('common.required')}</Text>
+                    </View>
+                  )}
                 </View>
+                <Text style={styles.docDescription}>{docInfo.description}</Text>
               </View>
+            </View>
 
-              <View style={styles.documentStatus}>
-                <MaterialCommunityIcons
-                  name={getStatusIcon(doc.status) as any}
-                  size={20}
-                  color={getStatusColor(doc.status)}
-                />
-                <Text style={[styles.statusText, { color: getStatusColor(doc.status) }]}>
-                  {getStatusLabel(doc.status)}
-                </Text>
+            {/* Statut */}
+            <View style={[styles.statusBadge, { backgroundColor: statusBg }]}>
+              <MaterialCommunityIcons
+                name={getStatusIcon(doc.status) as any}
+                size={16}
+                color={statusColor}
+              />
+              <Text style={[styles.statusBadgeText, { color: statusColor }]}>
+                {getStatusLabel(doc.status)}
+              </Text>
+            </View>
+
+            {/* Raison de rejet */}
+            {doc.status === 'REJECTED' && doc.rejectionReason && (
+              <View style={styles.rejectionBox}>
+                <MaterialCommunityIcons name="alert-circle-outline" size={16} color={hdColors.danger} />
+                <Text style={styles.rejectionText}>{doc.rejectionReason}</Text>
               </View>
+            )}
 
-              {doc.status === 'REJECTED' && doc.rejectionReason && (
-                <View style={styles.rejectionBox}>
-                  <MaterialCommunityIcons name="alert" size={16} color={colors.error} />
-                  <Text variant="bodySmall" style={styles.rejectionText}>
-                    {doc.rejectionReason}
-                  </Text>
+            {/* Actions */}
+            <View style={styles.docActions}>
+              {!doc.uploaded || doc.status === 'REJECTED' ? (
+                <TouchableOpacity
+                  style={styles.ctaButton}
+                  onPress={() => handlePickDocument(doc.type)}
+                  disabled={isCurrentlyUploading}
+                  activeOpacity={0.8}
+                >
+                  {isCurrentlyUploading ? (
+                    <ActivityIndicator size="small" color="#FFFFFF" />
+                  ) : (
+                    <>
+                      <MaterialCommunityIcons name="upload" size={18} color="#FFFFFF" />
+                      <Text style={styles.ctaButtonText}>
+                        {doc.uploaded ? t('carrier.documents.resendDocument') : t('carrier.documents.addDocument')}
+                      </Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              ) : (
+                <View style={styles.uploadedActions}>
+                  <TouchableOpacity
+                    style={[styles.secondaryButton, { flex: 1 }]}
+                    onPress={() => handlePickDocument(doc.type)}
+                    disabled={isCurrentlyUploading}
+                    activeOpacity={0.8}
+                  >
+                    <MaterialCommunityIcons name="refresh" size={18} color={hdColors.accent} />
+                    <Text style={styles.secondaryButtonText}>{t('carrier.documents.replaceDocument')}</Text>
+                  </TouchableOpacity>
+                  {doc.status !== 'APPROVED' && (
+                    <TouchableOpacity
+                      style={styles.deleteButton}
+                      onPress={() => handleDeleteDocument(doc.type)}
+                      activeOpacity={0.7}
+                    >
+                      <MaterialCommunityIcons name="delete-outline" size={20} color={hdColors.danger} />
+                    </TouchableOpacity>
+                  )}
                 </View>
               )}
-
-              <View style={styles.documentActions}>
-                {!doc.uploaded || doc.status === 'REJECTED' ? (
-                  <Button
-                    mode="contained"
-                    icon="upload"
-                    onPress={() => handlePickDocument(doc.type)}
-                    loading={isCurrentlyUploading}
-                    disabled={isCurrentlyUploading}
-                    style={styles.uploadButton}
-                  >
-                    {doc.uploaded ? t('carrier.documents.resendDocument') : t('carrier.documents.addDocument')}
-                  </Button>
-                ) : (
-                  <View style={styles.uploadedActions}>
-                    <Button
-                      mode="outlined"
-                      icon="refresh"
-                      onPress={() => handlePickDocument(doc.type)}
-                      disabled={isCurrentlyUploading}
-                      style={styles.replaceButton}
-                    >
-                      {t('carrier.documents.replaceDocument')}
-                    </Button>
-                    {doc.status !== 'APPROVED' && (
-                      <Button
-                        mode="text"
-                        icon="delete"
-                        textColor={colors.error}
-                        onPress={() => handleDeleteDocument(doc.type)}
-                      >
-                        {t('carrier.documents.deleteDocument')}
-                      </Button>
-                    )}
-                  </View>
-                )}
-              </View>
-            </Card.Content>
-          </Card>
+            </View>
+          </View>
         );
       })}
 
+      {/* ── Info box ── */}
       <View style={styles.infoBox}>
-        <MaterialCommunityIcons name="information" size={20} color={colors.primary} />
-        <Text variant="bodySmall" style={styles.infoText}>
-          {t('carrier.documents.verificationInfo')}
-        </Text>
+        <View style={styles.infoIconBg}>
+          <MaterialCommunityIcons name="information-outline" size={18} color={hdColors.accent} />
+        </View>
+        <Text style={styles.infoText}>{t('carrier.documents.verificationInfo')}</Text>
       </View>
 
+      <View style={{ height: spacing.xxl }} />
+
+      {/* ── Photo Preview Modal ── */}
       <PhotoPreviewModal
         visible={!!rawDocPhoto}
         photoUri={rawDocPhoto?.uri ?? null}
@@ -578,78 +641,458 @@ export function CarrierDocumentsScreen() {
   );
 }
 
+// ─── Styles ─────────────────────────────────────────────────────────
+
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  content: { padding: spacing.lg },
-  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  loadingText: { marginTop: spacing.md, color: colors.onSurfaceVariant },
-  statusCard: { marginBottom: spacing.lg, backgroundColor: colors.secondaryContainer },
-  statusCardApproved: { backgroundColor: colors.primaryContainer },
-  statusContent: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
-  statusInfo: { flex: 1 },
-  statusSubtext: { color: colors.onSurfaceVariant },
-  card: { marginBottom: spacing.md, backgroundColor: colors.surface },
-  sectionTitle: { marginBottom: spacing.xs },
-  sectionSubtitle: { color: colors.onSurfaceVariant, marginBottom: spacing.md },
-  vehicleOptions: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-  vehicleOption: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: 20,
-    borderWidth: 2,
-    borderColor: colors.outline,
+  container: {
+    flex: 1,
+    backgroundColor: hdColors.background,
   },
-  vehicleOptionSelected: { borderColor: colors.primary, backgroundColor: colors.primaryContainer },
-  vehicleOptionText: { color: colors.onSurface },
-  vehicleOptionTextSelected: { color: colors.primary, fontWeight: '600' },
-  printerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  printerInfo: { flex: 1 },
-  printerSubtext: { color: colors.onSurfaceVariant },
-  documentsTitle: { marginTop: spacing.lg, marginBottom: spacing.md },
-  documentCard: { marginBottom: spacing.md, backgroundColor: colors.surface },
-  documentHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.md },
-  documentInfo: { flex: 1 },
-  documentTitleRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, flexWrap: 'wrap' },
-  requiredChip: { backgroundColor: colors.errorContainer, height: 28 },
-  requiredChipText: { fontSize: 12, color: colors.error, fontWeight: '600' },
-  documentDescription: { color: colors.onSurfaceVariant, marginTop: spacing.xs },
-  documentStatus: {
+  content: {
+    padding: spacing.lg,
+  },
+
+  // Loading
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: hdColors.background,
+  },
+  loadingIconBg: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: hdColors.accent50,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: spacing.sm,
+    color: hdColors.textTertiary,
+    fontSize: 14,
+  },
+
+  // Hero Card
+  heroCard: {
+    backgroundColor: hdColors.accent,
+    borderRadius: borderRadius.xl,
+    padding: 20,
+    marginBottom: spacing.lg,
+    overflow: 'hidden',
+    ...Platform.select({
+      ios: {
+        shadowColor: hdColors.accent,
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.3,
+        shadowRadius: 12,
+      },
+      android: { elevation: 6 },
+    }),
+  },
+  heroCardVerified: {
+    backgroundColor: hdColors.neonGreen,
+  },
+  patternCircle: {
+    position: 'absolute',
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+  },
+  heroContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.xs,
-    marginTop: spacing.md,
-    paddingTop: spacing.md,
-    borderTopWidth: 1,
-    borderTopColor: colors.outline,
+    gap: spacing.md,
   },
-  statusText: { fontWeight: '500' },
+  heroIconBg: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  heroInfo: {
+    flex: 1,
+  },
+  heroLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: 'rgba(255,255,255,0.6)',
+    letterSpacing: 1,
+    marginBottom: 2,
+  },
+  heroTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    marginBottom: 2,
+  },
+  heroSubtext: {
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.7)',
+  },
+  progressSection: {
+    marginTop: spacing.md,
+  },
+  progressBarBg: {
+    height: 6,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  progressBarFill: {
+    height: 6,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 3,
+  },
+  progressText: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.6)',
+    marginTop: spacing.xs,
+    textAlign: 'right',
+  },
+
+  // hdCard
+  hdCard: {
+    backgroundColor: hdColors.surface,
+    borderRadius: borderRadius.xl,
+    borderWidth: 1,
+    borderColor: hdColors.border,
+    padding: 20,
+    marginBottom: spacing.md,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.06,
+        shadowRadius: 8,
+      },
+      android: { elevation: 2 },
+    }),
+  },
+
+  // Section labels
+  sectionLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: hdColors.textTertiary,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+    marginBottom: spacing.xs,
+  },
+  sectionLabel2: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: hdColors.textTertiary,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+    marginTop: spacing.lg,
+    marginBottom: spacing.md,
+  },
+  hdSectionTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: hdColors.accent,
+    ...Platform.select({
+      ios: { fontFamily: 'Quicksand-Bold' },
+      android: { fontFamily: 'Quicksand_700Bold' },
+    }),
+    marginBottom: 4,
+  },
+  sectionSubtitle: {
+    fontSize: 13,
+    color: hdColors.textTertiary,
+    marginBottom: spacing.md,
+  },
+
+  // Vehicle chips
+  vehicleGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+  vehicleChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: borderRadius.md,
+    borderWidth: 1.5,
+    borderColor: hdColors.border,
+    backgroundColor: hdColors.surface,
+  },
+  vehicleChipSelected: {
+    borderColor: hdColors.accent,
+    backgroundColor: hdColors.accent50,
+  },
+  vehicleIconBg: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: hdColors.accent50,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  vehicleIconBgSelected: {
+    backgroundColor: hdColors.accent,
+  },
+  vehicleChipText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: hdColors.text,
+  },
+  vehicleChipTextSelected: {
+    color: hdColors.accent,
+    fontWeight: '700',
+  },
+
+  // Printer
+  printerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  printerIconBg: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: hdColors.accent50,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  printerInfo: {
+    flex: 1,
+  },
+  printerTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: hdColors.text,
+  },
+  printerSubtext: {
+    fontSize: 13,
+    color: hdColors.textTertiary,
+    marginTop: 2,
+  },
+
+  // Stripe
+  stripeHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    marginBottom: spacing.md,
+  },
+  stripeIconBg: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: hdColors.accent50,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  stripeIconBgActive: {
+    backgroundColor: hdColors.neonGreen,
+  },
+  stripeActiveBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    backgroundColor: hdColors.success50,
+    borderRadius: borderRadius.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  stripeActiveText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: hdColors.neonGreen,
+  },
+  stripePendingBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    backgroundColor: hdColors.warning50,
+    borderRadius: borderRadius.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  stripePendingText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: hdColors.warning,
+  },
+
+  // Document cards
+  docHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.md,
+  },
+  docIconBg: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: hdColors.accent50,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  docInfo: {
+    flex: 1,
+  },
+  docTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    flexWrap: 'wrap',
+  },
+  docTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: hdColors.text,
+  },
+  docDescription: {
+    fontSize: 13,
+    color: hdColors.textTertiary,
+    marginTop: 2,
+  },
+  requiredPill: {
+    backgroundColor: hdColors.cta,
+    borderRadius: borderRadius.full,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  requiredPillText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+
+  // Status badge
+  statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 6,
+    marginTop: spacing.md,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: borderRadius.full,
+  },
+  statusBadgeText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+
+  // Rejection
   rejectionBox: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: spacing.sm,
     marginTop: spacing.sm,
-    padding: spacing.sm,
-    backgroundColor: colors.errorContainer,
-    borderRadius: 8,
+    padding: spacing.md,
+    backgroundColor: hdColors.danger50,
+    borderRadius: borderRadius.sm,
+    borderLeftWidth: 3,
+    borderLeftColor: hdColors.danger,
   },
-  rejectionText: { flex: 1, color: colors.error },
-  documentActions: { marginTop: spacing.md },
-  uploadButton: { alignSelf: 'flex-start' },
-  uploadedActions: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  replaceButton: { flex: 1 },
+  rejectionText: {
+    flex: 1,
+    fontSize: 13,
+    color: hdColors.danger,
+    fontWeight: '500',
+  },
+
+  // Actions
+  docActions: {
+    marginTop: spacing.md,
+    paddingTop: spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: hdColors.border,
+  },
+  uploadedActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+
+  // Buttons
+  ctaButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    backgroundColor: hdColors.accent,
+    borderRadius: borderRadius.lg,
+    paddingVertical: 14,
+    ...Platform.select({
+      ios: {
+        shadowColor: hdColors.accent,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.25,
+        shadowRadius: 8,
+      },
+      android: { elevation: 4 },
+    }),
+  },
+  ctaButtonText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  secondaryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    borderWidth: 1.5,
+    borderColor: hdColors.border,
+    borderRadius: borderRadius.lg,
+    paddingVertical: 12,
+    backgroundColor: hdColors.surface,
+  },
+  secondaryButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: hdColors.accent,
+  },
+  deleteButton: {
+    width: 44,
+    height: 44,
+    borderRadius: borderRadius.md,
+    borderWidth: 1.5,
+    borderColor: hdColors.danger,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  // Info box
   infoBox: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: spacing.sm,
+    gap: spacing.md,
     padding: spacing.md,
-    backgroundColor: colors.primaryContainer,
-    borderRadius: 8,
-    marginTop: spacing.lg,
+    backgroundColor: hdColors.accent50,
+    borderRadius: borderRadius.md,
+    marginTop: spacing.md,
   },
-  infoText: { flex: 1, color: colors.onSurface },
-  stripeCard: { marginBottom: spacing.lg, borderWidth: 1, borderColor: colors.outline },
-  stripeHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginBottom: spacing.md },
-  stripeButton: { alignSelf: 'flex-start' },
-  stripeActive: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, padding: spacing.sm, backgroundColor: colors.secondaryContainer, borderRadius: 8 },
-  stripePending: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, padding: spacing.sm, backgroundColor: colors.tertiaryContainer, borderRadius: 8 },
+  infoIconBg: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: hdColors.surface,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  infoText: {
+    flex: 1,
+    fontSize: 13,
+    color: hdColors.textSecondary,
+    lineHeight: 18,
+  },
 });

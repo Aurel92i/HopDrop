@@ -1,15 +1,23 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, StyleSheet, FlatList, Alert, ScrollView } from 'react-native';
-import { Text, Card, FAB, Button, IconButton, Portal, Modal, TextInput } from 'react-native-paper';
+import {
+  View,
+  StyleSheet,
+  FlatList,
+  Alert,
+  ScrollView,
+  TouchableOpacity,
+  Platform,
+  KeyboardAvoidingView,
+} from 'react-native';
+import { Text, Portal, Modal, TextInput, ActivityIndicator } from 'react-native-paper';
 import { useFocusEffect } from '@react-navigation/native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { LoadingScreen } from '../../components/common/LoadingScreen';
-import { EmptyState } from '../../components/common/EmptyState';
 import { AddressAutocomplete } from '../../components/forms/AddressAutocomplete';
 import { api } from '../../services/api';
 import { Address } from '../../types';
-import { colors, spacing } from '../../theme';
+import { hdColors, spacing, borderRadius } from '../../theme';
 import { useTranslation } from '../../i18n/i18nContext';
 
 export function AddressesScreen() {
@@ -18,6 +26,7 @@ export function AddressesScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [modalVisible, setModalVisible] = useState(false);
   const [editingAddress, setEditingAddress] = useState<Address | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
   const [form, setForm] = useState({
     label: '',
     street: '',
@@ -103,6 +112,7 @@ export function AddressesScreen() {
       return;
     }
 
+    setIsSaving(true);
     try {
       if (editingAddress) {
         await api.updateAddress(editingAddress.id, form);
@@ -113,6 +123,8 @@ export function AddressesScreen() {
       loadAddresses();
     } catch (e: any) {
       Alert.alert(t('common.error'), e.message || t('shared.addresses.saveError'));
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -138,49 +150,112 @@ export function AddressesScreen() {
     );
   };
 
-  const renderAddress = ({ item }: { item: Address }) => (
-    <Card style={styles.card}>
-      <Card.Content style={styles.cardContent}>
-        <View style={styles.addressInfo}>
+  // ─── Address Card ───────────────────────────────────────────────
+
+  const renderAddress = ({ item, index }: { item: Address; index: number }) => (
+    <View style={styles.hdCard}>
+      {/* En-tête avec pin et label */}
+      <View style={styles.cardHeader}>
+        <View style={styles.pinContainer}>
+          <View style={[styles.pinBg, item.isDefault && styles.pinBgDefault]}>
+            <MaterialCommunityIcons
+              name="map-marker"
+              size={20}
+              color={item.isDefault ? '#FFFFFF' : hdColors.accent}
+            />
+          </View>
+          {/* Ligne de connexion entre les cards */}
+          {index < addresses.length - 1 && <View style={styles.connectorLine} />}
+        </View>
+
+        <View style={styles.cardInfo}>
           <View style={styles.labelRow}>
-            <MaterialCommunityIcons name="map-marker" size={20} color={colors.primary} />
-            <Text variant="titleMedium" style={styles.label}>{item.label}</Text>
+            <Text style={styles.addressLabel}>{item.label}</Text>
             {item.isDefault && (
-              <View style={styles.defaultBadge}>
-                <Text style={styles.defaultText}>{t('common.defaultBadge')}</Text>
+              <View style={styles.defaultPill}>
+                <Text style={styles.defaultPillText}>{t('common.defaultBadge')}</Text>
               </View>
             )}
           </View>
-          <Text variant="bodyMedium" style={styles.street}>{item.street}</Text>
-          <Text variant="bodySmall" style={styles.city}>
-            {item.postalCode} {item.city}
-          </Text>
-          {item.instructions && (
-            <Text variant="bodySmall" style={styles.instructions}>
-              📝 {item.instructions}
-            </Text>
-          )}
+
+          <Text style={styles.streetText}>{item.street}</Text>
+          <Text style={styles.cityText}>{item.postalCode} {item.city}</Text>
+
+          {item.instructions ? (
+            <View style={styles.instructionsBadge}>
+              <MaterialCommunityIcons name="note-text-outline" size={14} color={hdColors.textTertiary} />
+              <Text style={styles.instructionsText}>{item.instructions}</Text>
+            </View>
+          ) : null}
         </View>
-        <View style={styles.actions}>
-          <IconButton
-            icon="pencil"
-            size={20}
+
+        {/* Actions */}
+        <View style={styles.cardActions}>
+          <TouchableOpacity
+            style={styles.actionBtn}
             onPress={() => openModal(item)}
-          />
-          <IconButton
-            icon="delete"
-            size={20}
-            iconColor={colors.error}
+            activeOpacity={0.7}
+          >
+            <MaterialCommunityIcons name="pencil-outline" size={18} color={hdColors.accent} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.actionBtn, styles.actionBtnDanger]}
             onPress={() => handleDelete(item)}
-          />
+            activeOpacity={0.7}
+          >
+            <MaterialCommunityIcons name="delete-outline" size={18} color={hdColors.danger} />
+          </TouchableOpacity>
         </View>
-      </Card.Content>
-    </Card>
+      </View>
+    </View>
   );
+
+  // ─── Empty State ────────────────────────────────────────────────
+
+  const renderEmpty = () => (
+    <View style={styles.emptyContainer}>
+      <View style={styles.emptyIconBg}>
+        <MaterialCommunityIcons name="map-marker-plus-outline" size={40} color={hdColors.accent} />
+      </View>
+      <Text style={styles.emptyTitle}>{t('shared.addresses.noAddresses')}</Text>
+      <Text style={styles.emptySubtext}>{t('shared.addresses.noAddressesDesc')}</Text>
+      <TouchableOpacity
+        style={styles.emptyButton}
+        onPress={() => openModal()}
+        activeOpacity={0.8}
+      >
+        <MaterialCommunityIcons name="plus" size={20} color="#FFFFFF" />
+        <Text style={styles.emptyButtonText}>{t('shared.addresses.addAddress')}</Text>
+      </TouchableOpacity>
+    </View>
+  );
+
+  // ─── Header Stats ───────────────────────────────────────────────
+
+  const renderHeader = () => (
+    <View style={styles.headerSection}>
+      {/* Mini card compteur */}
+      <View style={styles.counterCard}>
+        <View style={styles.counterIconBg}>
+          <MaterialCommunityIcons name="home-map-marker" size={22} color="#FFFFFF" />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.counterNumber}>{addresses.length}</Text>
+          <Text style={styles.counterLabel}>
+            {addresses.length <= 1 ? 'adresse enregistrée' : 'adresses enregistrées'}
+          </Text>
+        </View>
+      </View>
+    </View>
+  );
+
+  // ─── Loading ────────────────────────────────────────────────────
 
   if (isLoading) {
     return <LoadingScreen message={t('shared.addresses.loadingAddresses')} />;
   }
+
+  // ─── Render ─────────────────────────────────────────────────────
 
   return (
     <View style={styles.container}>
@@ -189,243 +264,596 @@ export function AddressesScreen() {
         keyExtractor={(item) => item.id}
         renderItem={renderAddress}
         contentContainerStyle={styles.listContent}
-        ListEmptyComponent={
-          <EmptyState
-            icon="map-marker-plus"
-            title={t('shared.addresses.noAddresses')}
-            description={t('shared.addresses.noAddressesDesc')}
-            actionLabel={t('shared.addresses.addAddress')}
-            onAction={() => openModal()}
-          />
-        }
+        ListHeaderComponent={addresses.length > 0 ? renderHeader : null}
+        ListEmptyComponent={renderEmpty}
+        showsVerticalScrollIndicator={false}
       />
 
-      <FAB
-        icon="plus"
-        style={styles.fab}
-        onPress={() => openModal()}
-        color={colors.onPrimary}
-      />
+      {/* FAB Ajouter */}
+      {addresses.length > 0 && (
+        <TouchableOpacity
+          style={styles.fab}
+          onPress={() => openModal()}
+          activeOpacity={0.85}
+        >
+          <MaterialCommunityIcons name="plus" size={26} color="#FFFFFF" />
+        </TouchableOpacity>
+      )}
 
+      {/* ── Modal Ajout / Édition ── */}
       <Portal>
         <Modal
           visible={modalVisible}
           onDismiss={closeModal}
           contentContainerStyle={styles.modal}
         >
-          <ScrollView showsVerticalScrollIndicator={false}>
-            <Text variant="titleLarge" style={styles.modalTitle}>
-              {editingAddress ? t('shared.addresses.editAddress') : t('shared.addresses.newAddress')}
-            </Text>
-
-            <TextInput
-              label={t('shared.addresses.labelPlaceholder')}
-              value={form.label}
-              onChangeText={(text) => setForm({ ...form, label: text })}
-              mode="outlined"
-              style={styles.input}
-            />
-
-            <View style={styles.autocompleteContainer}>
-              <AddressAutocomplete
-                value={form.street}
-                onAddressSelect={handleAddressSelect}
-                label={t('shared.addresses.searchAddress')}
-                placeholder={t('shared.addresses.searchPlaceholder')}
-              />
-            </View>
-
-            {form.street && (
-              <View style={styles.selectedAddressCard}>
-                <MaterialCommunityIcons name="check-circle" size={20} color={colors.primary} />
-                <View style={styles.selectedAddressContent}>
-                  <Text variant="bodyMedium" style={styles.selectedAddressStreet}>
-                    {form.street}
-                  </Text>
-                  <Text variant="bodySmall" style={styles.selectedAddressCity}>
-                    {form.postalCode} {form.city}
-                  </Text>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          >
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {/* Titre modal */}
+              <View style={styles.modalHeader}>
+                <View style={styles.modalIconBg}>
+                  <MaterialCommunityIcons
+                    name={editingAddress ? 'pencil' : 'map-marker-plus'}
+                    size={22}
+                    color="#FFFFFF"
+                  />
                 </View>
-                <IconButton
-                  icon="pencil"
-                  size={16}
-                  onPress={() => {}}
+                <Text style={styles.modalTitle}>
+                  {editingAddress ? t('shared.addresses.editAddress') : t('shared.addresses.newAddress')}
+                </Text>
+                <TouchableOpacity onPress={closeModal} style={styles.modalCloseBtn}>
+                  <MaterialCommunityIcons name="close" size={22} color={hdColors.textTertiary} />
+                </TouchableOpacity>
+              </View>
+
+              {/* Label */}
+              <Text style={styles.fieldLabel}>{t('shared.addresses.labelPlaceholder')}</Text>
+              <TextInput
+                value={form.label}
+                onChangeText={(text) => setForm({ ...form, label: text })}
+                mode="outlined"
+                style={styles.input}
+                outlineColor={hdColors.border}
+                activeOutlineColor={hdColors.accent}
+                outlineStyle={{ borderRadius: borderRadius.md }}
+                placeholder="Ex: Maison, Bureau, Entrepôt..."
+                placeholderTextColor={hdColors.chromeDark}
+              />
+
+              {/* Adresse — Autocomplete */}
+              <Text style={styles.fieldLabel}>{t('shared.addresses.searchAddress')}</Text>
+              <View style={styles.autocompleteContainer}>
+                <AddressAutocomplete
+                  value={form.street}
+                  onAddressSelect={handleAddressSelect}
+                  label={t('shared.addresses.searchAddress')}
+                  placeholder={t('shared.addresses.searchPlaceholder')}
                 />
               </View>
-            )}
 
-            {!form.street && (
-              <>
-                <TextInput
-                  label={t('shared.addresses.street')}
-                  value={form.street}
-                  onChangeText={(text) => setForm({ ...form, street: text })}
-                  mode="outlined"
-                  style={styles.input}
-                />
-
-                <View style={styles.row}>
-                  <TextInput
-                    label={t('shared.addresses.postalCode')}
-                    value={form.postalCode}
-                    onChangeText={(text) => setForm({ ...form, postalCode: text })}
-                    mode="outlined"
-                    style={[styles.input, styles.halfInput]}
-                    keyboardType="numeric"
-                  />
-                  <TextInput
-                    label={t('shared.addresses.city')}
-                    value={form.city}
-                    onChangeText={(text) => setForm({ ...form, city: text })}
-                    mode="outlined"
-                    style={[styles.input, styles.halfInput]}
-                  />
+              {/* Adresse sélectionnée */}
+              {form.street ? (
+                <View style={styles.selectedCard}>
+                  <View style={styles.selectedIconBg}>
+                    <MaterialCommunityIcons name="check" size={16} color="#FFFFFF" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.selectedStreet}>{form.street}</Text>
+                    <Text style={styles.selectedCity}>{form.postalCode} {form.city}</Text>
+                  </View>
+                  <TouchableOpacity
+                    onPress={() => setForm({ ...form, street: '', city: '', postalCode: '', latitude: 0, longitude: 0 })}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  >
+                    <MaterialCommunityIcons name="close-circle" size={20} color={hdColors.chromeDark} />
+                  </TouchableOpacity>
                 </View>
-              </>
-            )}
+              ) : null}
 
-            <TextInput
-              label={t('shared.addresses.deliveryInstructions')}
-              value={form.instructions}
-              onChangeText={(text) => setForm({ ...form, instructions: text })}
-              mode="outlined"
-              style={styles.input}
-              placeholder={t('shared.addresses.deliveryInstructionsPlaceholder')}
-              multiline
-            />
+              {/* Champs manuels si pas d'autocomplete */}
+              {!form.street && (
+                <>
+                  <Text style={styles.fieldLabel}>{t('shared.addresses.street')}</Text>
+                  <TextInput
+                    value={form.street}
+                    onChangeText={(text) => setForm({ ...form, street: text })}
+                    mode="outlined"
+                    style={styles.input}
+                    outlineColor={hdColors.border}
+                    activeOutlineColor={hdColors.accent}
+                    outlineStyle={{ borderRadius: borderRadius.md }}
+                  />
 
-            <View style={styles.modalActions}>
-              <Button mode="outlined" onPress={closeModal} style={styles.modalButton}>
-                {t('common.cancel')}
-              </Button>
-              <Button
-                mode="contained"
-                onPress={handleSave}
-                style={styles.modalButton}
-                disabled={!form.label || !form.street || !form.city || !form.postalCode}
-              >
-                {t('common.save')}
-              </Button>
-            </View>
-          </ScrollView>
+                  <View style={styles.row}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.fieldLabel}>{t('shared.addresses.postalCode')}</Text>
+                      <TextInput
+                        value={form.postalCode}
+                        onChangeText={(text) => setForm({ ...form, postalCode: text })}
+                        mode="outlined"
+                        style={styles.input}
+                        outlineColor={hdColors.border}
+                        activeOutlineColor={hdColors.accent}
+                        outlineStyle={{ borderRadius: borderRadius.md }}
+                        keyboardType="numeric"
+                      />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.fieldLabel}>{t('shared.addresses.city')}</Text>
+                      <TextInput
+                        value={form.city}
+                        onChangeText={(text) => setForm({ ...form, city: text })}
+                        mode="outlined"
+                        style={styles.input}
+                        outlineColor={hdColors.border}
+                        activeOutlineColor={hdColors.accent}
+                        outlineStyle={{ borderRadius: borderRadius.md }}
+                      />
+                    </View>
+                  </View>
+                </>
+              )}
+
+              {/* Instructions de livraison */}
+              <Text style={styles.fieldLabel}>{t('shared.addresses.deliveryInstructions')}</Text>
+              <TextInput
+                value={form.instructions}
+                onChangeText={(text) => setForm({ ...form, instructions: text })}
+                mode="outlined"
+                style={[styles.input, { minHeight: 80 }]}
+                outlineColor={hdColors.border}
+                activeOutlineColor={hdColors.accent}
+                outlineStyle={{ borderRadius: borderRadius.md }}
+                placeholder={t('shared.addresses.deliveryInstructionsPlaceholder')}
+                placeholderTextColor={hdColors.chromeDark}
+                multiline
+              />
+
+              {/* Boutons */}
+              <View style={styles.modalActions}>
+                <TouchableOpacity
+                  style={styles.cancelButton}
+                  onPress={closeModal}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.cancelButtonText}>{t('common.cancel')}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.saveButton,
+                    (!form.label || !form.street || !form.city || !form.postalCode) && styles.saveButtonDisabled,
+                  ]}
+                  onPress={handleSave}
+                  disabled={!form.label || !form.street || !form.city || !form.postalCode || isSaving}
+                  activeOpacity={0.8}
+                >
+                  {isSaving ? (
+                    <ActivityIndicator size="small" color="#FFFFFF" />
+                  ) : (
+                    <>
+                      <MaterialCommunityIcons
+                        name={editingAddress ? 'check' : 'plus'}
+                        size={18}
+                        color="#FFFFFF"
+                      />
+                      <Text style={styles.saveButtonText}>{t('common.save')}</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
+          </KeyboardAvoidingView>
         </Modal>
       </Portal>
     </View>
   );
 }
 
+// ─── Styles ─────────────────────────────────────────────────────────
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: hdColors.background,
   },
   listContent: {
-    padding: spacing.md,
+    padding: spacing.lg,
     flexGrow: 1,
   },
-  card: {
-    marginBottom: spacing.sm,
+
+  // Header
+  headerSection: {
+    marginBottom: spacing.lg,
   },
-  cardContent: {
+  counterCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    backgroundColor: hdColors.accent,
+    borderRadius: borderRadius.xl,
+    padding: spacing.md,
+    ...Platform.select({
+      ios: {
+        shadowColor: hdColors.accent,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.25,
+        shadowRadius: 8,
+      },
+      android: { elevation: 4 },
+    }),
+  },
+  counterIconBg: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  counterNumber: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  counterLabel: {
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.6)',
+  },
+
+  // Address Card (hdCard)
+  hdCard: {
+    backgroundColor: hdColors.surface,
+    borderRadius: borderRadius.xl,
+    borderWidth: 1,
+    borderColor: hdColors.border,
+    padding: 16,
+    marginBottom: spacing.md,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.06,
+        shadowRadius: 8,
+      },
+      android: { elevation: 2 },
+    }),
+  },
+  cardHeader: {
     flexDirection: 'row',
     alignItems: 'flex-start',
+    gap: spacing.md,
   },
-  addressInfo: {
+  pinContainer: {
+    alignItems: 'center',
+  },
+  pinBg: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: hdColors.accent50,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  pinBgDefault: {
+    backgroundColor: hdColors.accent,
+  },
+  connectorLine: {
+    width: 2,
+    height: 20,
+    backgroundColor: hdColors.border,
+    marginTop: 4,
+  },
+  cardInfo: {
     flex: 1,
   },
   labelRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.xs,
-    marginBottom: spacing.xs,
+    gap: spacing.sm,
+    marginBottom: 4,
   },
-  label: {
-    color: colors.onSurface,
-    fontWeight: '600',
+  addressLabel: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: hdColors.accent,
+    ...Platform.select({
+      ios: { fontFamily: 'Quicksand-Bold' },
+      android: { fontFamily: 'Quicksand_700Bold' },
+    }),
   },
-  defaultBadge: {
-    backgroundColor: colors.primaryContainer,
-    paddingHorizontal: spacing.xs,
+  defaultPill: {
+    backgroundColor: hdColors.neonGreen,
+    borderRadius: borderRadius.full,
+    paddingHorizontal: 8,
     paddingVertical: 2,
-    borderRadius: 4,
   },
-  defaultText: {
+  defaultPillText: {
     fontSize: 10,
-    color: colors.primary,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
-  street: {
-    color: colors.onSurface,
+  streetText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: hdColors.text,
   },
-  city: {
-    color: colors.onSurfaceVariant,
+  cityText: {
+    fontSize: 13,
+    color: hdColors.textTertiary,
+    marginTop: 2,
   },
-  instructions: {
-    color: colors.onSurfaceVariant,
-    marginTop: spacing.xs,
+  instructionsBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: spacing.sm,
+    backgroundColor: hdColors.surfaceSecondary,
+    borderRadius: borderRadius.sm,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  instructionsText: {
+    flex: 1,
+    fontSize: 12,
+    color: hdColors.textTertiary,
     fontStyle: 'italic',
   },
-  actions: {
+
+  // Card Actions
+  cardActions: {
     flexDirection: 'row',
+    gap: 8,
   },
+  actionBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: hdColors.accent50,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  actionBtnDanger: {
+    backgroundColor: hdColors.danger50,
+  },
+
+  // FAB
   fab: {
     position: 'absolute',
-    margin: spacing.md,
-    right: 0,
-    bottom: 0,
-    backgroundColor: colors.primary,
+    right: spacing.lg,
+    bottom: spacing.lg,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: hdColors.accent,
+    justifyContent: 'center',
+    alignItems: 'center',
+    ...Platform.select({
+      ios: {
+        shadowColor: hdColors.accent,
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.35,
+        shadowRadius: 10,
+      },
+      android: { elevation: 8 },
+    }),
   },
+
+  // Empty State
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: spacing.xl,
+    paddingTop: 80,
+  },
+  emptyIconBg: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: hdColors.accent50,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: spacing.lg,
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: hdColors.accent,
+    textAlign: 'center',
+    marginBottom: spacing.sm,
+    ...Platform.select({
+      ios: { fontFamily: 'Quicksand-Bold' },
+      android: { fontFamily: 'Quicksand_700Bold' },
+    }),
+  },
+  emptySubtext: {
+    fontSize: 14,
+    color: hdColors.textTertiary,
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: spacing.xl,
+  },
+  emptyButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    backgroundColor: hdColors.accent,
+    borderRadius: borderRadius.lg,
+    paddingHorizontal: 24,
+    paddingVertical: 14,
+    ...Platform.select({
+      ios: {
+        shadowColor: hdColors.accent,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+      },
+      android: { elevation: 4 },
+    }),
+  },
+  emptyButtonText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+
+  // Modal
   modal: {
-    backgroundColor: colors.surface,
-    padding: spacing.lg,
+    backgroundColor: hdColors.surface,
+    padding: 24,
     margin: spacing.lg,
-    borderRadius: 12,
+    borderRadius: borderRadius.xl,
     maxHeight: '85%',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.15,
+        shadowRadius: 20,
+      },
+      android: { elevation: 10 },
+    }),
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    marginBottom: spacing.xl,
+  },
+  modalIconBg: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: hdColors.accent,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   modalTitle: {
-    marginBottom: spacing.lg,
-    color: colors.onSurface,
+    flex: 1,
+    fontSize: 20,
+    fontWeight: '700',
+    color: hdColors.accent,
+    ...Platform.select({
+      ios: { fontFamily: 'Quicksand-Bold' },
+      android: { fontFamily: 'Quicksand_700Bold' },
+    }),
+  },
+  modalCloseBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: hdColors.surfaceSecondary,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  // Form fields
+  fieldLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: hdColors.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 6,
+    marginTop: spacing.sm,
   },
   input: {
     marginBottom: spacing.sm,
-    backgroundColor: colors.surface,
+    backgroundColor: hdColors.surface,
+    fontSize: 14,
   },
   autocompleteContainer: {
     marginBottom: spacing.md,
     zIndex: 1000,
   },
-  selectedAddressCard: {
+  selectedCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: spacing.md,
-    backgroundColor: colors.primaryContainer,
-    borderRadius: 8,
-    marginBottom: spacing.md,
     gap: spacing.sm,
+    padding: spacing.md,
+    backgroundColor: hdColors.success50,
+    borderRadius: borderRadius.md,
+    marginBottom: spacing.md,
+    borderWidth: 1,
+    borderColor: hdColors.neonGreen,
   },
-  selectedAddressContent: {
-    flex: 1,
+  selectedIconBg: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: hdColors.neonGreen,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  selectedAddressStreet: {
-    color: colors.onSurface,
-    fontWeight: '500',
+  selectedStreet: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: hdColors.text,
   },
-  selectedAddressCity: {
-    color: colors.onSurfaceVariant,
+  selectedCity: {
+    fontSize: 12,
+    color: hdColors.textTertiary,
+    marginTop: 1,
   },
   row: {
     flexDirection: 'row',
     gap: spacing.sm,
   },
-  halfInput: {
-    flex: 1,
-  },
+
+  // Modal Actions
   modalActions: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
     gap: spacing.sm,
-    marginTop: spacing.md,
+    marginTop: spacing.lg,
   },
-  modalButton: {
-    minWidth: 100,
+  cancelButton: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    borderRadius: borderRadius.lg,
+    borderWidth: 1.5,
+    borderColor: hdColors.border,
+    backgroundColor: hdColors.surface,
+  },
+  cancelButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: hdColors.textSecondary,
+  },
+  saveButton: {
+    flex: 1.5,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    paddingVertical: 14,
+    borderRadius: borderRadius.lg,
+    backgroundColor: hdColors.accent,
+    ...Platform.select({
+      ios: {
+        shadowColor: hdColors.accent,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.25,
+        shadowRadius: 8,
+      },
+      android: { elevation: 4 },
+    }),
+  },
+  saveButtonDisabled: {
+    backgroundColor: hdColors.chromeDark,
+    ...Platform.select({
+      ios: { shadowOpacity: 0 },
+      android: { elevation: 0 },
+    }),
+  },
+  saveButtonText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
 });
