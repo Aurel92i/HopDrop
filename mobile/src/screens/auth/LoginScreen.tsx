@@ -87,9 +87,10 @@ export function LoginScreen({ navigation }: LoginScreenProps) {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        {/* Logo */}
+        {/* Logo + Greeting */}
         <View style={styles.header}>
           <Logo size="large" />
+          <Text style={styles.greeting}>Content de vous revoir !</Text>
           <Text style={styles.subtitle}>{t('auth.login.subtitle')}</Text>
         </View>
 
@@ -209,10 +210,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 32,
   },
+  greeting: {
+    marginTop: 20,
+    fontSize: 22,
+    fontWeight: '700',
+    color: hdColors.accent,
+    textAlign: 'center',
+    ...Platform.select({
+      ios: { fontFamily: 'Quicksand-Bold' },
+      android: { fontFamily: 'Quicksand_700Bold' },
+    }),
+  },
   subtitle: {
-    marginTop: 12,
-    color: hdColors.textSecondary,
-    fontSize: 16,
+    marginTop: 6,
+    color: hdColors.textTertiary,
+    fontSize: 14,
     textAlign: 'center',
   },
   formCard: {
