@@ -323,7 +323,7 @@ export function AddressesScreen() {
               />
 
               {/* Adresse — Autocomplete */}
-              <Text style={styles.fieldLabel}>{t('shared.addresses.searchAddress')}</Text>
+              <Text style={styles.fieldLabel}>ADRESSE</Text>
               <View style={styles.autocompleteContainer}>
                 <AddressAutocomplete
                   value={form.street}
