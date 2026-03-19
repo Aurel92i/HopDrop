@@ -581,19 +581,39 @@ export function ActiveMissionsScreen({ navigation }: ActiveMissionsScreenProps) 
                 </View>
               )}
 
-              {/* Info bordereau */}
+              {/* Info bordereau + documents */}
               <View style={styles.labelInfo}>
-                <MaterialCommunityIcons 
-                  name={parcel.hasShippingLabel ? 'check-circle' : 'printer'} 
-                  size={16} 
-                  color={parcel.hasShippingLabel ? hdColors.neonGreen : hdColors.accent} 
+                <MaterialCommunityIcons
+                  name={parcel.hasShippingLabel ? 'check-circle' : 'printer'}
+                  size={16}
+                  color={parcel.hasShippingLabel ? hdColors.neonGreen : hdColors.accent}
                 />
                 <Text variant="bodySmall" style={styles.labelInfoText}>
-                  {parcel.hasShippingLabel 
-                    ? 'Bordereau déjà imprimé par le vendeur' 
+                  {parcel.hasShippingLabel
+                    ? 'Bordereau déjà imprimé par le vendeur'
                     : 'Bordereau à imprimer'}
                 </Text>
               </View>
+              {parcel.shippingLabelUrl && (
+                <TouchableOpacity
+                  style={styles.docLinkRow}
+                  onPress={() => Linking.openURL(parcel.shippingLabelUrl)}
+                  activeOpacity={0.7}
+                >
+                  <MaterialCommunityIcons name="file-document-outline" size={14} color={hdColors.accent} />
+                  <Text style={styles.docLinkRowText}>Voir le bordereau</Text>
+                </TouchableOpacity>
+              )}
+              {parcel.qrCodeUrl && (
+                <TouchableOpacity
+                  style={styles.docLinkRow}
+                  onPress={() => Linking.openURL(parcel.qrCodeUrl)}
+                  activeOpacity={0.7}
+                >
+                  <MaterialCommunityIcons name="qrcode-scan" size={14} color={hdColors.accent} />
+                  <Text style={styles.docLinkRowText}>Voir le QR code</Text>
+                </TouchableOpacity>
+              )}
 
               {/* 🆕 PASTILLE STATUT EMBALLAGE */}
               {(packagingConfirmed || vendorConfirmed) && mission.status !== 'PICKED_UP' && (
@@ -1366,5 +1386,21 @@ const styles = StyleSheet.create({
   deliveryInfoText: {
     flex: 1,
     color: colors.onSurface,
+  },
+  docLinkRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: spacing.xs,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    backgroundColor: hdColors.accent50,
+    borderRadius: 8,
+    alignSelf: 'flex-start',
+  },
+  docLinkRowText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: hdColors.accent,
   },
 });

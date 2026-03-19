@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, StyleSheet, ScrollView, Alert, TouchableOpacity, Platform } from 'react-native';
+import { View, StyleSheet, ScrollView, Alert, TouchableOpacity, Platform, Linking } from 'react-native';
 import { Text } from 'react-native-paper';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
@@ -184,6 +184,26 @@ export function MissionDetailScreen({ navigation, route }: MissionDetailScreenPr
                 </Text>
               )}
             </View>
+            {parcel.shippingLabelUrl && (
+            <TouchableOpacity
+              style={styles.docLink}
+              onPress={() => Linking.openURL(parcel.shippingLabelUrl)}
+              activeOpacity={0.7}
+            >
+              <MaterialCommunityIcons name="file-document-outline" size={18} color={hdColors.accent} />
+              <Text style={styles.docLinkText}>Voir le bordereau</Text>
+            </TouchableOpacity>
+          )}
+          {parcel.qrCodeUrl && (
+            <TouchableOpacity
+              style={styles.docLink}
+              onPress={() => Linking.openURL(parcel.qrCodeUrl)}
+              activeOpacity={0.7}
+            >
+              <MaterialCommunityIcons name="qrcode-scan" size={18} color={hdColors.accent} />
+              <Text style={styles.docLinkText}>Voir le QR code</Text>
+            </TouchableOpacity>
+          )}
           </View>
         </View>
       )}
@@ -731,5 +751,20 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
     color: hdColors.danger,
+  },
+  docLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    backgroundColor: hdColors.accent50,
+    borderRadius: 10,
+  },
+  docLinkText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: hdColors.accent,
   },
 });

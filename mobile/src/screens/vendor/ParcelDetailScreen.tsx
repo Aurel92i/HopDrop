@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
-import { View, StyleSheet, ScrollView, Alert, Image, Dimensions, TouchableOpacity, Platform } from 'react-native';
+import { View, StyleSheet, ScrollView, Alert, Image, Dimensions, TouchableOpacity, Platform, Linking } from 'react-native';
 import { Text, Card, Button, Chip, Divider, Avatar, Portal, Modal, TextInput, ProgressBar } from 'react-native-paper';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp, useFocusEffect } from '@react-navigation/native';
@@ -796,6 +796,43 @@ export function ParcelDetailScreen({ navigation, route }: ParcelDetailScreenProp
             </View>
           </View>
         </View>
+
+        {/* Documents joints */}
+        {(currentParcel.shippingLabelUrl || currentParcel.qrCodeUrl || currentParcel.hasShippingLabel) && (
+          <View style={styles.hdCard}>
+            <Text style={styles.hdSectionTitle}>Documents</Text>
+
+            <View style={styles.hdInfoRow}>
+              <Text style={styles.hdLabel}>Bordereau</Text>
+              {currentParcel.hasShippingLabel ? (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <MaterialCommunityIcons name="check-circle" size={16} color="#2ECC71" />
+                  <Text style={{ fontSize: 13, fontWeight: '600', color: '#2ECC71' }}>Imprimé par vous</Text>
+                </View>
+              ) : currentParcel.shippingLabelUrl ? (
+                <TouchableOpacity onPress={() => Linking.openURL(currentParcel.shippingLabelUrl)} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <MaterialCommunityIcons name="file-check" size={16} color={hdColors.accent} />
+                  <Text style={{ fontSize: 13, fontWeight: '600', color: hdColors.accent, textDecorationLine: 'underline' }}>Voir le bordereau</Text>
+                </TouchableOpacity>
+              ) : (
+                <Text style={{ fontSize: 13, color: hdColors.textTertiary }}>Non fourni</Text>
+              )}
+            </View>
+
+            {currentParcel.qrCodeUrl && (
+              <>
+                <View style={styles.hdDivider} />
+                <View style={styles.hdInfoRow}>
+                  <Text style={styles.hdLabel}>QR Code</Text>
+                  <TouchableOpacity onPress={() => Linking.openURL(currentParcel.qrCodeUrl)} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <MaterialCommunityIcons name="qrcode-scan" size={16} color={hdColors.accent} />
+                    <Text style={{ fontSize: 13, fontWeight: '600', color: hdColors.accent, textDecorationLine: 'underline' }}>Voir le QR code</Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
+          </View>
+        )}
 
       {/* Time Slot */}
         <View style={styles.hdCard}>
