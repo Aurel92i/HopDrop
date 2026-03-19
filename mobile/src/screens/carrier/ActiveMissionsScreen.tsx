@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, StyleSheet, ScrollView, Alert, Linking, Image, TouchableOpacity, Dimensions } from 'react-native';
-import { Text, Card, Button, Chip, Divider, FAB, Portal, Modal, ActivityIndicator, IconButton } from 'react-native-paper';
+import { View, StyleSheet, ScrollView, Alert, Linking, Image, TouchableOpacity, Dimensions, Platform } from 'react-native';
+import { Text, Card, Button, Chip, Divider, Portal, Modal, ActivityIndicator, IconButton } from 'react-native-paper';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -928,13 +928,6 @@ export function ActiveMissionsScreen({ navigation }: ActiveMissionsScreenProps) 
       {renderPackagingModal()}
       {renderDeliveryProofModal()}
 
-      <FAB
-        icon="map"
-        style={styles.fab}
-        onPress={() => navigation.goBack()}
-        label={t('carrier.activeMissions.map')}
-      />
-
       <PhotoPreviewModal
         visible={!!rawPackagingPhoto}
         photoUri={rawPackagingPhoto}
@@ -1373,12 +1366,5 @@ const styles = StyleSheet.create({
   deliveryInfoText: {
     flex: 1,
     color: colors.onSurface,
-  },
-  fab: {
-    position: 'absolute',
-    margin: spacing.md,
-    right: 0,
-    bottom: 0,
-    backgroundColor: colors.primary,
   },
 });

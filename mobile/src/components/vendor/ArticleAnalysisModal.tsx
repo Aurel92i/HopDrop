@@ -151,7 +151,7 @@ export default function ArticleAnalysisModal({ visible, onClose, onAnalysisCompl
             // Sélection d'image
             <View style={styles.imageSelection}>
               <View style={styles.iconContainer}>
-                <MaterialCommunityIcons name="camera-outline" size={80} color="#007AFF" />
+                <MaterialCommunityIcons name="camera-outline" size={80} color="#0d2c54" />
               </View>
 
               <Text style={styles.mainTitle}>{t('vendor.analysis.title')}</Text>
@@ -166,7 +166,7 @@ export default function ArticleAnalysisModal({ visible, onClose, onAnalysisCompl
                 </TouchableOpacity>
 
                 <TouchableOpacity style={styles.galleryButton} onPress={pickImage}>
-                  <Ionicons name="images" size={28} color="#007AFF" />
+                  <Ionicons name="images" size={28} color="#0d2c54" />
                   <Text style={styles.galleryButtonText}>{t('vendor.analysis.pickImage')}</Text>
                 </TouchableOpacity>
               </View>
@@ -214,7 +214,7 @@ export default function ArticleAnalysisModal({ visible, onClose, onAnalysisCompl
 
               {!result && !analyzing && (
                 <TouchableOpacity style={styles.analyzeButton} onPress={analyzeImage}>
-                  <MaterialCommunityIcons name="sparkles" size={24} color="#fff" />
+                  <MaterialCommunityIcons name="creation" size={24} color="#fff" />
                   <Text style={styles.analyzeButtonText}>{t('vendor.analysis.analyzeButton')}</Text>
                 </TouchableOpacity>
               )}
@@ -222,7 +222,7 @@ export default function ArticleAnalysisModal({ visible, onClose, onAnalysisCompl
               {analyzing && (
                 <View style={styles.loadingContainer}>
                   <View style={styles.loadingSpinner}>
-                    <ActivityIndicator size="large" color="#007AFF" />
+                    <ActivityIndicator size="large" color="#0d2c54" />
                   </View>
                   <Text style={styles.loadingText}>{t('vendor.analysis.analyzing')}</Text>
                   <Text style={styles.loadingSubtext}>{t('vendor.analysis.analyzingSubtitle')}</Text>
@@ -254,7 +254,7 @@ export default function ArticleAnalysisModal({ visible, onClose, onAnalysisCompl
                       <MaterialCommunityIcons
                         name={getCategoryIcon(result.articleCategory?.icon || 'package-variant') as any}
                         size={40}
-                        color="#007AFF"
+                        color="#0d2c54"
                       />
                       <View style={styles.articleCardInfo}>
                         <Text style={styles.articleCardCategory}>{result.articleCategory?.main}</Text>
@@ -267,7 +267,7 @@ export default function ArticleAnalysisModal({ visible, onClose, onAnalysisCompl
                   {result.isCompatible && (
                     <View style={styles.sizeCard}>
                       <View style={styles.sizeCardHeader}>
-                        <Ionicons name="cube-outline" size={24} color="#007AFF" />
+                        <Ionicons name="cube-outline" size={24} color="#0d2c54" />
                         <Text style={styles.sizeCardTitle}>{t('vendor.analysis.recommendedSize')}</Text>
                       </View>
                       <View style={styles.sizeCardBody}>
@@ -325,7 +325,7 @@ export default function ArticleAnalysisModal({ visible, onClose, onAnalysisCompl
                       style={styles.retryButton}
                       onPress={() => { setImageUri(null); setResult(null); }}
                     >
-                      <Ionicons name="camera-reverse-outline" size={20} color="#007AFF" />
+                      <Ionicons name="camera-reverse-outline" size={20} color="#0d2c54" />
                       <Text style={styles.retryButtonText}>{t('vendor.analysis.retake')}</Text>
                     </TouchableOpacity>
                   </View>
@@ -415,11 +415,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#007AFF',
+    backgroundColor: '#0d2c54',
     paddingVertical: 18,
     borderRadius: 14,
     gap: 12,
-    shadowColor: '#007AFF',
+    shadowColor: '#0d2c54',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -438,11 +438,11 @@ const styles = StyleSheet.create({
     paddingVertical: 18,
     borderRadius: 14,
     borderWidth: 2,
-    borderColor: '#007AFF',
+    borderColor: '#0d2c54',
     gap: 12,
   },
   galleryButtonText: {
-    color: '#007AFF',
+    color: '#0d2c54',
     fontSize: 17,
     fontWeight: '700',
   },
@@ -511,11 +511,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#007AFF',
+    backgroundColor: '#0d2c54',
     paddingVertical: 18,
     borderRadius: 14,
     gap: 12,
-    shadowColor: '#007AFF',
+    shadowColor: '#0d2c54',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -584,7 +584,7 @@ const styles = StyleSheet.create({
   },
   articleCardCategory: {
     fontSize: 13,
-    color: '#007AFF',
+    color: '#0d2c54',
     fontWeight: '600',
     marginBottom: 4,
     textTransform: 'uppercase',
@@ -758,11 +758,11 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     backgroundColor: '#fff',
     borderWidth: 2,
-    borderColor: '#007AFF',
+    borderColor: '#0d2c54',
     gap: 8,
   },
   retryButtonText: {
-    color: '#007AFF',
+    color: '#0d2c54',
     fontSize: 16,
     fontWeight: '700',
   },

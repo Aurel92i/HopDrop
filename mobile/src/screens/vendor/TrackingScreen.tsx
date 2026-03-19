@@ -105,10 +105,12 @@ export function TrackingScreen({ route, navigation }: Props) {
     }
   }, []);
 
-  // Initialisation
+  // Initialisation — charger tout et tracer immédiatement
   useEffect(() => {
-    loadParcel();
-    fetchLocation();
+    const init = async () => {
+      const [loc] = await Promise.all([fetchLocation(), loadParcel()]);
+    };
+    init();
   }, []);
 
   // Refresh toutes les 10 secondes
@@ -129,13 +131,9 @@ export function TrackingScreen({ route, navigation }: Props) {
 
   // Premier tracé quand on a les deux positions
   useEffect(() => {
-    console.log('=== TRACKING DEBUG ===');
-    console.log('Location:', location?.latitude, location?.longitude);
-    console.log('Parcel:', parcel?.pickupAddress);
     if (location?.latitude && location?.longitude && parcel?.pickupAddress) {
       const destLat = parcel.pickupAddress.latitude;
       const destLng = parcel.pickupAddress.longitude;
-      console.log('Dest:', destLat, destLng);
       if (destLat && destLng) {
         fetchRoute(location.latitude, location.longitude, destLat, destLng);
 
@@ -154,7 +152,7 @@ export function TrackingScreen({ route, navigation }: Props) {
         }
       }
     }
-  }, [location?.latitude, location?.longitude, parcel?.pickupAddress]);
+  }, [location, parcel]);
 
   // Format ETA
   const formatEta = (seconds: number): string => {

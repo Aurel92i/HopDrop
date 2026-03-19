@@ -837,7 +837,7 @@ export function ParcelDetailScreen({ navigation, route }: ParcelDetailScreenProp
               )}
               <View style={styles.carrierInfo}>
                 <Text variant="titleMedium">
-                  {currentParcel.assignedCarrier.firstName} {currentParcel.assignedCarrier.lastName}
+                  {currentParcel.assignedCarrier.firstName?.trim()} {currentParcel.assignedCarrier.lastName?.trim()}
                 </Text>
               </View>
             </View>
@@ -1058,7 +1058,7 @@ export function ParcelDetailScreen({ navigation, route }: ParcelDetailScreenProp
               <View style={styles.tipCarrierInfo}>
                 <MaterialCommunityIcons name="account" size={20} color={colors.secondary} />
                 <Text variant="bodyMedium">
-                  {t('vendor.parcelDetail.tipCarrierLabel').replace('{name}', `${currentParcel.assignedCarrier.firstName} ${currentParcel.assignedCarrier.lastName}`)}
+                  {t('vendor.parcelDetail.tipCarrierLabel').replace('{name}', `${currentParcel.assignedCarrier.firstName?.trim()} ${currentParcel.assignedCarrier.lastName?.trim()}`)}
                 </Text>
               </View>
             )}

@@ -14,7 +14,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useStripe } from '@stripe/stripe-react-native';
 
 import { VendorStackParamList } from '../../navigation/types';
-import { colors, spacing } from '../../theme';
+import { colors, spacing, hdColors } from '../../theme';
 import { api } from '../../services/api';
 import { useTranslation } from '../../i18n/i18nContext';
 import { CustomAlert } from '../../components/common/CustomAlert';
@@ -267,7 +267,15 @@ export function PaymentScreen({ navigation, route }: PaymentScreenProps) {
       )}
 
       <Text style={styles.legalText}>
-        {t('vendor.payment.legalPaymentText')}
+        En cliquant sur 'Payer', vous acceptez nos{' '}
+        <Text style={styles.legalLink} onPress={() => navigation.navigate('Legal' as any, { docType: 'cgv' })}>
+          conditions générales de vente
+        </Text>
+        {' '}et notre{' '}
+        <Text style={styles.legalLink} onPress={() => navigation.navigate('Legal' as any, { docType: 'confidentialite' })}>
+          politique de confidentialité
+        </Text>
+        .
       </Text>
 
       <View style={{ height: 40 }} />
@@ -350,4 +358,5 @@ const styles = StyleSheet.create({
   testBadgeText: { fontSize: 13, fontWeight: '600', color: '#92400E' },
 
   legalText: { fontSize: 11, color: '#9CA3AF', textAlign: 'center', lineHeight: 16 },
+  legalLink: { color: hdColors.accent, fontWeight: '600', textDecorationLine: 'underline' },
 });
