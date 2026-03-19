@@ -17,6 +17,7 @@ import { VendorStackParamList } from '../../navigation/types';
 import { colors, spacing } from '../../theme';
 import { api } from '../../services/api';
 import { useTranslation } from '../../i18n/i18nContext';
+import { CustomAlert } from '../../components/common/CustomAlert';
 
 type PaymentScreenProps = {
   navigation: NativeStackNavigationProp<VendorStackParamList, 'Payment'>;
@@ -31,7 +32,11 @@ export function PaymentScreen({ navigation, route }: PaymentScreenProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
   const [parcel, setParcel] = useState<any>(null);
-  const [sheetReady, setSheetReady] = useState(false);
+  const [alertVisible, setAlertVisible] = useState(false);
+  const [alertConfig, setAlertConfig] = useState<{ type: 'success' | 'error'; title: string; message: string; buttons: any[] }>({
+    type: 'success', title: '', message: '', buttons: [],
+  });
+  
 
   useEffect(() => {
     loadParcelAndInitSheet();
@@ -99,13 +104,16 @@ export function PaymentScreen({ navigation, route }: PaymentScreenProps) {
         }
       }
 
-      Alert.alert(
-        t('vendor.payment.successTitle'),
-        t('vendor.payment.successDesc').replace('{amount}', amount.toFixed(2)),
-        [
+      setAlertConfig({
+        type: 'success',
+        title: t('vendor.payment.successTitle'),
+        message: t('vendor.payment.successDesc').replace('{amount}', amount.toFixed(2)) + '\n\nVotre colis est maintenant visible par les livreurs.',
+        buttons: [
           {
             text: t('vendor.payment.viewParcel'),
+            style: 'primary',
             onPress: () => {
+              setAlertVisible(false);
               navigation.reset({
                 index: 1,
                 routes: [
@@ -117,12 +125,20 @@ export function PaymentScreen({ navigation, route }: PaymentScreenProps) {
           },
           {
             text: t('vendor.payment.backToHome'),
-            onPress: () => navigation.navigate('VendorHome'),
+            style: 'secondary',
+            onPress: () => { setAlertVisible(false); navigation.navigate('VendorHome'); },
           },
-        ]
-      );
+        ],
+      });
+      setAlertVisible(true);
     } catch (error: any) {
-      Alert.alert(t('vendor.payment.paymentFailed'), error.message || t('common.genericError'));
+      setAlertConfig({
+        type: 'error',
+        title: t('vendor.payment.paymentFailed'),
+        message: error.message || t('common.genericError'),
+        buttons: [{ text: 'OK', style: 'primary', onPress: () => setAlertVisible(false) }],
+      });
+      setAlertVisible(true);
     } finally {
       setIsProcessing(false);
     }
@@ -156,7 +172,13 @@ export function PaymentScreen({ navigation, route }: PaymentScreenProps) {
         ]
       );
     } catch (error: any) {
-      Alert.alert(t('vendor.payment.paymentFailed'), error.message || t('common.genericError'));
+      setAlertConfig({
+        type: 'error',
+        title: t('vendor.payment.paymentFailed'),
+        message: error.message || t('common.genericError'),
+        buttons: [{ text: 'OK', style: 'primary', onPress: () => setAlertVisible(false) }],
+      });
+      setAlertVisible(true);
     } finally {
       setIsProcessing(false);
     }
@@ -249,6 +271,15 @@ export function PaymentScreen({ navigation, route }: PaymentScreenProps) {
       </Text>
 
       <View style={{ height: 40 }} />
+
+      <CustomAlert
+        visible={alertVisible}
+        type={alertConfig.type}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        buttons={alertConfig.buttons}
+        onDismiss={() => setAlertVisible(false)}
+      />
     </ScrollView>
   );
 }

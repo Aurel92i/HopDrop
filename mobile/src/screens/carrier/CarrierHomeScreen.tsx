@@ -28,6 +28,7 @@ import { colors, spacing, hdColors } from '../../theme';
 import { Parcel } from '../../types';
 import { PICKUP_POINTS, PICKUP_POINT_CONFIG, PickupPoint, PickupPointType } from '../../data/pickupPoints';
 import { useTranslation, languageLabels, Language } from '../../i18n/i18nContext';
+import { CustomAlert } from '../../components/common/CustomAlert';
 
 type CarrierHomeScreenProps = {
   navigation: NativeStackNavigationProp<CarrierStackParamList, 'CarrierHome'>;
@@ -49,6 +50,10 @@ export function CarrierHomeScreen({ navigation }: CarrierHomeScreenProps) {
   const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const [selectedParcel, setSelectedParcel] = useState<Parcel | null>(null);
   const [isAccepting, setIsAccepting] = useState(false);
+  const [alertVisible, setAlertVisible] = useState(false);
+  const [alertConfig, setAlertConfig] = useState<{ type: 'success' | 'error'; title: string; message: string; buttons: any[] }>({
+    type: 'success', title: '', message: '', buttons: [],
+  });
   const mapRef = useRef<MapView>(null);
 
   // Cagnotte
@@ -267,18 +272,35 @@ export function CarrierHomeScreen({ navigation }: CarrierHomeScreenProps) {
     try {
       await api.acceptMission(selectedParcel.id);
       closeBottomSheet();
-      Alert.alert(
-        `\u2705 ${t('carrier.home.missionAcceptedTitle')}`,
-        t('carrier.home.missionAcceptedMessage').replace('{vendorName}', selectedParcel.vendor?.firstName || t('carrier.home.vendorLabel')),
-        [
-          { text: t('carrier.home.viewMission'), onPress: () => { fetchCurrentMissions(); navigation.navigate('ActiveMissions'); } },
-          { text: t('common.ok') }
-        ]
-      );
+      setAlertConfig({
+          type: 'success',
+          title: t('carrier.home.missionAcceptedTitle'),
+          message: t('carrier.home.missionAcceptedMessage').replace('{vendorName}', selectedParcel.vendor?.firstName || t('carrier.home.vendorLabel')),
+          buttons: [
+            {
+              text: t('carrier.home.viewMission'),
+              style: 'primary',
+              onPress: () => { setAlertVisible(false); fetchCurrentMissions(); navigation.navigate('ActiveMissions'); },
+            },
+            {
+              text: t('common.ok'),
+              style: 'secondary',
+              onPress: () => setAlertVisible(false),
+            },
+          ],
+        });
+        setAlertVisible(true);
+    
       if (userLocation) await loadAvailableParcels(userLocation.latitude, userLocation.longitude);
       await fetchCurrentMissions();
     } catch (error: any) {
-      Alert.alert(t('common.error'), error.message || t('carrier.availableMissions.acceptError'));
+      setAlertConfig({
+        type: 'error',
+        title: t('common.error'),
+        message: error.message || t('carrier.availableMissions.acceptError'),
+        buttons: [{ text: 'OK', style: 'primary', onPress: () => setAlertVisible(false) }],
+      });
+      setAlertVisible(true);
     } finally {
       setIsAccepting(false);
     }
@@ -778,9 +800,17 @@ size={22} color={hdColors.accent} /></View>
           </>
         )}
       </Animated.View>
+    <CustomAlert
+        visible={alertVisible}
+        type={alertConfig.type}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        buttons={alertConfig.buttons}
+        onDismiss={() => setAlertVisible(false)}
+      />
     </View>
-  );
-}
+    );
+  }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F9FAFB' },

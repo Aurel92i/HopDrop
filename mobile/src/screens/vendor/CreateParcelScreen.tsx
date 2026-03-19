@@ -415,99 +415,113 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
   };
 
   // ========== STEP 1: Adresse ==========
-  const renderStep1 = () => (
-    <View>
-      <Text variant="titleMedium" style={styles.stepTitle}>
-        📍 Adresse de récupération
-      </Text>
-      <Text variant="bodySmall" style={styles.stepSubtitle}>
-        Où le livreur doit-il venir chercher votre colis ?
-      </Text>
-      <Controller
-        control={control}
-        name="pickupAddressId"
-        render={({ field: { onChange, value } }) => (
-          <View style={styles.addressList}>
-            {addresses.length === 0 ? (
-              <Card style={styles.emptyCard}>
-                <Card.Content>
-                  <Text style={styles.emptyText}>Aucune adresse enregistrée</Text>
-                </Card.Content>
-              </Card>
-            ) : (
-              addresses.map((address) => (
-                <Card
-                  key={address.id}
-                  style={[
-                    styles.addressCard,
-                    value === address.id && styles.cardSelected,
-                  ]}
-                  onPress={() => onChange(address.id)}
-                >
-                  <Card.Content style={styles.addressContent}>
-                    <RadioButton
-                      value={address.id}
-                      status={value === address.id ? 'checked' : 'unchecked'}
-                      onPress={() => onChange(address.id)}
-                    />
-                    <View style={styles.addressInfo}>
-                      <View style={styles.addressLabelRow}>
-                        <Text variant="titleSmall">{address.label}</Text>
-                        {address.isTemporary && (
-                          <Chip compact style={styles.tempChip} textStyle={styles.tempChipText}>
-                            Temporaire
-                          </Chip>
-                        )}
-                      </View>
-                      <Text variant="bodySmall" style={styles.addressText}>
-                        {address.street}, {address.postalCode} {address.city}
-                      </Text>
-                    </View>
-                  </Card.Content>
-                </Card>
-              ))
-            )}
-            <TouchableOpacity
-              style={styles.addTempAddressButton}
-              onPress={() => setShowTempAddressModal(true)}
-            >
-              <MaterialCommunityIcons name="plus-circle-outline" size={24} color={colors.primary} />
-              <Text style={styles.addTempAddressText}>Utiliser une autre adresse</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-      />
-      {errors.pickupAddressId && (
-        <Text style={styles.errorText}>{errors.pickupAddressId.message}</Text>
-      )}
-      {watch('pickupAddressId') && (
+    const renderStep1 = () => (
+      <View>
+        <Text style={styles.stepTitle}>
+          Adresse de récupération
+        </Text>
+        <Text style={styles.stepSubtitle}>
+          Où le livreur doit-il venir chercher votre colis ?
+        </Text>
+
         <Controller
           control={control}
-          name="pickupInstructions"
+          name="pickupAddressId"
           render={({ field: { onChange, value } }) => (
-            <TextInput
-              label={t('vendor.createParcel.complementaryInfo')}
-              value={value}
-              onChangeText={onChange}
-              mode="outlined"
-              style={styles.instructionsInput}
-              placeholder="Ex: 2ème étage, code portail 1234, à l'arrière du bâtiment..."
-              multiline
-              numberOfLines={2}
-            />
+            <View style={styles.step1List}>
+              {addresses.length === 0 ? (
+                <View style={styles.step1Empty}>
+                  <MaterialCommunityIcons name="map-marker-off" size={40} color={hdColors.textTertiary} />
+                  <Text style={styles.step1EmptyText}>Aucune adresse enregistrée</Text>
+                </View>
+              ) : (
+                addresses.map((address) => {
+                  const isSelected = value === address.id;
+                  return (
+                    <TouchableOpacity
+                      key={address.id}
+                      style={[styles.step1Card, isSelected && styles.step1CardSelected]}
+                      onPress={() => onChange(address.id)}
+                      activeOpacity={0.7}
+                    >
+                      <View style={[styles.step1Radio, isSelected && styles.step1RadioSelected]}>
+                        {isSelected && (
+                          <MaterialCommunityIcons name="check" size={14} color="#FFFFFF" />
+                        )}
+                      </View>
+                      <View style={styles.step1CardInfo}>
+                        <View style={styles.step1CardRow}>
+                          <Text style={[styles.step1CardTitle, isSelected && styles.step1CardTitleSelected]}>
+                            {address.label}
+                          </Text>
+                          {address.isTemporary && (
+                            <View style={styles.step1TempBadge}>
+                              <Text style={styles.step1TempBadgeText}>Temporaire</Text>
+                            </View>
+                          )}
+                        </View>
+                        <Text style={styles.step1CardAddress}>
+                          {address.street}, {address.postalCode} {address.city}
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })
+              )}
+
+              <TouchableOpacity
+                style={styles.step1AddBtn}
+                onPress={() => setShowTempAddressModal(true)}
+                activeOpacity={0.7}
+              >
+                <View style={styles.step1AddIcon}>
+                  <MaterialCommunityIcons name="plus" size={18} color={hdColors.accent} />
+                </View>
+                <Text style={styles.step1AddText}>Utiliser une autre adresse</Text>
+              </TouchableOpacity>
+            </View>
           )}
         />
-      )}
-      <Button
-        mode="contained"
-        onPress={() => setStep(2)}
-        style={styles.nextButton}
-        disabled={!watch('pickupAddressId')}
-      >
-        Suivant
-      </Button>
-    </View>
-  );
+
+        {errors.pickupAddressId && (
+          <Text style={styles.errorText}>{errors.pickupAddressId.message}</Text>
+        )}
+
+        {watch('pickupAddressId') && (
+          <View style={styles.step1Instructions}>
+            <Text style={styles.step1InstructionsLabel}>Instructions pour le livreur</Text>
+            <Controller
+              control={control}
+              name="pickupInstructions"
+              render={({ field: { onChange, value } }) => (
+                <TextInput
+                  value={value}
+                  onChangeText={onChange}
+                  mode="outlined"
+                  style={styles.step1Input}
+                  placeholder="Ex: 2ème étage, code portail 1234..."
+                  multiline
+                  numberOfLines={2}
+                  outlineColor={hdColors.border}
+                  activeOutlineColor={hdColors.accent}
+                  placeholderTextColor={hdColors.textTertiary}
+                />
+              )}
+            />
+          </View>
+        )}
+
+        <TouchableOpacity
+          style={[styles.step1NextBtn, !watch('pickupAddressId') && styles.step1NextBtnDisabled]}
+          onPress={() => { if (watch('pickupAddressId')) setStep(2); }}
+          activeOpacity={0.85}
+          disabled={!watch('pickupAddressId')}
+        >
+          <Text style={styles.step1NextBtnText}>Suivant</Text>
+          <MaterialCommunityIcons name="arrow-right" size={18} color="#FFFFFF" />
+        </TouchableOpacity>
+      </View>
+    );
 
   // ========== STEP 2: Photo de l'article ==========
   const renderStep2 = () => (
@@ -1100,7 +1114,7 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
             disabled={isLoading}
             style={styles.halfButton}
             icon="lock"
-            buttonColor="#10B981"
+              buttonColor={hdColors.accent}
           >
             Confirmer et payer
           </Button>
@@ -1183,27 +1197,40 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
       style={styles.container}
     >
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* Progress indicator */}
-        <View style={styles.progressContainer}>
-          {[1, 2, 3, 4, 5].map((s) => (
-            <View
-              key={s}
-              style={[
-                styles.progressStep,
-                s <= step && styles.progressStepActive,
-                s < step && styles.progressStepCompleted,
-              ]}
-            >
-              {s < step ? (
-                <MaterialCommunityIcons name="check" size={14} color="white" />
-              ) : (
-                <Text style={[styles.progressText, s <= step && styles.progressTextActive]}>
-                  {s}
-                </Text>
-              )}
+        {/* Progress Bar */}
+          <View style={styles.progressBar}>
+            <View style={styles.progressLabels}>
+              {[
+                { num: 1, label: 'Adresse' },
+                { num: 2, label: 'Photo' },
+                { num: 3, label: 'Transport' },
+                { num: 4, label: 'Créneau' },
+                { num: 5, label: 'Récap' },
+              ].map((s, i) => (
+                <View key={s.num} style={styles.progressItem}>
+                  <View style={[
+                    styles.progressDot,
+                    s.num <= step && styles.progressDotActive,
+                    s.num < step && styles.progressDotCompleted,
+                  ]}>
+                    {s.num < step ? (
+                      <MaterialCommunityIcons name="check" size={12} color="#FFFFFF" />
+                    ) : (
+                      <Text style={[styles.progressDotText, s.num <= step && styles.progressDotTextActive]}>
+                        {s.num}
+                      </Text>
+                    )}
+                  </View>
+                  <Text style={[styles.progressLabel, s.num <= step && styles.progressLabelActive]}>
+                    {s.label}
+                  </Text>
+                </View>
+              ))}
             </View>
-          ))}
-        </View>
+            <View style={styles.progressTrack}>
+              <View style={[styles.progressFill, { width: `${((step - 1) / 4) * 100}%` }]} />
+            </View>
+          </View>
         {step === 1 && renderStep1()}
         {step === 2 && renderStep2()}
         {step === 3 && renderStep3()}
@@ -1238,47 +1265,85 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: hdColors.background,
   },
   scrollContent: {
     padding: spacing.md,
     paddingBottom: 120,
   },
-  progressContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: spacing.sm,
-    marginBottom: spacing.lg,
+  // Progress bar premium
+  progressBar: {
+    marginBottom: 24,
   },
-  progressStep: {
+  progressLabels: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  progressItem: {
+    alignItems: 'center',
+    flex: 1,
+    gap: 4,
+  },
+  progressDot: {
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: colors.surfaceVariant,
+    backgroundColor: hdColors.surfaceSecondary,
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 2,
+    borderColor: hdColors.border,
   },
-  progressStepActive: {
-    backgroundColor: colors.primary,
+  progressDotActive: {
+    backgroundColor: hdColors.accent,
+    borderColor: hdColors.accent,
   },
-  progressStepCompleted: {
-    backgroundColor: colors.primary,
+  progressDotCompleted: {
+    backgroundColor: '#2ECC71',
+    borderColor: '#2ECC71',
   },
-  progressText: {
-    color: colors.onSurfaceVariant,
-    fontSize: 12,
+  progressDotText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: hdColors.textTertiary,
+  },
+  progressDotTextActive: {
+    color: '#FFFFFF',
+  },
+  progressLabel: {
+    fontSize: 9,
     fontWeight: '600',
+    color: hdColors.textTertiary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
   },
-  progressTextActive: {
-    color: 'white',
+  progressLabelActive: {
+    color: hdColors.accent,
+  },
+  progressTrack: {
+    height: 3,
+    backgroundColor: hdColors.border,
+    borderRadius: 2,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: 3,
+    backgroundColor: hdColors.accent,
+    borderRadius: 2,
   },
   stepTitle: {
-    marginBottom: spacing.xs,
-    color: colors.onSurface,
+    marginBottom: 4,
+    color: hdColors.accent,
+    fontSize: 20,
+    fontWeight: '700',
+    fontFamily: Platform.select({ ios: 'Quicksand-Bold', android: 'Quicksand_700Bold', default: 'System' }),
   },
   stepSubtitle: {
-    marginBottom: spacing.lg,
-    color: colors.onSurfaceVariant,
+    marginBottom: 20,
+    color: hdColors.textTertiary,
+    fontSize: 13,
+    lineHeight: 18,
   },
 
   // Main Photo Button
@@ -1972,11 +2037,13 @@ const styles = StyleSheet.create({
   },
   buttonRow: {
     flexDirection: 'row',
-    gap: spacing.md,
-    marginTop: spacing.lg,
+    gap: 10,
+    marginTop: 24,
   },
   halfButton: {
     flex: 1,
+    borderRadius: 14,
+    paddingVertical: 2,
   },
   nextButton: {
     marginTop: spacing.lg,
@@ -2048,5 +2115,145 @@ const styles = StyleSheet.create({
   },
   uploadCardButtonTextDone: {
     color: hdColors.textSecondary,
+  },
+  // ===== STEP 1 REFONTE =====
+  step1List: {
+    gap: 10,
+  },
+  step1Empty: {
+    alignItems: 'center',
+    paddingVertical: 32,
+    gap: 8,
+  },
+  step1EmptyText: {
+    fontSize: 14,
+    color: hdColors.textTertiary,
+  },
+  step1Card: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: hdColors.surface,
+    borderRadius: 16,
+    padding: 16,
+    gap: 14,
+    borderWidth: 1.5,
+    borderColor: hdColors.border,
+    ...Platform.select({
+      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 4 },
+      android: { elevation: 1 },
+    }),
+  },
+  step1CardSelected: {
+    borderColor: hdColors.accent,
+    backgroundColor: hdColors.accent + '08',
+  },
+  step1Radio: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: hdColors.border,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  step1RadioSelected: {
+    backgroundColor: hdColors.accent,
+    borderColor: hdColors.accent,
+  },
+  step1CardInfo: {
+    flex: 1,
+    gap: 3,
+  },
+  step1CardRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  step1CardTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: hdColors.text,
+  },
+  step1CardTitleSelected: {
+    color: hdColors.accent,
+    fontWeight: '700',
+  },
+  step1CardAddress: {
+    fontSize: 13,
+    color: hdColors.textTertiary,
+  },
+  step1TempBadge: {
+    backgroundColor: hdColors.accent50,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  step1TempBadgeText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: hdColors.accent,
+  },
+  step1AddBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    paddingVertical: 16,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: hdColors.accent,
+    borderStyle: 'dashed',
+  },
+  step1AddIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: hdColors.accent50,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  step1AddText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: hdColors.accent,
+  },
+  step1Instructions: {
+    marginTop: 20,
+    gap: 8,
+  },
+  step1InstructionsLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: hdColors.textSecondary,
+  },
+  step1Input: {
+    backgroundColor: hdColors.surface,
+    fontSize: 14,
+  },
+  step1NextBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: hdColors.accent,
+    borderRadius: 14,
+    paddingVertical: 16,
+    marginTop: 24,
+    ...Platform.select({
+      ios: { shadowColor: hdColors.accent, shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.2, shadowRadius: 6 },
+      android: { elevation: 3 },
+    }),
+  },
+  step1NextBtnDisabled: {
+    backgroundColor: hdColors.chrome,
+    ...Platform.select({
+      ios: { shadowOpacity: 0 },
+      android: { elevation: 0 },
+    }),
+  },
+  step1NextBtnText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
 });
