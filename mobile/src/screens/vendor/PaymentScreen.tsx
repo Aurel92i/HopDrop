@@ -32,6 +32,7 @@ export function PaymentScreen({ navigation, route }: PaymentScreenProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
   const [parcel, setParcel] = useState<any>(null);
+  const [sheetReady, setSheetReady] = useState(false);
   const [alertVisible, setAlertVisible] = useState(false);
   const [alertConfig, setAlertConfig] = useState<{ type: 'success' | 'error'; title: string; message: string; buttons: any[] }>({
     type: 'success', title: '', message: '', buttons: [],

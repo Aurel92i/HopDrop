@@ -167,6 +167,7 @@ function VendorNavigator() {
       <VendorStack.Screen name="Review" component={ReviewScreen} options={{ title: t('nav.review') }} />
       <VendorStack.Screen name="Payment" component={PaymentScreen} options={{ title: t('nav.payment') }} />
       <VendorStack.Screen name="EmailVerification" component={EmailVerificationScreen} options={{ title: 'Vérification email' }} />
+      <VendorStack.Screen name="Legal" component={LegalScreen} options={{ title: 'Document légal' }} />
     </VendorStack.Navigator>
   );
 }

@@ -1009,11 +1009,11 @@ export function ParcelDetailScreen({ navigation, route }: ParcelDetailScreenProp
       {/* Modal de confirmation emballage */}
       <Portal>
         <Modal
-          visible={showPackagingModal}
-          onDismiss={() => setShowPackagingModal(false)}
-          contentContainerStyle={styles.modalContainer}
-        >entContainerStyle={styles.modalContainer}
-        >
+            visible={showPackagingModal}
+            onDismiss={() => setShowPackagingModal(false)}
+            contentContainerStyle={styles.modalContainer}
+          >
+          <ScrollView showsVerticalScrollIndicator={false}>
           <View style={styles.packagingModalHeader}>
             <MaterialCommunityIcons name="package-variant-closed" size={32} color={colors.primary} />
             <Text variant="headlineSmall" style={styles.modalTitle}>
@@ -1068,6 +1068,7 @@ export function ParcelDetailScreen({ navigation, route }: ParcelDetailScreenProp
               {t('vendor.parcelDetail.packagingInfoText')}
             </Text>
           </View>
+          </ScrollView>
         </Modal>
       </Portal>
 
@@ -1316,14 +1317,17 @@ const styles = StyleSheet.create({
   // Modal de confirmation
   modalContainer: {
     backgroundColor: colors.surface,
-    margin: spacing.md,
-    borderRadius: 16,
-    maxHeight: '90%',
+    marginHorizontal: 20,
+    marginVertical: 60,
+    borderRadius: 20,
+    maxHeight: '80%',
+    overflow: 'hidden',
   },
-  modalHeader: {
+  packagingModalHeader: {
     alignItems: 'center',
-    paddingTop: spacing.lg,
-    paddingHorizontal: spacing.lg,
+    paddingTop: 20,
+    paddingHorizontal: 20,
+    marginBottom: 12,
   },
   modalIcon: {
     width: 64,
@@ -1506,8 +1510,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: spacing.xs,
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.lg,
+    paddingHorizontal: 20,
+    paddingBottom: 24,
   },
   packagingInfoText: {
     flex: 1,
