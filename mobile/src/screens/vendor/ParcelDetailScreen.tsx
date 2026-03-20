@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
-import { View, StyleSheet, ScrollView, Alert, Image, Dimensions, TouchableOpacity, Platform, Linking } from 'react-native';
+import { View, StyleSheet, ScrollView, Alert, Image, Dimensions, TouchableOpacity, Platform, Linking, ActivityIndicator } from 'react-native';
 import { Text, Card, Button, Chip, Divider, Avatar, Portal, Modal, TextInput, ProgressBar } from 'react-native-paper';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp, useFocusEffect } from '@react-navigation/native';
@@ -946,8 +946,9 @@ export function ParcelDetailScreen({ navigation, route }: ParcelDetailScreenProp
         </Button>
       )}
 
-      {/* Review Button */}
-      {(currentParcel.status === 'DELIVERED' || deliveryStatus?.status === 'CONFIRMED' || deliveryStatus?.status === 'AUTO_CONFIRMED') && (
+      {/* Review Button — masqué si un avis existe déjà */}
+      {(currentParcel.status === 'DELIVERED' || deliveryStatus?.status === 'CONFIRMED' || deliveryStatus?.status === 'AUTO_CONFIRMED') &&
+       !(currentParcel.reviews && currentParcel.reviews.length > 0) && (
         <Button
           mode="contained"
           icon="star"
@@ -1072,42 +1073,53 @@ export function ParcelDetailScreen({ navigation, route }: ParcelDetailScreenProp
         </Modal>
       </Portal>
 
-      {/* Modal de pourboire */}
+      {/* Modal de pourboire — Design HD */}
       <Portal>
         <Modal
           visible={showTipModal}
           onDismiss={() => setShowTipModal(false)}
           contentContainerStyle={styles.tipModalContainer}
         >
-          <View style={styles.tipModalContent}>
+          <ScrollView showsVerticalScrollIndicator={false}>
+            {/* Header */}
             <View style={styles.tipModalHeader}>
-              <View style={styles.tipModalIconContainer}>
-                <MaterialCommunityIcons name="hand-coin" size={32} color="#10B981" />
+              <View style={styles.tipModalIconBg}>
+                <MaterialCommunityIcons name="hand-coin" size={28} color="#FFFFFF" />
               </View>
-              <Text variant="headlineSmall" style={styles.tipModalTitle}>
-                {t('vendor.parcelDetail.tipModalTitle')}
-              </Text>
-              <Text variant="bodySmall" style={styles.tipModalSubtitle}>
-                {t('vendor.parcelDetail.tipModalSubtitle')}
-              </Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.tipModalTitle}>
+                  {t('vendor.parcelDetail.tipModalTitle')}
+                </Text>
+                <Text style={styles.tipModalSubtitle}>
+                  {t('vendor.parcelDetail.tipModalSubtitle')}
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => setShowTipModal(false)}
+                style={styles.tipModalCloseBtn}
+              >
+                <MaterialCommunityIcons name="close" size={20} color={hdColors.textTertiary} />
+              </TouchableOpacity>
             </View>
 
+            {/* Infos livreur + colis */}
             {currentParcel.assignedCarrier && (
               <View style={styles.tipCarrierInfo}>
-                <MaterialCommunityIcons name="account" size={20} color={colors.secondary} />
-                <Text variant="bodyMedium">
+                <MaterialCommunityIcons name="account" size={18} color={hdColors.accent} />
+                <Text style={styles.tipInfoText}>
                   {t('vendor.parcelDetail.tipCarrierLabel').replace('{name}', `${currentParcel.assignedCarrier.firstName?.trim()} ${currentParcel.assignedCarrier.lastName?.trim()}`)}
                 </Text>
               </View>
             )}
 
             <View style={styles.tipParcelInfo}>
-              <MaterialCommunityIcons name="package-variant" size={20} color={colors.primary} />
-              <Text variant="bodyMedium">
+              <MaterialCommunityIcons name="package-variant" size={18} color={hdColors.accent} />
+              <Text style={styles.tipInfoText}>
                 {t('vendor.parcelDetail.tipDeliveryTo').replace('{dropoff}', currentParcel.dropoffName)}
               </Text>
             </View>
 
+            {/* Montant */}
             <TextInput
               label={t('vendor.parcelDetail.tipAmountLabel')}
               value={tipAmount}
@@ -1117,12 +1129,15 @@ export function ParcelDetailScreen({ navigation, route }: ParcelDetailScreenProp
               style={styles.tipInput}
               placeholder={t('vendor.parcelDetail.tipAmountPlaceholder')}
               left={<TextInput.Icon icon="cash" />}
+              outlineColor={hdColors.border}
+              activeOutlineColor={hdColors.neonGreen}
+              outlineStyle={{ borderRadius: 12 }}
             />
-
-            <Text variant="bodySmall" style={styles.tipHelpText}>
+            <Text style={styles.tipHelpText}>
               {t('vendor.parcelDetail.tipMaxAmount')}
             </Text>
 
+            {/* Message */}
             <TextInput
               label={t('vendor.parcelDetail.tipMessageLabel')}
               value={tipMessage}
@@ -1130,32 +1145,41 @@ export function ParcelDetailScreen({ navigation, route }: ParcelDetailScreenProp
               mode="outlined"
               multiline
               numberOfLines={3}
-              style={styles.tipInput}
+              style={[styles.tipInput, { minHeight: 80 }]}
               placeholder={t('vendor.parcelDetail.tipMessagePlaceholder')}
               left={<TextInput.Icon icon="message-text" />}
+              outlineColor={hdColors.border}
+              activeOutlineColor={hdColors.neonGreen}
+              outlineStyle={{ borderRadius: 12 }}
             />
 
+            {/* Actions */}
             <View style={styles.tipModalActions}>
-              <Button
-                mode="outlined"
+              <TouchableOpacity
+                style={styles.tipCancelBtn}
                 onPress={() => setShowTipModal(false)}
-                style={styles.tipModalButton}
                 disabled={isSendingTip}
+                activeOpacity={0.7}
               >
-                {t('common.cancel')}
-              </Button>
-              <Button
-                mode="contained"
+                <Text style={styles.tipCancelText}>{t('common.cancel')}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.tipSendBtn, (!tipAmount || isSendingTip) && styles.tipSendBtnDisabled]}
                 onPress={handleSendTip}
-                style={styles.tipModalButton}
-                buttonColor="#10B981"
-                loading={isSendingTip}
                 disabled={isSendingTip || !tipAmount}
+                activeOpacity={0.8}
               >
-                {t('common.send')}
-              </Button>
+                {isSendingTip ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <>
+                    <MaterialCommunityIcons name="send" size={18} color="#FFFFFF" />
+                    <Text style={styles.tipSendText}>{t('common.send')}</Text>
+                  </>
+                )}
+              </TouchableOpacity>
             </View>
-          </View>
+          </ScrollView>
         </Modal>
       </Portal>
       </View>
@@ -1535,71 +1559,132 @@ const styles = StyleSheet.create({
     color: '#065F46',
   },
   tipModalContainer: {
-    backgroundColor: colors.surface,
+    backgroundColor: hdColors.surface,
     margin: spacing.lg,
-    borderRadius: 16,
+    borderRadius: 20,
+    padding: 24,
     maxHeight: '85%',
-  },
-  tipModalContent: {
-    padding: spacing.lg,
+    ...Platform.select({
+      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.15, shadowRadius: 20 },
+      android: { elevation: 10 },
+    }),
   },
   tipModalHeader: {
+    flexDirection: 'row',
     alignItems: 'center',
+    gap: spacing.md,
     marginBottom: spacing.lg,
   },
-  tipModalIconContainer: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: '#D1FAE5',
+  tipModalIconBg: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#10B981',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: spacing.md,
   },
   tipModalTitle: {
-    color: colors.onSurface,
-    fontWeight: 'bold',
-    textAlign: 'center',
+    fontSize: 18,
+    fontWeight: '700',
+    color: hdColors.accent,
+    ...Platform.select({
+      ios: { fontFamily: 'Quicksand-Bold' },
+      android: { fontFamily: 'Quicksand_700Bold' },
+    }),
   },
   tipModalSubtitle: {
-    color: colors.onSurfaceVariant,
-    textAlign: 'center',
-    marginTop: spacing.xs,
+    fontSize: 13,
+    color: hdColors.textTertiary,
+    marginTop: 2,
+  },
+  tipModalCloseBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: hdColors.surfaceSecondary,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   tipCarrierInfo: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
     marginBottom: spacing.sm,
-    padding: spacing.sm,
-    backgroundColor: colors.secondaryContainer,
-    borderRadius: 8,
+    padding: 12,
+    backgroundColor: hdColors.accent50,
+    borderRadius: 12,
   },
   tipParcelInfo: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
     marginBottom: spacing.lg,
-    padding: spacing.sm,
-    backgroundColor: colors.primaryContainer,
-    borderRadius: 8,
+    padding: 12,
+    backgroundColor: hdColors.accent50,
+    borderRadius: 12,
+  },
+  tipInfoText: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '500',
+    color: hdColors.text,
   },
   tipInput: {
     marginBottom: spacing.sm,
-    backgroundColor: colors.surface,
+    backgroundColor: hdColors.surface,
+    fontSize: 14,
   },
   tipHelpText: {
-    color: colors.onSurfaceVariant,
+    fontSize: 12,
+    color: hdColors.textTertiary,
     marginBottom: spacing.md,
     fontStyle: 'italic',
   },
   tipModalActions: {
     flexDirection: 'row',
     gap: spacing.sm,
-    marginTop: spacing.md,
+    marginTop: spacing.lg,
   },
-  tipModalButton: {
+  tipCancelBtn: {
     flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: hdColors.border,
+    backgroundColor: hdColors.surface,
+  },
+  tipCancelText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: hdColors.textSecondary,
+  },
+  tipSendBtn: {
+    flex: 1.5,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    paddingVertical: 14,
+    borderRadius: 14,
+    backgroundColor: '#10B981',
+    ...Platform.select({
+      ios: { shadowColor: '#10B981', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8 },
+      android: { elevation: 4 },
+    }),
+  },
+  tipSendBtnDisabled: {
+    backgroundColor: hdColors.chromeDark,
+    ...Platform.select({
+      ios: { shadowOpacity: 0 },
+      android: { elevation: 0 },
+    }),
+  },
+  tipSendText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
   // ===== NOUVEAU DESIGN HD =====
   hdCard: {

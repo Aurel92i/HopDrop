@@ -394,7 +394,7 @@ export const fr = {
       pay: 'Payer',
       testMode: 'Mode Test',
       testCards: 'Cartes de test disponibles',
-      successTitle: '✅ Paiement réussi !',
+      successTitle: 'Paiement réussi !',
       successMessage: 'Votre paiement a été accepté.',
       viewParcel: 'Voir mon colis',
       summary: 'Récapitulatif',

@@ -249,6 +249,9 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
       setValue('size', sizeMapping[result.packageSize] || 'MEDIUM');
       setDetectedCategory('other');
     }
+
+    // Passer directement à l'étape 3 après l'analyse
+    setStep(3);
   };
 
   // Prendre une photo de l'article (fallback sans IA)
@@ -532,66 +535,19 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
       <Text variant="bodySmall" style={styles.stepSubtitle}>
         Prenez une photo de votre article pour que notre IA détermine automatiquement la taille de colis optimale
       </Text>
-      {!analysisResult && (
-        <TouchableOpacity
-          style={styles.mainPhotoButton}
-          onPress={() => setShowAnalysisModal(true)}
-        >
-          <View style={styles.mainPhotoButtonIcon}>
-            <Ionicons name="camera" size={32} color="#007AFF" />
-          </View>
-          <View style={styles.mainPhotoButtonContent}>
-            <Text style={styles.mainPhotoButtonTitle}>Prendre une photo</Text>
-            <Text style={styles.mainPhotoButtonSubtitle}>L'IA analysera votre article instantanément</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={24} color="#999" />
-        </TouchableOpacity>
-      )}
-      {analysisResult && (
-        <View style={styles.analysisResultContainer}>
-          <View style={styles.analysisSuccessHeader}>
-            <Ionicons name="checkmark-circle" size={48} color="#4CAF50" />
-            <Text style={styles.analysisSuccessTitle}>Article analysé</Text>
-          </View>
-          {articleImageUri && (
-            <View style={styles.analyzedImageContainer}>
-              <Image source={{ uri: articleImageUri }} style={styles.analyzedImage} />
-            </View>
-          )}
-          <View style={styles.analysisSummaryCard}>
-            <View style={styles.analysisSummaryRow}>
-              <Ionicons name="cube-outline" size={20} color="#007AFF" />
-              <Text style={styles.analysisSummaryLabel}>Article</Text>
-              <Text style={styles.analysisSummaryValue}>{analysisResult.articleName}</Text>
-            </View>
-            <View style={styles.analysisSummaryDivider} />
-            <View style={styles.analysisSummaryRow}>
-              <Ionicons name="resize-outline" size={20} color="#007AFF" />
-              <Text style={styles.analysisSummaryLabel}>Taille</Text>
-              <View style={[styles.analysisSizeBadge, { backgroundColor: getSizeColor(analysisResult.packageSize) }]}>
-                <Text style={styles.analysisSizeBadgeText}>{analysisResult.packageSize}</Text>
-              </View>
-            </View>
-            <View style={styles.analysisSummaryDivider} />
-            <View style={styles.analysisSummaryRow}>
-              <Ionicons name="pricetag-outline" size={20} color="#2196F3" />
-              <Text style={styles.analysisSummaryLabel}>Prix</Text>
-              <Text style={styles.analysisPriceValue}>{PRICING?.FIXED_PRICE || 10}€</Text>
-            </View>
-          </View>
-          <TouchableOpacity
-            style={styles.retakePhotoButton}
-            onPress={() => {
-              setAnalysisResult(null);
-              setArticleImageUri(null);
-              setShowAnalysisModal(true);
-            }}
-          >
-            <Ionicons name="camera-reverse-outline" size={20} color="#007AFF" />
-            <Text style={styles.retakePhotoText}>Reprendre la photo</Text>
-          </TouchableOpacity>
+      <TouchableOpacity
+        style={styles.mainPhotoButton}
+        onPress={() => setShowAnalysisModal(true)}
+      >
+        <View style={styles.mainPhotoButtonIcon}>
+          <Ionicons name="camera" size={32} color="#007AFF" />
         </View>
-      )}
+        <View style={styles.mainPhotoButtonContent}>
+          <Text style={styles.mainPhotoButtonTitle}>Prendre une photo</Text>
+          <Text style={styles.mainPhotoButtonSubtitle}>L'IA analysera votre article instantanément</Text>
+        </View>
+        <Ionicons name="chevron-forward" size={24} color="#999" />
+      </TouchableOpacity>
       <View style={styles.securityInfoBox}>
         <Ionicons name="shield-checkmark-outline" size={24} color="#4CAF50" />
         <View style={styles.securityInfoText}>

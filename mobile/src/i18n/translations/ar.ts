@@ -396,7 +396,7 @@ export const ar: TranslationKeys = {
       pay: 'دفع',
       testMode: 'وضع الاختبار',
       testCards: 'بطاقات اختبار متاحة',
-      successTitle: '✅ تم الدفع بنجاح!',
+      successTitle: 'تم الدفع بنجاح!',
       successMessage: 'تم قبول الدفع.',
       viewParcel: 'عرض طردي',
       summary: 'الملخص',

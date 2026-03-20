@@ -108,7 +108,7 @@ export function PaymentScreen({ navigation, route }: PaymentScreenProps) {
       setAlertConfig({
         type: 'success',
         title: t('vendor.payment.successTitle'),
-        message: t('vendor.payment.successDesc').replace('{amount}', amount.toFixed(2)) + '\n\nVotre colis est maintenant visible par les livreurs.',
+        message: t('vendor.payment.successDesc').replace('{amount}', amount.toFixed(2)),
         buttons: [
           {
             text: t('vendor.payment.viewParcel'),

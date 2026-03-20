@@ -396,7 +396,7 @@ export const en: TranslationKeys = {
       pay: 'Pay',
       testMode: 'Test Mode',
       testCards: 'Available test cards',
-      successTitle: '✅ Payment successful!',
+      successTitle: 'Payment successful!',
       successMessage: 'Your payment has been accepted.',
       viewParcel: 'View my parcel',
       summary: 'Summary',

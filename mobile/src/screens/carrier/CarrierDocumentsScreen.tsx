@@ -446,25 +446,14 @@ export function CarrierDocumentsScreen() {
       {/* ── Stripe Connect ── */}
       <View style={styles.hdCard}>
         <Text style={styles.sectionLabel}>PAIEMENTS</Text>
-        <View style={styles.stripeHeader}>
-          <View style={[
-            styles.stripeIconBg,
-            stripeStatus?.status === 'ACTIVE' && styles.stripeIconBgActive,
-          ]}>
-            <MaterialCommunityIcons
-              name={stripeStatus?.status === 'ACTIVE' ? 'check-bold' : 'credit-card-outline'}
-              size={22}
-              color={stripeStatus?.status === 'ACTIVE' ? '#FFFFFF' : hdColors.accent}
-            />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.hdSectionTitle}>Configurer mes paiements</Text>
-            <Text style={styles.sectionSubtitle}>
-              {stripeStatus?.status === 'ACTIVE'
-                ? 'Paiements activés — vous recevrez vos gains'
-                : 'Recevez vos gains de livraison'}
-            </Text>
-          </View>
+        <Text style={[styles.hdSectionTitle, { marginBottom: 6 }]}>Configurer mes paiements</Text>
+        <View style={styles.stripeSubRow}>
+          <MaterialCommunityIcons name="credit-card-outline" size={16} color={hdColors.chromeDark} />
+          <Text style={styles.stripeSubText}>
+            {stripeStatus?.status === 'ACTIVE'
+              ? 'Paiements activés — vous recevrez vos gains'
+              : 'Recevez vos gains de livraison'}
+          </Text>
         </View>
 
         {!stripeStatus || !stripeStatus.hasAccount ? (
@@ -881,22 +870,23 @@ const styles = StyleSheet.create({
   },
 
   // Stripe
-  stripeHeader: {
+  stripeSubRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.md,
-    marginBottom: spacing.md,
+    gap: 6,
+    marginBottom: spacing.lg,
   },
-  stripeIconBg: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+  stripeSubText: {
+    fontSize: 13,
+    color: hdColors.chromeDark,
+  },
+  stripeSmallIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: hdColors.accent50,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  stripeIconBgActive: {
-    backgroundColor: hdColors.neonGreen,
   },
   stripeActiveBadge: {
     flexDirection: 'row',
