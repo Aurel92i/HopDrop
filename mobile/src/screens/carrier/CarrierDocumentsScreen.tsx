@@ -808,18 +808,20 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
 
-  // Vehicle chips
+  // Vehicle chips — grille 2×2 centrée
   vehicleGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing.sm,
+    justifyContent: 'center',
   },
   vehicleChip: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: spacing.sm,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+    width: '47%',
+    paddingVertical: 12,
     borderRadius: borderRadius.md,
     borderWidth: 1.5,
     borderColor: hdColors.border,
