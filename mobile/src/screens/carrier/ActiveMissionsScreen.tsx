@@ -595,25 +595,29 @@ export function ActiveMissionsScreen({ navigation }: ActiveMissionsScreenProps) 
                     : 'Bordereau à imprimer'}
                 </Text>
               </View>
-              {parcel.shippingLabelUrl && (
-                <TouchableOpacity
-                  style={styles.docLinkRow}
-                  onPress={() => openFileFromUrl(parcel.shippingLabelUrl!, 'bordereau.pdf')}
-                  activeOpacity={0.7}
-                >
-                  <MaterialCommunityIcons name="file-document-outline" size={14} color={hdColors.accent} />
-                  <Text style={styles.docLinkRowText}>Voir le bordereau</Text>
-                </TouchableOpacity>
-              )}
-              {parcel.qrCodeUrl && (
-                <TouchableOpacity
-                  style={styles.docLinkRow}
-                  onPress={() => openFileFromUrl(parcel.qrCodeUrl!, 'qrcode.png')}
-                  activeOpacity={0.7}
-                >
-                  <MaterialCommunityIcons name="qrcode-scan" size={14} color={hdColors.accent} />
-                  <Text style={styles.docLinkRowText}>Voir le QR code</Text>
-                </TouchableOpacity>
+              {(parcel.shippingLabelUrl || parcel.qrCodeUrl) && (
+                <View style={styles.docIconsRow}>
+                  {parcel.shippingLabelUrl && (
+                    <TouchableOpacity
+                      style={styles.docIconBox}
+                      onPress={() => openFileFromUrl(parcel.shippingLabelUrl!, 'bordereau.pdf')}
+                      activeOpacity={0.7}
+                    >
+                      <MaterialCommunityIcons name="file-document-outline" size={28} color={hdColors.accent} />
+                      <Text style={styles.docIconLabel}>Bordereau</Text>
+                    </TouchableOpacity>
+                  )}
+                  {parcel.qrCodeUrl && (
+                    <TouchableOpacity
+                      style={styles.docIconBox}
+                      onPress={() => openFileFromUrl(parcel.qrCodeUrl!, 'qrcode.png')}
+                      activeOpacity={0.7}
+                    >
+                      <MaterialCommunityIcons name="qrcode-scan" size={28} color={hdColors.accent} />
+                      <Text style={styles.docIconLabel}>QR Code</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
               )}
 
               {/* 🆕 PASTILLE STATUT EMBALLAGE */}
@@ -1388,19 +1392,26 @@ const styles = StyleSheet.create({
     flex: 1,
     color: colors.onSurface,
   },
-  docLinkRow: {
+  docIconsRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginBottom: spacing.xs,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    backgroundColor: hdColors.accent50,
-    borderRadius: 8,
-    alignSelf: 'flex-start',
+    justifyContent: 'center',
+    gap: 16,
+    marginTop: 8,
+    marginBottom: 4,
   },
-  docLinkRowText: {
-    fontSize: 12,
+  docIconBox: {
+    width: 72,
+    height: 72,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: hdColors.accent,
+    backgroundColor: hdColors.accent50,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 4,
+  },
+  docIconLabel: {
+    fontSize: 10,
     fontWeight: '600',
     color: hdColors.accent,
   },
