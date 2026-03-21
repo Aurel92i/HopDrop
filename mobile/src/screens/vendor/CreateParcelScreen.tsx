@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, TouchableOpacity, Image, Alert, BackHandler } from 'react-native';
-import { Text, Button, Card, RadioButton, Snackbar, ActivityIndicator, Chip, Modal, Portal, TextInput, Checkbox } from 'react-native-paper';
+import { View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, TouchableOpacity, Image, Alert, BackHandler, Modal as RNModal } from 'react-native';
+import { Text, Button, Card, RadioButton, Snackbar, ActivityIndicator, Chip, TextInput, Checkbox } from 'react-native-paper';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -1100,70 +1100,82 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
 
   // Modal pour adresse temporaire
   const renderTempAddressModal = () => (
-    <Portal>
-      <Modal
-        visible={showTempAddressModal}
-        onDismiss={() => setShowTempAddressModal(false)}
-        contentContainerStyle={styles.modalContainer}
+    <RNModal
+      visible={showTempAddressModal}
+      transparent
+      animationType="slide"
+      onRequestClose={() => setShowTempAddressModal(false)}
+    >
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.modalOverlay}
       >
-        <Text variant="titleLarge" style={styles.modalTitle}>
-          📍 Adresse temporaire
-        </Text>
-        <Text variant="bodySmall" style={styles.modalSubtitle}>
-          Cette adresse sera utilisée uniquement pour ce colis
-        </Text>
-        <View style={styles.autocompleteWrapper}>
-          <AddressAutocomplete
-            value={tempAddress.street}
-            onAddressSelect={handleTempAddressSelect}
-            label={t('vendor.createParcel.searchAddress')}
-            placeholder="Tapez une adresse..."
-          />
-        </View>
-        {tempAddress.street && tempAddress.city && (
-          <View style={styles.selectedTempAddress}>
-            <MaterialCommunityIcons name="check-circle" size={20} color={colors.primary} />
-            <View style={styles.selectedTempAddressContent}>
-              <Text variant="bodyMedium" style={styles.selectedTempAddressStreet}>
-                {tempAddress.street}
-              </Text>
-              <Text variant="bodySmall" style={styles.selectedTempAddressCity}>
-                {tempAddress.postalCode} {tempAddress.city}
-              </Text>
+        <TouchableOpacity
+          style={{ flex: 1, justifyContent: 'flex-start' }}
+          activeOpacity={1}
+          onPress={() => setShowTempAddressModal(false)}
+        >
+          <TouchableOpacity activeOpacity={1} style={styles.modalContainer}>
+            <Text variant="titleLarge" style={styles.modalTitle}>
+              📍 Adresse temporaire
+            </Text>
+            <Text variant="bodySmall" style={styles.modalSubtitle}>
+              Cette adresse sera utilisée uniquement pour ce colis
+            </Text>
+            <View style={styles.autocompleteWrapper}>
+              <AddressAutocomplete
+                value={tempAddress.street}
+                onAddressSelect={handleTempAddressSelect}
+                label={t('vendor.createParcel.searchAddress')}
+                placeholder="Tapez une adresse..."
+              />
             </View>
-            <TouchableOpacity
-              onPress={() => setTempAddress({
-                label: 'Adresse temporaire',
-                street: '',
-                city: '',
-                postalCode: '',
-                latitude: 0,
-                longitude: 0,
-              })}
-            >
-              <MaterialCommunityIcons name="close" size={20} color={colors.onSurfaceVariant} />
-            </TouchableOpacity>
-          </View>
-        )}
-        <View style={styles.modalButtons}>
-          <Button
-            mode="outlined"
-            onPress={() => setShowTempAddressModal(false)}
-            style={styles.modalButton}
-          >
-            Annuler
-          </Button>
-          <Button
-            mode="contained"
-            onPress={handleCreateTempAddress}
-            style={styles.modalButton}
-            disabled={!tempAddress.street || !tempAddress.city || !tempAddress.postalCode}
-          >
-            Ajouter
-          </Button>
-        </View>
-      </Modal>
-    </Portal>
+            {tempAddress.street && tempAddress.city && (
+              <View style={styles.selectedTempAddress}>
+                <MaterialCommunityIcons name="check-circle" size={20} color={colors.primary} />
+                <View style={styles.selectedTempAddressContent}>
+                  <Text variant="bodyMedium" style={styles.selectedTempAddressStreet}>
+                    {tempAddress.street}
+                  </Text>
+                  <Text variant="bodySmall" style={styles.selectedTempAddressCity}>
+                    {tempAddress.postalCode} {tempAddress.city}
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  onPress={() => setTempAddress({
+                    label: 'Adresse temporaire',
+                    street: '',
+                    city: '',
+                    postalCode: '',
+                    latitude: 0,
+                    longitude: 0,
+                  })}
+                >
+                  <MaterialCommunityIcons name="close" size={20} color={colors.onSurfaceVariant} />
+                </TouchableOpacity>
+              </View>
+            )}
+            <View style={styles.modalButtons}>
+              <Button
+                mode="outlined"
+                onPress={() => setShowTempAddressModal(false)}
+                style={styles.modalButton}
+              >
+                Annuler
+              </Button>
+              <Button
+                mode="contained"
+                onPress={handleCreateTempAddress}
+                style={styles.modalButton}
+                disabled={!tempAddress.street || !tempAddress.city || !tempAddress.postalCode}
+              >
+                Ajouter
+              </Button>
+            </View>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </KeyboardAvoidingView>
+    </RNModal>
   );
 
   return (
@@ -1783,9 +1795,15 @@ const styles = StyleSheet.create({
   },
 
   // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'flex-start',
+  },
   modalContainer: {
     backgroundColor: colors.surface,
-    margin: spacing.lg,
+    marginHorizontal: spacing.lg,
+    marginTop: Platform.OS === 'ios' ? 80 : 50,
     padding: spacing.lg,
     borderRadius: 16,
   },
