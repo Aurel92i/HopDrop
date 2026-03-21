@@ -47,6 +47,13 @@ export function VendorHomeScreen({ navigation }: VendorHomeScreenProps) {
   useFocusEffect(
     useCallback(() => {
       fetchParcels(undefined);
+
+      // Polling toutes les 15s pour détecter les changements de statut (acceptation, emballage...)
+      const interval = setInterval(() => {
+        fetchParcels(undefined);
+      }, 15000);
+
+      return () => clearInterval(interval);
     }, [filter])
   );
 

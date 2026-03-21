@@ -11,6 +11,7 @@ import { CarrierStackParamList } from '../../navigation/types';
 import { colors, spacing, sizes, hdColors, borderRadius } from '../../theme';
 import { Mission, MissionStatus } from '../../types';
 import { useTranslation } from '../../i18n/i18nContext';
+import { openFileFromUrl } from '../../utils/openFile';
 
 type MissionDetailScreenProps = {
   navigation: NativeStackNavigationProp<CarrierStackParamList, 'MissionDetail'>;
@@ -184,10 +185,11 @@ export function MissionDetailScreen({ navigation, route }: MissionDetailScreenPr
                 </Text>
               )}
             </View>
-            {parcel.shippingLabelUrl && (
+          </View>
+          {parcel.shippingLabelUrl && (
             <TouchableOpacity
               style={styles.docLink}
-              onPress={() => Linking.openURL(parcel.shippingLabelUrl)}
+              onPress={() => openFileFromUrl(parcel.shippingLabelUrl!, 'bordereau.pdf')}
               activeOpacity={0.7}
             >
               <MaterialCommunityIcons name="file-document-outline" size={18} color={hdColors.accent} />
@@ -197,14 +199,13 @@ export function MissionDetailScreen({ navigation, route }: MissionDetailScreenPr
           {parcel.qrCodeUrl && (
             <TouchableOpacity
               style={styles.docLink}
-              onPress={() => Linking.openURL(parcel.qrCodeUrl)}
+              onPress={() => openFileFromUrl(parcel.qrCodeUrl!, 'qrcode.png')}
               activeOpacity={0.7}
             >
               <MaterialCommunityIcons name="qrcode-scan" size={18} color={hdColors.accent} />
               <Text style={styles.docLinkText}>Voir le QR code</Text>
             </TouchableOpacity>
           )}
-          </View>
         </View>
       )}
 
@@ -478,12 +479,14 @@ const styles = StyleSheet.create({
   },
   codeBordereau: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: 'flex-start',
+    flexWrap: 'wrap',
     gap: 8,
     paddingHorizontal: 4,
+    width: '100%',
   },
   codeBordereauText: {
+    flex: 1,
     alignItems: 'flex-start',
   },
   codeBordereauTitle: {

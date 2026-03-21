@@ -16,6 +16,7 @@ import { colors, spacing, sizes, hdColors, borderRadius } from '../../theme';
 
 import { ParcelStatus } from '../../types';
 import { useTranslation } from '../../i18n/i18nContext';
+import { openFileFromUrl } from '../../utils/openFile';
 
 type ParcelDetailScreenProps = {
   navigation: NativeStackNavigationProp<VendorStackParamList, 'ParcelDetail'>;
@@ -810,7 +811,7 @@ export function ParcelDetailScreen({ navigation, route }: ParcelDetailScreenProp
                   <Text style={{ fontSize: 13, fontWeight: '600', color: '#2ECC71' }}>Imprimé par vous</Text>
                 </View>
               ) : currentParcel.shippingLabelUrl ? (
-                <TouchableOpacity onPress={() => Linking.openURL(currentParcel.shippingLabelUrl)} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <TouchableOpacity onPress={() => openFileFromUrl(currentParcel.shippingLabelUrl)} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                   <MaterialCommunityIcons name="file-check" size={16} color={hdColors.accent} />
                   <Text style={{ fontSize: 13, fontWeight: '600', color: hdColors.accent, textDecorationLine: 'underline' }}>Voir le bordereau</Text>
                 </TouchableOpacity>
@@ -824,7 +825,7 @@ export function ParcelDetailScreen({ navigation, route }: ParcelDetailScreenProp
                 <View style={styles.hdDivider} />
                 <View style={styles.hdInfoRow}>
                   <Text style={styles.hdLabel}>QR Code</Text>
-                  <TouchableOpacity onPress={() => Linking.openURL(currentParcel.qrCodeUrl)} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <TouchableOpacity onPress={() => openFileFromUrl(currentParcel.qrCodeUrl)} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                     <MaterialCommunityIcons name="qrcode-scan" size={16} color={hdColors.accent} />
                     <Text style={{ fontSize: 13, fontWeight: '600', color: hdColors.accent, textDecorationLine: 'underline' }}>Voir le QR code</Text>
                   </TouchableOpacity>

@@ -18,6 +18,7 @@ import { AddressAutocomplete } from '../../components/forms/AddressAutocomplete'
 import ArticleAnalysisModal from '../../components/vendor/ArticleAnalysisModal';
 import { useTranslation } from '../../i18n/i18nContext';
 import { PhotoPreviewModal } from '../../components/common/PhotoPreviewModal';
+import { ensurePdf } from '../../utils/convertToPdf';
 
 const createParcelSchema = z.object({
   pickupAddressId: z.string().min(1, 'Sélectionnez une adresse'),
@@ -334,7 +335,9 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
       });
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const file = result.assets[0];
-        setValue('shippingLabelUrl', file.uri);
+        // Convertir en PDF si c'est une image
+        const pdfUri = await ensurePdf(file.uri, file.mimeType);
+        setValue('shippingLabelUrl', pdfUri);
       }
     } catch (err) {
       console.error('Erreur lors de la sélection du document:', err);
@@ -349,7 +352,9 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
       });
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const file = result.assets[0];
-        setValue('qrCodeUrl', file.uri);
+        // Convertir en PDF si c'est une image
+        const pdfUri = await ensurePdf(file.uri, file.mimeType);
+        setValue('qrCodeUrl', pdfUri);
       }
     } catch (err) {
       console.error('Erreur lors de la sélection du QR code:', err);
@@ -372,13 +377,31 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
         pickupSlotEnd = endDate.toISOString();
       }
 
+      // Upload des documents vers Cloudinary avant création du colis
+      let uploadedShippingLabelUrl: string | undefined;
+      let uploadedQrCodeUrl: string | undefined;
+      if (data.shippingLabelUrl) {
+        try {
+          uploadedShippingLabelUrl = await api.uploadImage(data.shippingLabelUrl);
+        } catch (e) {
+          console.error('Erreur upload bordereau:', e);
+        }
+      }
+      if (data.qrCodeUrl) {
+        try {
+          uploadedQrCodeUrl = await api.uploadImage(data.qrCodeUrl);
+        } catch (e) {
+          console.error('Erreur upload QR code:', e);
+        }
+      }
+
       const parcel = await createParcel({
         pickupAddressId: data.pickupAddressId,
         size: data.size,
         carrier: data.carrier,
         hasShippingLabel: data.willPrintLabel,
-        shippingLabelUrl: data.shippingLabelUrl || undefined,
-        qrCodeUrl: data.qrCodeUrl || undefined,
+        shippingLabelUrl: uploadedShippingLabelUrl,
+        qrCodeUrl: uploadedQrCodeUrl,
         pickupMode: data.pickupMode,
         dropoffType: 'RELAY_POINT',
         dropoffName: 'Point relais',

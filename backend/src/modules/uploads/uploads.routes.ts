@@ -27,7 +27,6 @@ export async function uploadsRoutes(app: FastifyInstance) {
   app.post('/', {
     preHandler: [app.authenticate],
     config: {
-      // Augmenter la limite pour les fichiers base64 volumineux
       rawBody: true,
     },
   }, async (request: FastifyRequest, reply: FastifyReply) => {
@@ -67,7 +66,6 @@ export async function uploadsRoutes(app: FastifyInstance) {
 
   // ============================================================
   // Route base64 explicite: POST /uploads/base64
-  // (Gardée pour compatibilité, mais /uploads accepte aussi le JSON)
   // ============================================================
   app.post('/base64', {
     preHandler: [app.authenticate],
@@ -80,6 +78,17 @@ export async function uploadsRoutes(app: FastifyInstance) {
       return reply.status(500).send({ error: error.message });
     }
   });
+}
+
+// Détermine le resource_type Cloudinary en fonction du MIME
+function getCloudinaryResourceType(mimeType: string): 'image' | 'raw' | 'auto' {
+  if (mimeType === 'application/pdf') {
+    return 'raw';  // PDF doit être uploadé en "raw" pour être servi correctement
+  }
+  if (mimeType.startsWith('image/')) {
+    return 'image';
+  }
+  return 'auto';
 }
 
 // Handler pour upload multipart (FormData)
@@ -111,11 +120,14 @@ async function handleMultipartUpload(request: FastifyRequest, reply: FastifyRepl
   const dataUri = `data:${data.mimetype};base64,${base64}`;
 
   const publicId = `hopdrop/${Date.now()}-${randomUUID()}`;
+  const resourceType = getCloudinaryResourceType(data.mimetype);
+
+  app.log.info(`[UPLOAD] Multipart - MIME: ${data.mimetype} -> resource_type: ${resourceType}`);
 
   const result = await cloudinary.uploader.upload(dataUri, {
     public_id: publicId,
     folder: 'hopdrop',
-    resource_type: 'auto',
+    resource_type: resourceType,
   });
 
   app.log.info(`[UPLOAD] Multipart -> Cloudinary OK: ${result.secure_url}`);
@@ -143,18 +155,29 @@ async function handleBase64Upload(request: FastifyRequest, reply: FastifyReply, 
   app.log.info(`[UPLOAD] Base64 reçu - taille: ${Math.round(base64Data.length / 1024)} KB - folder: ${folder}`);
 
   let dataUri = base64Data;
-  if (!base64Data.startsWith('data:')) {
-    const mimeType = detectMimeType(base64Data);
-    dataUri = `data:${mimeType};base64,${base64Data}`;
-    app.log.info(`[UPLOAD] MIME détecté automatiquement: ${mimeType}`);
+  let detectedMime = 'image/jpeg';
+
+  if (base64Data.startsWith('data:')) {
+    // Extraire le MIME du data URI
+    const mimeMatch = base64Data.match(/^data:([^;]+);base64,/);
+    if (mimeMatch) {
+      detectedMime = mimeMatch[1];
+    }
+  } else {
+    detectedMime = detectMimeType(base64Data);
+    dataUri = `data:${detectedMime};base64,${base64Data}`;
+    app.log.info(`[UPLOAD] MIME détecté automatiquement: ${detectedMime}`);
   }
 
   const publicId = `${folder}/${Date.now()}-${randomUUID()}`;
+  const resourceType = getCloudinaryResourceType(detectedMime);
+
+  app.log.info(`[UPLOAD] Base64 - MIME: ${detectedMime} -> resource_type: ${resourceType}`);
 
   const result = await cloudinary.uploader.upload(dataUri, {
     public_id: publicId,
     folder: folder,
-    resource_type: 'auto',
+    resource_type: resourceType,
   });
 
   app.log.info(`[UPLOAD] Base64 -> Cloudinary OK: ${result.secure_url}`);

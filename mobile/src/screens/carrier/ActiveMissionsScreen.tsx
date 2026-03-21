@@ -17,6 +17,7 @@ import { Mission, MissionStatus, Carrier } from '../../types';
 import { useTranslation } from '../../i18n/i18nContext';
 import { PhotoPreviewModal } from '../../components/common/PhotoPreviewModal';
 import { locationService } from '../../services/location';
+import { openFileFromUrl } from '../../utils/openFile';
 
 type ActiveMissionsScreenProps = {
   navigation: NativeStackNavigationProp<CarrierStackParamList, 'ActiveMissions'>;
@@ -597,7 +598,7 @@ export function ActiveMissionsScreen({ navigation }: ActiveMissionsScreenProps) 
               {parcel.shippingLabelUrl && (
                 <TouchableOpacity
                   style={styles.docLinkRow}
-                  onPress={() => Linking.openURL(parcel.shippingLabelUrl)}
+                  onPress={() => openFileFromUrl(parcel.shippingLabelUrl!, 'bordereau.pdf')}
                   activeOpacity={0.7}
                 >
                   <MaterialCommunityIcons name="file-document-outline" size={14} color={hdColors.accent} />
@@ -607,7 +608,7 @@ export function ActiveMissionsScreen({ navigation }: ActiveMissionsScreenProps) 
               {parcel.qrCodeUrl && (
                 <TouchableOpacity
                   style={styles.docLinkRow}
-                  onPress={() => Linking.openURL(parcel.qrCodeUrl)}
+                  onPress={() => openFileFromUrl(parcel.qrCodeUrl!, 'qrcode.png')}
                   activeOpacity={0.7}
                 >
                   <MaterialCommunityIcons name="qrcode-scan" size={14} color={hdColors.accent} />
