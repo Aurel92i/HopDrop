@@ -18,7 +18,7 @@ import { AddressAutocomplete } from '../../components/forms/AddressAutocomplete'
 import ArticleAnalysisModal from '../../components/vendor/ArticleAnalysisModal';
 import { useTranslation } from '../../i18n/i18nContext';
 import { PhotoPreviewModal } from '../../components/common/PhotoPreviewModal';
-import { ensurePdf } from '../../utils/convertToPdf';
+
 
 const createParcelSchema = z.object({
   pickupAddressId: z.string().min(1, 'Sélectionnez une adresse'),
@@ -335,9 +335,7 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
       });
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const file = result.assets[0];
-        // Convertir en PDF si c'est une image
-        const pdfUri = await ensurePdf(file.uri, file.mimeType);
-        setValue('shippingLabelUrl', pdfUri);
+        setValue('shippingLabelUrl', file.uri);
       }
     } catch (err) {
       console.error('Erreur lors de la sélection du document:', err);
@@ -352,9 +350,7 @@ export function CreateParcelScreen({ navigation }: CreateParcelScreenProps) {
       });
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const file = result.assets[0];
-        // Convertir en PDF si c'est une image
-        const pdfUri = await ensurePdf(file.uri, file.mimeType);
-        setValue('qrCodeUrl', pdfUri);
+        setValue('qrCodeUrl', file.uri);
       }
     } catch (err) {
       console.error('Erreur lors de la sélection du QR code:', err);
